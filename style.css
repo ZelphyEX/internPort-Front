@@ -1,0 +1,146 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  background: radial-gradient(circle at top, #2b1055, #0d0518 70%);
+  color: #f5f0ff;
+  padding: 24px;
+}
+
+.stage {
+  width: 100%;
+  max-width: 560px;
+}
+
+.panel {
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 20px;
+  padding: 40px 32px;
+  text-align: center;
+  backdrop-filter: blur(6px);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+}
+
+.hidden {
+  display: none;
+}
+
+.title {
+  font-size: 3rem;
+  margin: 0 0 8px;
+  font-weight: 800;
+  letter-spacing: -1px;
+}
+
+.title .dot {
+  color: #ff5fa2;
+}
+
+.subtitle {
+  margin: 0 0 32px;
+  font-size: 1.1rem;
+  opacity: 0.8;
+}
+
+.choices {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.choice-btn {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  width: 100%;
+  padding: 16px 20px;
+  font-size: 1.1rem;
+  font-weight: 600;
+  color: #fff;
+  background: linear-gradient(135deg, #6a2fd0, #ff5fa2);
+  border: none;
+  border-radius: 14px;
+  cursor: pointer;
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.choice-btn .emoji {
+  font-size: 1.4rem;
+}
+
+.choice-btn:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 10px 24px rgba(255, 95, 162, 0.35);
+}
+
+.choice-btn:active {
+  transform: translateY(0);
+}
+
+.category-label {
+  text-transform: uppercase;
+  letter-spacing: 2px;
+  font-size: 0.85rem;
+  opacity: 0.6;
+  margin: 0 0 16px;
+}
+
+.result-text {
+  font-size: 1.4rem;
+  line-height: 1.6;
+  white-space: pre-line;
+  min-height: 80px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 0 32px;
+}
+
+.actions {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.action-btn {
+  padding: 14px 20px;
+  font-size: 1rem;
+  font-weight: 600;
+  border-radius: 12px;
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  background: transparent;
+  color: #fff;
+  cursor: pointer;
+  transition: background 0.15s ease, transform 0.15s ease;
+}
+
+.action-btn:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-1px);
+}
+
+.action-btn.primary {
+  background: linear-gradient(135deg, #6a2fd0, #ff5fa2);
+  border: none;
+}
+
+.action-btn.primary:hover {
+  box-shadow: 0 10px 24px rgba(255, 95, 162, 0.35);
+}
+
+@media (max-width: 480px) {
+  .title {
+    font-size: 2.3rem;
+  }
+  .panel {
+    padding: 32px 20px;
+  }
+}
