@@ -1,0 +1,8 @@
+.git
+.github
+.Claude
+.claude
+*.md
+Dockerfile
+.dockerignore
+hello.py

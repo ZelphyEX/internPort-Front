@@ -1,0 +1,82 @@
+name: Build and Deploy to Cloud Run
+
+# Deploy on every push to main.
+on:
+  push:
+    branches: [main]
+
+# Values you must set. Repository -> Settings -> Secrets and variables -> Actions.
+#
+# Variables (Variables tab):
+#   GCP_PROJECT_ID         e.g. my-project-123456
+#   GCP_REGION             e.g. us-central1
+#   AR_REPOSITORY          Artifact Registry repo name, e.g. jonkler
+#   CLOUD_RUN_SERVICE      Cloud Run service name, e.g. jonkler
+#   WIF_SERVICE_ACCOUNT    deployer SA email, e.g. gh-deployer@my-project.iam.gserviceaccount.com
+#
+# Secrets (Secrets tab):
+#   WIF_PROVIDER           full Workload Identity provider resource name:
+#     projects/<PROJECT_NUMBER>/locations/global/workloadIdentityPools/<POOL>/providers/<PROVIDER>
+#
+# One-time GCP setup (run locally with gcloud), summarized:
+#   1. Enable APIs: run.googleapis.com, artifactregistry.googleapis.com, iamcredentials.googleapis.com
+#   2. Create the Artifact Registry docker repo (AR_REPOSITORY) in GCP_REGION.
+#   3. Create a Workload Identity Pool + provider bound to this GitHub repo.
+#   4. Create the deployer service account (WIF_SERVICE_ACCOUNT) with roles:
+#        roles/run.admin, roles/artifactregistry.writer, roles/iam.serviceAccountUser
+#   5. Allow the WIF principal to impersonate that SA.
+
+env:
+  IMAGE: ${{ vars.GCP_REGION }}-docker.pkg.dev/${{ vars.GCP_PROJECT_ID }}/${{ vars.AR_REPOSITORY }}/${{ vars.CLOUD_RUN_SERVICE }}
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+
+    # Required for Workload Identity Federation (keyless auth).
+    permissions:
+      contents: read
+      id-token: write
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Authenticate to Google Cloud
+        id: auth
+        uses: google-github-actions/auth@v2
+        with:
+          project_id: ${{ vars.GCP_PROJECT_ID }}
+          workload_identity_provider: ${{ secrets.WIF_PROVIDER }}
+          service_account: ${{ vars.WIF_SERVICE_ACCOUNT }}
+
+      - name: Set up Cloud SDK
+        uses: google-github-actions/setup-gcloud@v2
+
+      - name: Configure Docker for Artifact Registry
+        run: gcloud auth configure-docker ${{ vars.GCP_REGION }}-docker.pkg.dev --quiet
+
+      - name: Build image
+        run: |
+          docker build \
+            -t "$IMAGE:${{ github.sha }}" \
+            -t "$IMAGE:latest" \
+            .
+
+      - name: Push image
+        run: |
+          docker push "$IMAGE:${{ github.sha }}"
+          docker push "$IMAGE:latest"
+
+      - name: Deploy to Cloud Run
+        uses: google-github-actions/deploy-cloudrun@v2
+        with:
+          service: ${{ vars.CLOUD_RUN_SERVICE }}
+          region: ${{ vars.GCP_REGION }}
+          image: ${{ env.IMAGE }}:${{ github.sha }}
+
+      - name: Show deployed URL
+        run: |
+          gcloud run services describe "${{ vars.CLOUD_RUN_SERVICE }}" \
+            --region "${{ vars.GCP_REGION }}" \
+            --format 'value(status.url)'

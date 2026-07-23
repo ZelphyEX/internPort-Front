@@ -57,9 +57,15 @@ const categoryLabel = document.getElementById("category-label");
 const resultText = document.getElementById("result-text");
 const anotherBtn = document.getElementById("another-btn");
 const backBtn = document.getElementById("back-btn");
+const laughTrack = document.getElementById("laugh-track");
 
 let currentCategory = null;
 let lastIndex = -1;
+
+function playLaughTrack() {
+  laughTrack.currentTime = 0;
+  laughTrack.play().catch(() => {});
+}
 
 function pickRandom(category) {
   const list = content[category];
@@ -77,6 +83,7 @@ function showResult(category) {
   resultText.textContent = pickRandom(category);
   picker.classList.add("hidden");
   result.classList.remove("hidden");
+  playLaughTrack();
 }
 
 document.querySelectorAll(".choice-btn").forEach((btn) => {
@@ -85,6 +92,7 @@ document.querySelectorAll(".choice-btn").forEach((btn) => {
 
 anotherBtn.addEventListener("click", () => {
   resultText.textContent = pickRandom(currentCategory);
+  playLaughTrack();
 });
 
 backBtn.addEventListener("click", () => {
