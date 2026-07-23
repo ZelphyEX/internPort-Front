@@ -41,9 +41,19 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [regDepartment] = useState<Department>('Java Back-End');
   const [regError, setRegError] = useState('');
 
+  const [loginError, setLoginError] = useState('');
+
   const handleLoginSubmit = (e: React.FormEvent) => {
     e.preventDefault();
+    setLoginError('');
     if (!loginEmail) return;
+
+    // Nếu tài khoản này đã từng đổi mật khẩu trong phần Cài đặt, đối chiếu lại mật khẩu đã lưu
+    const savedPassword = localStorage.getItem(`gimasys_pwd_${loginEmail.trim().toLowerCase()}`);
+    if (savedPassword && savedPassword !== loginPassword) {
+      setLoginError('Sai mật khẩu. Vui lòng thử lại.');
+      return;
+    }
 
     // Check if matches one of demo users or create custom session
     const matched = DEMO_AUTH_USERS.find(
@@ -92,7 +102,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       department: regDepartment,
       roleTitle: regRole === 'ADMIN' ? 'Quản trị viên / HR Manager' :
                  regRole === 'MENTOR' ? 'Mentor Hướng dẫn Kỹ thuật' :
-                 regRole === 'PROJECT_LEAD' ? 'Project Tech Lead' :
                  `Thực tập sinh ${regDepartment}`,
       avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300`,
       internId: regRole === 'INTERN' ? newId : undefined
@@ -252,6 +261,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 </div>
               </div>
 
+              {loginError && (
+                <p className="text-[11px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 rounded-lg px-3 py-2">
+                  {loginError}
+                </p>
+              )}
+
               <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <button
                   type="submit"
@@ -348,7 +363,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 >
                   <option value="INTERN">🎓 Thực tập sinh (INTERN)</option>
                   <option value="MENTOR">👨‍🏫 Mentor Hướng dẫn (MENTOR)</option>
-                  <option value="PROJECT_LEAD">💼 Trưởng dự án (PROJECT_LEAD)</option>
                   <option value="ADMIN">🛡️ Quản trị viên Nhân sự (ADMIN)</option>
                 </select>
               </div>
@@ -412,7 +426,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       </main>
 
       {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-900/80 text-center py-4 text-xs text-slate-500 z-10">
+      <footer className="border-t border-slate-800 bg-slate-900/80 text-center py-4 text-xs text-slate-500 dark:text-slate-400 z-10">
         © 2025 Công ty Cổ phần Công nghệ Gimasys. Mọi quyền được bảo lưu.
       </footer>
 

@@ -1,16 +1,17 @@
 import React from 'react';
-import { 
-  LayoutDashboard, 
-  Users, 
-  Kanban, 
-  FileSpreadsheet, 
-  Compass, 
-  FolderGit2, 
+import {
+  LayoutDashboard,
+  Users,
+  Kanban,
+  FileSpreadsheet,
+  Compass,
+  FolderGit2,
   GraduationCap,
   Sparkles,
   PlusCircle,
   HelpCircle,
-  Settings
+  Settings,
+  UserPlus
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -23,6 +24,7 @@ interface SidebarProps {
   onOpenAddIntern: () => void;
   onOpenAddTask: () => void;
   onOpenAddReport: () => void;
+  onOpenInvite?: () => void;
   pendingReviewsCount: number;
 }
 
@@ -33,6 +35,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAddIntern,
   onOpenAddTask,
   onOpenAddReport,
+  onOpenInvite,
   pendingReviewsCount
 }) => {
   const navItems = [
@@ -97,6 +100,18 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3 px-3">
             Menu Quản lý
           </p>
+
+          {onOpenInvite && (
+            <button
+              id="btn-invite-member"
+              onClick={onOpenInvite}
+              className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-xs text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 transition-all cursor-pointer"
+            >
+              <UserPlus className="w-4 h-4" />
+              <span>Mời Người Vào Nhóm</span>
+            </button>
+          )}
+
           <nav className="space-y-1">
             {navItems.map((item) => {
               const Icon = item.icon;
@@ -144,7 +159,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
 
-            {(currentRole === 'ADMIN' || currentRole === 'MENTOR' || currentRole === 'PROJECT_LEAD') && (
+            {(currentRole === 'ADMIN' || currentRole === 'MENTOR') && (
               <button
                 id="btn-quick-add-task"
                 onClick={onOpenAddTask}

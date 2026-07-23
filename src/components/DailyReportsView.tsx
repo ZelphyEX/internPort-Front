@@ -75,14 +75,14 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
-            <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight">Báo cáo Công việc Hằng ngày (Daily Standup)</h1>
+            <h1 className="text-2xl font-extrabold text-slate-900 dark:text-slate-100 tracking-tight">Báo cáo Công việc Hằng ngày (Daily Standup)</h1>
             {currentRole === 'INTERN' && (
               <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-amber-100 text-amber-800 border border-amber-200">
                 Chế độ Cá nhân (Intern)
               </span>
             )}
           </div>
-          <p className="text-xs text-slate-500">
+          <p className="text-xs text-slate-500 dark:text-slate-400">
             {currentRole === 'INTERN' 
               ? `Nhật ký báo cáo Standup cá nhân của thực tập sinh: ${currentUser?.name || ''}`
               : 'Theo dõi những việc đã làm, dự định ngày mai, các vướng mắc (blockers) và nhận xét từ Mentor'}
@@ -93,9 +93,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <button
             onClick={handleGenerateAiSummary}
             disabled={isSummarizing}
-            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 shadow-md transition-all cursor-pointer disabled:opacity-50"
+            className="inline-flex items-center gap-2 px-3.5 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 bg-amber-400 hover:bg-amber-300 shadow-md transition-all cursor-pointer disabled:opacity-50"
           >
-            <Sparkles className="w-4 h-4 text-slate-900" />
+            <Sparkles className="w-4 h-4 text-slate-900 dark:text-slate-100" />
             <span>{isSummarizing ? 'Đang phân tích...' : 'Tổng hợp Standup AI'}</span>
           </button>
 
@@ -117,35 +117,35 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             <Sparkles className="w-4 h-4 text-amber-600" />
             <span>TỔNG HỢP STANDUP HẰNG NGÀY BẰNG AI (Gemini)</span>
           </div>
-          <div className="prose prose-xs max-w-none text-slate-700 leading-relaxed whitespace-pre-line bg-white/80 p-4 rounded-xl border border-amber-100">
+          <div className="prose prose-xs max-w-none text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line bg-white/80 p-4 rounded-xl border border-amber-100">
             {aiSummary}
           </div>
         </div>
       )}
 
       {/* Filter Tabs */}
-      <div className="flex items-center gap-2 border-b border-slate-200 pb-3">
+      <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-700 pb-3">
         <button
           onClick={() => setFilterStatus('ALL')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'ALL' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'}`}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'ALL' ? 'bg-slate-900 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100'}`}
         >
           Tất cả ({userReports.length})
         </button>
         <button
           onClick={() => setFilterStatus('Pending')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'Pending' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'}`}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'Pending' ? 'bg-amber-500 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100'}`}
         >
           Chờ Duyệt ({userReports.filter(r => r.status === 'Pending').length})
         </button>
         <button
           onClick={() => setFilterStatus('Approved')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'Approved' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'}`}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'Approved' ? 'bg-emerald-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100'}`}
         >
           Đã Duyệt ({userReports.filter(r => r.status === 'Approved').length})
         </button>
         <button
           onClick={() => setFilterStatus('Needs Revision')}
-          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'Needs Revision' ? 'bg-red-600 text-white shadow-2xs' : 'text-slate-600 hover:bg-slate-100'}`}
+          className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all ${filterStatus === 'Needs Revision' ? 'bg-red-600 text-white shadow-2xs' : 'text-slate-600 dark:text-slate-400 hover:bg-slate-100'}`}
         >
           Cần Chỉnh sửa ({userReports.filter(r => r.status === 'Needs Revision').length})
         </button>
@@ -154,9 +154,9 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
       {/* Reports Feed */}
       <div className="space-y-4">
         {filteredReports.length === 0 ? (
-          <div className="bg-white rounded-2xl p-12 text-center border border-slate-200">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-12 text-center border border-slate-200 dark:border-slate-700">
             <FileSpreadsheet className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-            <h3 className="text-base font-extrabold text-slate-800">Không có báo cáo nào trong danh sách</h3>
+            <h3 className="text-base font-extrabold text-slate-800 dark:text-slate-200">Không có báo cáo nào trong danh sách</h3>
           </div>
         ) : (
           filteredReports.map((rep) => {
@@ -166,17 +166,17 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
             return (
               <div
                 key={rep.id}
-                className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs space-y-4 hover:border-blue-200 transition-all"
+                className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-2xs space-y-4 hover:border-blue-200 transition-all"
               >
                 {/* Header Row */}
-                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100">
+                <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 pb-3 border-b border-slate-100 dark:border-slate-800">
                   <div className="flex items-center gap-3">
                     <div className="w-10 h-10 rounded-full bg-blue-100 text-blue-800 font-bold flex items-center justify-center text-sm shrink-0">
                       {rep.internName.charAt(0)}
                     </div>
                     <div>
-                      <h3 className="font-extrabold text-slate-900 text-sm">{rep.internName}</h3>
-                      <p className="text-xs text-slate-500 font-medium">
+                      <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">{rep.internName}</h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
                         Khối {rep.department} • {rep.date} ({rep.hoursLogged}h làm việc)
                       </p>
                     </div>
@@ -193,18 +193,18 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
 
                 {/* Report Content Grid */}
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4 text-xs">
-                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                    <span className="font-bold text-slate-900 block text-[11px] uppercase tracking-wider text-emerald-800">
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 space-y-1">
+                    <span className="font-bold text-slate-900 dark:text-slate-100 block text-[11px] uppercase tracking-wider text-emerald-800">
                       ✅ Việc đã hoàn thành hôm nay:
                     </span>
-                    <p className="text-slate-700 leading-relaxed">{rep.completedToday}</p>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{rep.completedToday}</p>
                   </div>
 
-                  <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200/80 space-y-1">
-                    <span className="font-bold text-slate-900 block text-[11px] uppercase tracking-wider text-blue-800">
+                  <div className="p-3.5 bg-slate-50 dark:bg-slate-900 rounded-xl border border-slate-200/80 space-y-1">
+                    <span className="font-bold text-slate-900 dark:text-slate-100 block text-[11px] uppercase tracking-wider text-blue-800">
                       🚀 Kế hoạch ngày mai:
                     </span>
-                    <p className="text-slate-700 leading-relaxed">{rep.tomorrowPlan}</p>
+                    <p className="text-slate-700 dark:text-slate-300 leading-relaxed">{rep.tomorrowPlan}</p>
                   </div>
 
                   <div className="p-3.5 bg-amber-50/60 rounded-xl border border-amber-200/80 space-y-1">
@@ -220,7 +220,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                   <div className="bg-emerald-50/60 p-3.5 rounded-xl border border-emerald-200 text-xs flex items-center justify-between">
                     <div className="space-y-1">
                       <span className="font-bold text-emerald-900">Nhận xét từ Mentor:</span>
-                      <p className="text-slate-700">{rep.mentorComment || 'Báo cáo đầy đủ, tiến độ đạt yêu cầu.'}</p>
+                      <p className="text-slate-700 dark:text-slate-300">{rep.mentorComment || 'Báo cáo đầy đủ, tiến độ đạt yêu cầu.'}</p>
                     </div>
                     {rep.rating && (
                       <div className="flex items-center gap-1 text-amber-500 font-extrabold text-sm shrink-0">
@@ -231,8 +231,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                   </div>
                 ) : (currentRole === 'ADMIN' || currentRole === 'MENTOR') ? (
                   /* Mentor Review Actions Controls */
-                  <div className="pt-3 border-t border-slate-100 space-y-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200">
-                    <span className="font-extrabold text-xs text-slate-800 block">
+                  <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
+                    <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 block">
                       Phê duyệt & Đánh giá Báo cáo này (Mentor Action)
                     </span>
                     
@@ -242,14 +242,14 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                         value={comment}
                         onChange={(e) => setMentorCommentMap({ ...mentorCommentMap, [rep.id]: e.target.value })}
                         placeholder="Nhập nhận xét hoặc chỉ dẫn cho thực tập sinh..."
-                        className="flex-1 px-3 py-2 text-xs bg-white border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+                        className="flex-1 px-3 py-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
 
                       <div className="flex items-center gap-2 shrink-0">
                         <select
                           value={rating}
                           onChange={(e) => setMentorRatingMap({ ...mentorRatingMap, [rep.id]: Number(e.target.value) })}
-                          className="px-2 py-2 text-xs bg-white border border-slate-200 rounded-xl font-bold"
+                          className="px-2 py-2 text-xs bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl font-bold"
                         >
                           <option value={5}>5 sao ⭐⭐⭐⭐⭐</option>
                           <option value={4}>4 sao ⭐⭐⭐⭐</option>

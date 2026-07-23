@@ -1,6 +1,6 @@
-export type UserRole = 'ADMIN' | 'MENTOR' | 'PROJECT_LEAD' | 'INTERN';
+export type UserRole = 'ADMIN' | 'MENTOR' | 'INTERN';
 
-export type InternStatus = 'Onboarding' | 'Active' | 'Reviewing' | 'Graduated' | 'Paused';
+export type InternStatus = 'Onboarding' | 'Active' | 'Reviewing' | 'Graduated' | 'Paused' | 'Removed';
 
 export type TaskStatus = 'To Do' | 'In Progress' | 'In Review' | 'Done' | 'Blocked';
 
@@ -49,6 +49,7 @@ export interface Project {
   status: 'In Planning' | 'Active' | 'Under Review' | 'Completed';
   lead: string;
   membersCount: number;
+  memberIds?: string[];
   progress: number;
   deadline: string;
   description: string;
@@ -131,6 +132,8 @@ export interface TrainingModule {
   status: 'Not Started' | 'In Progress' | 'Completed';
   skilljarUrl?: string; // Main Anthropic Skilljar URL
   majorTasks?: CourseMajorTask[]; // Các Task lớn & Section nhỏ
+  color?: string; // Màu hiển thị của khoá học trên Lộ trình Đào tạo
+  isLocked?: boolean; // true = khoá học mặc định, không thể xoá (VD: CCA-F)
 }
 
 export interface DocumentResource {
@@ -173,6 +176,25 @@ export interface AuthUser {
   roleTitle: string;
   avatar: string;
   internId?: string; // If role is INTERN, links to Intern record
+}
+
+export interface GroupMember {
+  userId: string;
+  userName: string;
+  userEmail: string;
+  avatar: string;
+  role: UserRole; // Vai trò của thành viên này trong nhóm
+  status: 'Pending' | 'Approved' | 'Rejected';
+  joinedAt: string;
+}
+
+export interface Group {
+  id: string;
+  name: string;
+  code: string; // Mã mời để join nhóm
+  createdBy: string; // userId của người tạo (mặc định là Admin)
+  createdAt: string;
+  members: GroupMember[];
 }
 
 export interface AIEvalReport {

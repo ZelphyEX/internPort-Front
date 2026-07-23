@@ -49,13 +49,13 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 space-y-4">
-        <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-          <div className="flex items-center gap-2 text-slate-900 font-extrabold text-base">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
+        <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-extrabold text-base">
             <FileSpreadsheet className="w-5 h-5 text-amber-600" />
             <span>Nộp Báo cáo Ngày (Daily Standup)</span>
           </div>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 text-slate-500">
+          <button onClick={onClose} className="p-1 rounded-full hover:bg-slate-100 text-slate-500 dark:text-slate-400">
             <X className="w-5 h-5" />
           </button>
         </div>
@@ -63,11 +63,11 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Thực tập sinh nộp *</label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Thực tập sinh nộp *</label>
               <select
                 value={selectedInternId}
                 onChange={(e) => setSelectedInternId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
               >
                 {interns.map(i => (
                   <option key={i.id} value={i.id}>{i.name} ({i.department})</option>
@@ -76,63 +76,63 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
             </div>
 
             <div>
-              <label className="font-bold text-slate-700 block mb-1">Số giờ làm việc hôm nay</label>
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Số giờ làm việc hôm nay</label>
               <input
                 type="number"
                 min={1}
                 max={12}
                 value={hoursLogged}
                 onChange={(e) => setHoursLogged(Number(e.target.value))}
-                className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
+                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-bold"
               />
             </div>
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 block mb-1">✅ Công việc đã hoàn thành hôm nay *</label>
+            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">✅ Công việc đã hoàn thành hôm nay *</label>
             <textarea
               rows={3}
               required
               value={completedToday}
               onChange={(e) => setCompletedToday(e.target.value)}
               placeholder="VD: Đã hoàn thành API JWT auth, viết unit test cho Redis service..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 block mb-1">🚀 Kế hoạch công việc ngày mai</label>
+            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">🚀 Kế hoạch công việc ngày mai</label>
             <textarea
               rows={2}
               value={tomorrowPlan}
               onChange={(e) => setTomorrowPlan(e.target.value)}
               placeholder="VD: Nghiên cứu tối ưu hóa PostgreSQL query và review PR..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
           <div>
-            <label className="font-bold text-slate-700 block mb-1">🚧 Vướng mắc (Blockers) nếu có</label>
+            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">🚧 Vướng mắc (Blockers) nếu có</label>
             <input
               type="text"
               value={blockers}
               onChange={(e) => setBlockers(e.target.value)}
               placeholder="VD: Cần cấp thêm quyền truy cập Staging Database AWS..."
-              className="w-full px-3 py-2 bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
             />
           </div>
 
-          <div className="pt-3 border-t border-slate-100 flex items-center justify-end gap-2">
+          <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-slate-200 text-slate-700 font-bold"
+              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 font-bold shadow-xs"
+              className="px-5 py-2 rounded-xl bg-amber-500 hover:bg-amber-400 text-slate-900 dark:text-slate-100 font-bold shadow-xs"
             >
               Gửi Báo cáo ngay
             </button>

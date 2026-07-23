@@ -161,7 +161,11 @@ Viết bằng tiếng Việt chuyên nghiệp, ngắn gọn dạng danh sách g�
 async function startServer() {
   if (process.env.NODE_ENV !== "production") {
     const vite = await createViteServer({
-      server: { middlewareMode: true },
+      server: {
+        middlewareMode: true,
+        // Cho phép truy cập qua các host ngoài localhost (vd: link ngrok, domain tạm) khi demo
+        allowedHosts: true,
+      },
       appType: "spa",
     });
     app.use(vite.middlewares);

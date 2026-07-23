@@ -100,7 +100,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-      <div className="bg-white rounded-3xl max-w-2xl w-full h-[650px] shadow-2xl border border-slate-200 flex flex-col overflow-hidden">
+      <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full h-[650px] shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
         
         {/* Header */}
         <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-4 px-6 flex items-center justify-between shrink-0">
@@ -143,7 +143,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
               <div className={`max-w-[80%] rounded-2xl p-4 text-xs space-y-1 shadow-2xs ${
                 msg.sender === 'user' 
                   ? 'bg-blue-600 text-white rounded-br-none' 
-                  : 'bg-white text-slate-800 border border-slate-200/90 rounded-bl-none'
+                  : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 rounded-bl-none'
               }`}>
                 <div className="prose prose-xs max-w-none leading-relaxed whitespace-pre-line">
                   {msg.text}
@@ -166,7 +166,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
               <div className="w-8 h-8 rounded-xl bg-indigo-600 text-white flex items-center justify-center shrink-0">
                 <Bot className="w-4 h-4" />
               </div>
-              <div className="bg-white border border-slate-200 rounded-2xl p-3 text-xs text-slate-500 flex items-center gap-2">
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
                 <span>AI Mentor đang tư duy...</span>
               </div>
@@ -177,13 +177,13 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
         </div>
 
         {/* Suggestion Chips */}
-        <div className="p-3 bg-white border-t border-slate-100 flex items-center gap-2 overflow-x-auto shrink-0">
+        <div className="p-3 bg-white dark:bg-slate-800 border-t border-slate-100 dark:border-slate-800 flex items-center gap-2 overflow-x-auto shrink-0">
           <span className="text-[10px] font-bold text-slate-400 shrink-0 uppercase">Gợi ý:</span>
           {promptChips.map((chip, idx) => (
             <button
               key={idx}
               onClick={() => handleSendPrompt(chip)}
-              className="text-[11px] font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1 rounded-full whitespace-nowrap transition-colors shrink-0 cursor-pointer"
+              className="text-[11px] font-semibold bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 px-3 py-1 rounded-full whitespace-nowrap transition-colors shrink-0 cursor-pointer"
             >
               {chip}
             </button>
@@ -191,7 +191,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
         </div>
 
         {/* Input Bar */}
-        <div className="p-4 bg-white border-t border-slate-200 shrink-0">
+        <div className="p-4 bg-white dark:bg-slate-800 border-t border-slate-200 dark:border-slate-700 shrink-0">
           <form
             onSubmit={(e) => {
               e.preventDefault();
@@ -204,7 +204,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
               value={inputPrompt}
               onChange={(e) => setInputPrompt(e.target.value)}
               placeholder="Nhập câu hỏi cho AI Mentor Gimasys..."
-              className="flex-1 px-4 py-2.5 text-xs bg-slate-50 border border-slate-200 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
+              className="flex-1 px-4 py-2.5 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:bg-white"
             />
             <button
               type="submit"

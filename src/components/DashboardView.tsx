@@ -105,7 +105,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <span>Gimasys Intern Management Portal</span>
             </div>
             <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight">
-              Xin chào, {currentRole === 'ADMIN' ? 'Quản trị viên HR' : currentRole === 'MENTOR' ? 'Mentor Chuyên gia' : currentRole === 'PROJECT_LEAD' ? 'Project Lead' : 'Thực tập sinh'} 👋
+              Xin chào, {currentRole === 'ADMIN' ? 'Quản trị viên HR' : currentRole === 'MENTOR' ? 'Mentor Chuyên gia' : 'Thực tập sinh'} 👋
             </h1>
             <p className="mt-2 text-slate-300 text-sm max-w-2xl leading-relaxed">
               Theo dõi tiến độ học tập, giao task dự án, duyệt báo cáo hằng ngày và đánh giá năng lực thực tập sinh chuẩn hóa quy trình Gimasys.
@@ -117,7 +117,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             <button
               onClick={handleGenerateAiSummary}
               disabled={isSummarizing}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 bg-amber-400 hover:bg-amber-300 shadow-md transition-all cursor-pointer disabled:opacity-50"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 bg-amber-400 hover:bg-amber-300 shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
               <Sparkles className="w-4 h-4" />
               <span>{isSummarizing ? 'Đang tóm tắt...' : 'Tóm tắt Standup AI'}</span>
@@ -125,7 +125,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
             <button
               onClick={() => onNavigateTab('skilljar')}
-              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 shadow-md transition-all cursor-pointer"
+              className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 bg-gradient-to-r from-amber-400 to-orange-400 hover:from-amber-300 hover:to-orange-300 shadow-md transition-all cursor-pointer"
             >
               <Award className="w-4 h-4 text-slate-950" />
               <span>Khóa học Anthropic Skilljar</span>
@@ -161,16 +161,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 1: Total Interns */}
         <div 
           onClick={() => currentRole !== 'INTERN' && onNavigateTab('interns')}
-          className={`bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition-all group ${currentRole !== 'INTERN' ? 'cursor-pointer' : ''}`}
+          className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md transition-all group ${currentRole !== 'INTERN' ? 'cursor-pointer' : ''}`}
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Tổng Thực tập sinh</span>
-            <div className="w-10 h-10 rounded-xl bg-blue-50 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tổng Thực tập sinh</span>
+            <div className="w-10 h-10 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-600 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Users className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900">{totalInterns}</span>
+            <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">{totalInterns}</span>
             <span className="text-xs font-semibold text-emerald-600 flex items-center">
               <TrendingUp className="w-3 h-3 mr-0.5" />
               {activeInterns} đang làm việc
@@ -182,16 +182,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 2: Standup Submission Rate */}
         <div 
           onClick={() => onNavigateTab('daily_reports')}
-          className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Báo cáo Standup</span>
-            <div className="w-10 h-10 rounded-xl bg-amber-50 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Báo cáo Standup</span>
+            <div className="w-10 h-10 rounded-xl bg-amber-50 dark:bg-amber-950/30 text-amber-600 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Clock className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900">95.8%</span>
+            <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">95.8%</span>
             {pendingReports.length > 0 && (
               <span className="text-xs font-bold px-2 py-0.5 bg-red-100 text-red-700 rounded-full">
                 {pendingReports.length} chờ duyệt
@@ -204,17 +204,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 3: Avg Performance Score */}
         <div 
           onClick={() => currentRole !== 'INTERN' && onNavigateTab('interns')}
-          className={`bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition-all group ${currentRole !== 'INTERN' ? 'cursor-pointer' : ''}`}
+          className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md transition-all group ${currentRole !== 'INTERN' ? 'cursor-pointer' : ''}`}
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Điểm Năng lực TB</span>
-            <div className="w-10 h-10 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Điểm Năng lực TB</span>
+            <div className="w-10 h-10 rounded-xl bg-purple-50 dark:bg-purple-950/30 text-purple-600 flex items-center justify-center group-hover:scale-110 transition-transform">
               <Award className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900">{avgScore}</span>
-            <span className="text-xs font-semibold text-slate-500">/ 10 điểm</span>
+            <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">{avgScore}</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">/ 10 điểm</span>
           </div>
           <p className="text-xs text-emerald-600 font-medium mt-2">Xếp loại Xuất sắc & Giỏi</p>
         </div>
@@ -222,17 +222,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 4: Tasks Completed */}
         <div 
           onClick={() => onNavigateTab('projects')}
-          className="bg-white rounded-2xl p-5 border border-slate-200 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
+          className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md transition-all cursor-pointer group"
         >
           <div className="flex items-center justify-between mb-3">
-            <span className="text-xs font-semibold text-slate-500 uppercase tracking-wider">Task Hoàn thành</span>
-            <div className="w-10 h-10 rounded-xl bg-emerald-50 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Task Hoàn thành</span>
+            <div className="w-10 h-10 rounded-xl bg-emerald-50 dark:bg-emerald-950/30 text-emerald-600 flex items-center justify-center group-hover:scale-110 transition-transform">
               <CheckCircle2 className="w-5 h-5" />
             </div>
           </div>
           <div className="flex items-baseline gap-2">
-            <span className="text-3xl font-extrabold text-slate-900">{completedTasks.length}</span>
-            <span className="text-xs font-semibold text-slate-500">/ {tasks.length} task tổng</span>
+            <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">{completedTasks.length}</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">/ {tasks.length} task tổng</span>
           </div>
           <p className="text-xs text-slate-400 mt-2">Tiến độ Sprint hiện tại</p>
         </div>
@@ -242,15 +242,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Grid: Department Distribution & Pending Reports Queue */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         
-        {/* Left Column (2 cols): Department Distribution & Top Interns */}
-        <div className="lg:col-span-2 space-y-6">
+        {/* Left Column: Department Distribution & Top Interns (chiếm toàn bộ chiều rộng nếu là Intern, vì không có cột phải) */}
+        <div className={`space-y-6 ${currentRole !== 'INTERN' ? 'lg:col-span-2' : 'lg:col-span-3'}`}>
           
           {/* Department Breakdown Panel */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-2xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-base">Phân bổ Theo Khối Kỹ thuật</h3>
-                <p className="text-xs text-slate-500">Số lượng nhân sự thực tập sinh theo mảng chuyên môn</p>
+                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-base">Phân bổ Theo Khối Kỹ thuật</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Số lượng nhân sự thực tập sinh theo mảng chuyên môn</p>
               </div>
               {currentRole !== 'INTERN' && (
                 <button 
@@ -268,10 +268,10 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 return (
                   <div key={idx} className="space-y-1.5">
                     <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="text-slate-800 font-semibold">{dept.name}</span>
-                      <span className="text-slate-500">{dept.count} thực tập sinh ({percentage}%)</span>
+                      <span className="text-slate-800 dark:text-slate-200 font-semibold">{dept.name}</span>
+                      <span className="text-slate-500 dark:text-slate-400">{dept.count} thực tập sinh ({percentage}%)</span>
                     </div>
-                    <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden">
+                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
                       <div 
                         className={`h-full rounded-full transition-all duration-500 ${dept.color}`}
                         style={{ width: `${percentage}%` }}
@@ -284,11 +284,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           {/* Featured Active Interns List */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-2xs">
             <div className="flex items-center justify-between mb-4">
               <div>
-                <h3 className="font-extrabold text-slate-900 text-base">Thực tập sinh Tiêu biểu</h3>
-                <p className="text-xs text-slate-500">Thực tập sinh có điểm đánh giá và tiến độ tốt nhất</p>
+                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-base">Thực tập sinh Tiêu biểu</h3>
+                <p className="text-xs text-slate-500 dark:text-slate-400">Thực tập sinh có điểm đánh giá và tiến độ tốt nhất</p>
               </div>
               <button 
                 onClick={() => onNavigateTab('interns')}
@@ -303,23 +303,23 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 <div
                   key={intern.id}
                   onClick={() => onSelectIntern(intern)}
-                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 hover:border-blue-200 hover:bg-blue-50/40 transition-all cursor-pointer group"
+                  className="flex items-center gap-3 p-3 rounded-xl border border-slate-100 dark:border-slate-800 hover:border-blue-200 hover:bg-blue-50/40 transition-all cursor-pointer group"
                 >
                   <img
                     src={intern.avatar}
                     alt={intern.name}
-                    className="w-11 h-11 rounded-full object-cover border border-slate-200"
+                    className="w-11 h-11 rounded-full object-cover border border-slate-200 dark:border-slate-700"
                   />
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between">
-                      <p className="font-bold text-sm text-slate-900 truncate group-hover:text-blue-700">
+                      <p className="font-bold text-sm text-slate-900 dark:text-slate-100 truncate group-hover:text-blue-700">
                         {intern.name}
                       </p>
                       <span className="text-xs font-bold px-1.5 py-0.5 bg-emerald-100 text-emerald-800 rounded-md">
                         {intern.score}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 truncate">{intern.department}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{intern.department}</p>
                     <p className="text-[11px] text-slate-400 truncate">Mentor: {intern.mentor.split('(')[0]}</p>
                   </div>
                 </div>
@@ -329,13 +329,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
         </div>
 
-        {/* Right Column (1 col): Pending Reviews & Quick Actions */}
+        {/* Right Column (1 col): Pending Reviews & Quick Actions - CHỈ Mentor/Admin/Project Lead, Intern không được duyệt báo cáo hay giao task */}
+        {currentRole !== 'INTERN' && (
         <div className="space-y-6">
-          
+
           {/* Standup Review Queue Card */}
-          <div className="bg-white rounded-2xl p-6 border border-slate-200 shadow-2xs">
+          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-2xs">
             <div className="flex items-center justify-between mb-4">
-              <h3 className="font-extrabold text-slate-900 text-base">Báo cáo Chờ Duyệt</h3>
+              <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-base">Báo cáo Chờ Duyệt</h3>
               <span className="px-2 py-0.5 bg-amber-100 text-amber-800 font-bold text-xs rounded-full">
                 {pendingReports.length} báo cáo
               </span>
@@ -350,13 +351,13 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               <div className="space-y-3">
                 {pendingReports.map((report) => (
                   <div key={report.id} className="p-3 bg-amber-50/50 border border-amber-200/60 rounded-xl space-y-2">
-                    <div className="flex items-center justify-between text-xs font-bold text-slate-900">
+                    <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-slate-100">
                       <span>{report.internName}</span>
                       <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
                         {report.department}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-600 line-clamp-2 leading-relaxed">
+                    <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">
                       {report.completedToday}
                     </p>
                     <button
@@ -407,6 +408,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
         </div>
+        )}
 
       </div>
 
