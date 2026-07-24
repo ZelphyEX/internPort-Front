@@ -11,7 +11,8 @@ import {
   PlusCircle,
   HelpCircle,
   Settings,
-  UserPlus
+  UserPlus,
+  Building2
 } from 'lucide-react';
 import { UserRole } from '../types';
 
@@ -25,6 +26,7 @@ interface SidebarProps {
   onOpenAddTask: () => void;
   onOpenAddReport: () => void;
   onOpenInvite?: () => void;
+  onOpenGroupScreen?: () => void;
   pendingReviewsCount: number;
 }
 
@@ -36,6 +38,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAddTask,
   onOpenAddReport,
   onOpenInvite,
+  onOpenGroupScreen,
   pendingReviewsCount
 }) => {
   const navItems = [
@@ -113,7 +116,47 @@ export const Sidebar: React.FC<SidebarProps> = ({
           )}
 
           <nav className="space-y-1">
-            {navItems.map((item) => {
+            {navItems.slice(0, 1).map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  id={`nav-tab-${item.id}`}
+                  onClick={() => onSelectTab(item.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-sm transition-all ${
+                    isActive
+                      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
+                      : 'hover:bg-slate-800 text-slate-400 hover:text-slate-100'
+                  }`}
+                >
+                  <div className="flex items-center gap-3">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge && (
+                    <span className="px-2 py-0.5 text-[10px] font-semibold bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-full">
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {onOpenGroupScreen && (
+              <button
+                id="nav-tab-groups"
+                onClick={onOpenGroupScreen}
+                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-sm transition-all hover:bg-slate-800 text-slate-400 hover:text-slate-100"
+              >
+                <div className="flex items-center gap-3">
+                  <Building2 className="w-4 h-4 text-slate-400" />
+                  <span>Quản Lý Nhóm</span>
+                </div>
+              </button>
+            )}
+
+            {navItems.slice(1).map((item) => {
               const Icon = item.icon;
               const isActive = activeTab === item.id;
               return (

@@ -162,6 +162,7 @@ export default function App() {
     setCurrentGroupId(groupId);
     setCurrentRole(membership.role);
     setActiveTab('dashboard');
+    setIsGroupScreenOpen(false);
   };
 
   // [Admin] Duyệt yêu cầu tham gia nhóm
@@ -265,6 +266,7 @@ export default function App() {
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isAddProjectMemberOpen, setIsAddProjectMemberOpen] = useState(false);
+  const [isGroupScreenOpen, setIsGroupScreenOpen] = useState(false);
 
   // Sync to LocalStorage
   useEffect(() => {
@@ -397,26 +399,8 @@ export default function App() {
     return <LoginView onLogin={handleLogin} />;
   }
 
-  // Kiểm tra xem người dùng đã chọn 1 nhóm hợp lệ (đã được duyệt) hay chưa
+  // Nhóm hiện tại đang chọn (nếu có) - chỉ dùng để hiển thị thông tin, không còn chặn truy cập portal
   const activeGroup = groups.find(g => g.id === currentGroupId);
-  const activeMembership = activeGroup?.members.find(m => m.userId === currentUser.id);
-  const hasApprovedGroup = !!activeGroup && !!activeMembership && activeMembership.status === 'Approved';
-
-  if (!hasApprovedGroup) {
-    return (
-      <GroupSelectionView
-        currentUser={currentUser}
-        groups={groups}
-        onCreateGroup={handleCreateGroup}
-        onRequestJoinGroup={handleRequestJoinGroup}
-        onSelectGroup={handleSelectGroup}
-        onApproveMember={handleApproveMember}
-        onRejectMember={handleRejectMember}
-        onLogout={handleLogout}
-        initialJoinCode={initialJoinCode}
-      />
-    );
-  }
 
   // Danh sách Mentor có thể được gán vào dự án (để phân quyền Mentor tham gia dự án nào)
   // Gộp từ tài khoản mẫu (DEMO_AUTH_USERS) + Mentor đã được duyệt trong nhóm hiện tại
@@ -450,8 +434,6 @@ export default function App() {
         pendingReviewsCount={pendingReportsCount}
         reports={reports}
         onNavigateToTab={(tab) => setActiveTab(tab)}
-        currentGroupName={activeGroup?.name}
-        onBackToGroups={handleBackToGroups}
       />
 
       {/* Main Workspace Body */}
@@ -460,24 +442,39 @@ export default function App() {
         {/* Left Sidebar */}
         <Sidebar
           activeTab={activeTab}
-          onSelectTab={setActiveTab}
+          onSelectTab={(tab) => { setActiveTab(tab); setIsGroupScreenOpen(false); }}
           currentRole={currentRole}
           onOpenAddIntern={() => setIsAddInternOpen(true)}
           onOpenAddTask={() => setIsAddTaskOpen(true)}
           onOpenAddReport={() => setIsAddReportOpen(true)}
           onOpenInvite={() => setIsInviteOpen(true)}
+          onOpenGroupScreen={() => setIsGroupScreenOpen(true)}
           pendingReviewsCount={pendingReportsCount}
         />
 
         {/* Central View Content */}
         <main className="flex-1 min-w-0">
-          {activeTab === 'dashboard' && (
+          {isGroupScreenOpen && (
+            <GroupSelectionView
+              currentUser={currentUser}
+              groups={groups}
+              onCreateGroup={handleCreateGroup}
+              onRequestJoinGroup={handleRequestJoinGroup}
+              onSelectGroup={handleSelectGroup}
+              onApproveMember={handleApproveMember}
+              onRejectMember={handleRejectMember}
+              initialJoinCode={initialJoinCode}
+            />
+          )}
+
+          {!isGroupScreenOpen && activeTab === 'dashboard' && (
             <DashboardView
               interns={interns}
               projects={projects}
               tasks={tasks}
               reports={reports}
               currentRole={currentRole}
+              currentUser={currentUser}
               onNavigateTab={setActiveTab}
               onSelectIntern={setSelectedIntern}
               onOpenAddIntern={() => setIsAddInternOpen(true)}
@@ -487,7 +484,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'interns' && currentRole !== 'INTERN' && (
+          {!isGroupScreenOpen && activeTab === 'interns' && currentRole !== 'INTERN' && (
             <InternsView
               interns={interns}
               onSelectIntern={setSelectedIntern}
@@ -500,7 +497,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'projects' && (
+          {!isGroupScreenOpen && activeTab === 'projects' && (
             <ProjectsView
               projects={projects}
               tasks={tasks}
@@ -517,7 +514,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'daily_reports' && (
+          {!isGroupScreenOpen && activeTab === 'daily_reports' && (
             <DailyReportsView
               reports={reports}
               onOpenAddReport={() => setIsAddReportOpen(true)}
@@ -528,7 +525,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'skilljar' && (
+          {!isGroupScreenOpen && activeTab === 'skilljar' && (
             <SkilljarCoursesView
               modules={modules}
               onUpdateModules={setModules}
@@ -537,7 +534,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'roadmaps' && (
+          {!isGroupScreenOpen && activeTab === 'roadmaps' && (
             <RoadmapView
               trainingModules={modules}
               onToggleModuleStatus={handleToggleModuleStatus}
@@ -546,7 +543,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'knowledge' && (
+          {!isGroupScreenOpen && activeTab === 'knowledge' && (
             <KnowledgeBaseView
               documents={documents}
               currentRole={currentRole}
@@ -555,7 +552,7 @@ export default function App() {
             />
           )}
 
-          {activeTab === 'settings' && (
+          {!isGroupScreenOpen && activeTab === 'settings' && (
             <SettingsView
               currentRole={currentRole}
               onRoleChange={handleRoleChange}

@@ -11,7 +11,6 @@ import {
   ShieldCheck,
   Link as LinkIcon,
   ArrowRight,
-  LogOut,
   Sparkles,
   Ban,
   ChevronRight
@@ -26,7 +25,6 @@ interface GroupSelectionViewProps {
   onSelectGroup: (groupId: string) => void;
   onApproveMember: (groupId: string, userId: string) => void;
   onRejectMember: (groupId: string, userId: string) => void;
-  onLogout: () => void;
   initialJoinCode?: string;
 }
 
@@ -54,7 +52,6 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
   onSelectGroup,
   onApproveMember,
   onRejectMember,
-  onLogout,
   initialJoinCode
 }) => {
   const [isCreating, setIsCreating] = useState(false);
@@ -111,47 +108,13 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
     : '';
 
   return (
-    <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col selection:bg-blue-600 selection:text-white relative overflow-hidden">
+    <div className="bg-slate-900 text-slate-100 rounded-3xl relative overflow-hidden pb-10">
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
 
-      {/* Top Brand Navbar */}
-      <header className="border-b border-slate-800 bg-slate-900/80 backdrop-blur-md px-6 py-4 flex items-center justify-between z-10">
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-2xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-amber-400 p-0.5 shadow-md">
-            <div className="w-full h-full bg-slate-900 rounded-[14px] flex items-center justify-center font-black text-white text-lg tracking-wider">
-              G
-            </div>
-          </div>
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-base tracking-tight text-white">GIMASYS</span>
-              <span className="text-[10px] font-bold px-2 py-0.5 rounded-md bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                ENTERPRISE
-              </span>
-            </div>
-            <p className="text-[11px] text-slate-400 font-medium">Cổng thông tin Đào tạo & Quản lý Thực tập sinh</p>
-          </div>
-        </div>
-
-        <div className="flex items-center gap-3">
-          <div className="hidden sm:flex items-center gap-2 text-xs text-slate-400">
-            <img src={currentUser.avatar} alt={currentUser.name} className="w-7 h-7 rounded-full object-cover border border-slate-700" />
-            <span className="font-semibold text-slate-200">{currentUser.name}</span>
-          </div>
-          <button
-            onClick={onLogout}
-            className="px-2.5 py-1.5 text-[11px] font-bold text-slate-300 hover:text-red-400 hover:bg-red-950/40 rounded-xl border border-slate-700 transition-all cursor-pointer flex items-center gap-1.5"
-          >
-            <LogOut className="w-3.5 h-3.5" />
-            <span className="hidden sm:inline">Đăng xuất</span>
-          </button>
-        </div>
-      </header>
-
       {/* Main Content */}
-      <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-10 z-10 space-y-8">
+      <main className="max-w-4xl w-full mx-auto px-4 py-10 z-10 space-y-8 relative">
         <div className="text-center max-w-xl mx-auto space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-900/40 border border-blue-700/50 text-blue-300 text-xs font-bold mb-1">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
@@ -487,11 +450,6 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
           </div>
         </div>
       )}
-
-      {/* Footer */}
-      <footer className="border-t border-slate-800 bg-slate-900/80 text-center py-4 text-xs text-slate-500 z-10">
-        © 2025 Công ty Cổ phần Công nghệ Gimasys. Mọi quyền được bảo lưu.
-      </footer>
     </div>
   );
 };

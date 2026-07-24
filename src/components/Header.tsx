@@ -10,15 +10,13 @@ import {
   ShieldCheck,
   Briefcase,
   GraduationCap,
-  ChevronDown,
   LogOut,
   User,
   Sun,
   Moon,
   ClipboardList,
   AlertTriangle,
-  X,
-  Users
+  X
 } from 'lucide-react';
 
 interface HeaderProps {
@@ -32,8 +30,6 @@ interface HeaderProps {
   pendingReviewsCount: number;
   reports?: DailyReport[];
   onNavigateToTab?: (tab: any) => void;
-  currentGroupName?: string;
-  onBackToGroups?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -46,9 +42,7 @@ export const Header: React.FC<HeaderProps> = ({
   onSearchChange,
   pendingReviewsCount,
   reports = [],
-  onNavigateToTab,
-  currentGroupName,
-  onBackToGroups
+  onNavigateToTab
 }) => {
   const [isNotifOpen, setIsNotifOpen] = useState(false);
 
@@ -68,7 +62,6 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   const roleInfo = getRoleBadge(currentRole);
-  const RoleIcon = roleInfo.icon;
   const { theme, toggleTheme } = useTheme();
 
   return (
@@ -93,20 +86,6 @@ export const Header: React.FC<HeaderProps> = ({
               </p>
             </div>
           </div>
-
-          {/* Current Group Indicator + Switch Group */}
-          {currentGroupName && (
-            <button
-              type="button"
-              onClick={onBackToGroups}
-              title="Đổi sang nhóm khác"
-              className="hidden md:flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 text-blue-700 dark:text-blue-300 border border-blue-200 dark:border-blue-800 hover:bg-blue-100 dark:hover:bg-blue-900/40 transition-colors cursor-pointer shrink-0"
-            >
-              <Users className="w-3.5 h-3.5" />
-              <span className="text-xs font-bold max-w-[140px] truncate">{currentGroupName}</span>
-              <span className="text-[10px] font-semibold text-blue-500 dark:text-blue-400">Đổi nhóm</span>
-            </button>
-          )}
 
           {/* Search Bar */}
           <div className="hidden md:flex items-center flex-1 max-w-md mx-4">
@@ -220,34 +199,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </>
               )}
-            </div>
-
-            {/* Role Switcher Select */}
-            <div className="relative hidden xl:block">
-              <div
-                className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl border transition-all ${
-                  currentRole === 'INTERN'
-                    ? 'bg-slate-100/70 dark:bg-slate-800/50 border-slate-200 dark:border-slate-700 opacity-90 cursor-not-allowed'
-                    : 'bg-slate-100 dark:bg-slate-800 hover:bg-slate-200/80 dark:hover:bg-slate-700 cursor-pointer border-slate-200 dark:border-slate-700'
-                }`}
-                title={currentRole === 'INTERN' ? 'Tài khoản Học viên cố định (Chỉ Mentor/Admin mới có quyền sửa Role)' : 'Chuyển vai trò thử nghiệm UI'}
-              >
-                <RoleIcon className="w-3.5 h-3.5 text-slate-700 dark:text-slate-300" />
-                <select
-                  id="role-switcher-select"
-                  disabled={currentRole === 'INTERN'}
-                  value={currentRole}
-                  onChange={(e) => onRoleChange(e.target.value as UserRole)}
-                  className={`bg-transparent text-xs font-semibold text-slate-800 dark:text-slate-200 focus:outline-none pr-1 ${
-                    currentRole === 'INTERN' ? 'cursor-not-allowed text-slate-600 dark:text-slate-400' : 'cursor-pointer'
-                  }`}
-                >
-                  <option value="ADMIN">HR / Admin Portal</option>
-                  <option value="MENTOR">Mentor / Technical Lead</option>
-                  <option value="INTERN">🔒 Thực tập sinh (Locked)</option>
-                </select>
-                {currentRole !== 'INTERN' && <ChevronDown className="w-3.5 h-3.5 text-slate-500 dark:text-slate-400" />}
-              </div>
             </div>
 
             {/* Current Logged-in User Profile Card & Logout */}
