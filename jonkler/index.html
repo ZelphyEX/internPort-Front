@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Jonkler</title>
+<link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <main class="stage">
+
+    <section id="picker" class="panel">
+      <h1 class="title">Jonkler<span class="dot">.</span></h1>
+      <p class="subtitle">What are you in the mood for?</p>
+      <div class="choices">
+        <button class="choice-btn" data-category="jokes">
+          <span class="emoji">😂</span>
+          <span>Joke</span>
+        </button>
+        <button class="choice-btn" data-category="pickupLines">
+          <span class="emoji">😉</span>
+          <span>Pickup Line</span>
+        </button>
+        <button class="choice-btn" data-category="poetry">
+          <span class="emoji">🌹</span>
+          <span>Poetry</span>
+        </button>
+      </div>
+    </section>
+
+    <section id="result" class="panel hidden">
+      <p class="category-label" id="category-label"></p>
+      <p class="result-text" id="result-text"></p>
+      <div class="actions">
+        <button id="another-btn" class="action-btn primary">Another one</button>
+        <button id="back-btn" class="action-btn">Choose different category</button>
+      </div>
+    </section>
+
+  </main>
+
+  <audio id="laugh-track" src="assets/laugh-track.mp3" preload="auto"></audio>
+
+  <script src="script.js"></script>
+</body>
+</html>
