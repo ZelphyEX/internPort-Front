@@ -3,7 +3,9 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 
-dotenv.config();
+// dotenv.config() mặc định chỉ đọc ".env" — dự án này dùng ".env.local" (xem README),
+// nên phải chỉ định rõ path, không thì GEMINI_API_KEY sẽ luôn "chưa được cấu hình".
+dotenv.config({ path: [".env.local", ".env"] });
 
 const app = express();
 // Cloud Run tiêm biến môi trường PORT (mặc định 8080). Local dev dùng 3000.
