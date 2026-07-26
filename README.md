@@ -71,6 +71,16 @@ Setup GCP một lần (chạy `gcloud` local), tóm tắt trong comment đầu f
 4. Tạo service account deploy (`WIF_SERVICE_ACCOUNT`) với role `roles/run.admin`, `roles/artifactregistry.writer`, `roles/iam.serviceAccountUser`.
 5. Cho phép WIF principal impersonate service account đó.
 
+### Sự cố thường gặp khi deploy
+
+**Chạy local gọi API ổn, nhưng bản deploy lên Cloud Run gọi API lỗi** (Console báo `Unexpected token '<' ... is not valid JSON`, tab Network thấy request đi tới **domain frontend** thay vì domain backend):
+
+- Nguyên nhân: `VITE_API_BASE_URL` được Vite **nướng vào bundle lúc build**, không đọc lúc chạy. Local có `.env.local` (bị `.gitignore`, không đi vào Docker build) nên chạy đúng; trên CI nguồn duy nhất là GitHub **Variable** `VITE_API_BASE_URL` → truyền qua `--build-arg`. Thiếu nó thì `api.ts` rơi về fallback same-origin `/api/v1` → request vào chính service frontend → Express trả `index.html`.
+- Khắc phục: đặt `VITE_API_BASE_URL` ở **tab Variables** (không phải Secrets), giá trị dạng `https://<backend-host>/api/v1`, rồi chạy lại workflow. Workflow đã có bước `Validate required secrets/vars` chặn trước khi build và `Dockerfile` cũng fail nếu build-arg rỗng.
+- Kiểm tra nhanh bản đã deploy: mở DevTools → Network → đăng nhập → request phải đi tới domain backend. Hoặc tìm chuỗi backend host trong file JS trong `dist/assets/` sau khi build.
+
+**Mở URL frontend ra trang 403 Forbidden của Google**: service Cloud Run đang đòi xác thực IAM. Bước deploy trong workflow đã truyền `--allow-unauthenticated`; nếu service tạo trước đó bằng cách khác thì chạy `gcloud run services add-iam-policy-binding <SERVICE> --region <REGION> --member=allUsers --role=roles/run.invoker`.
+
 ## Tình trạng kết nối API/DB thật (đọc kỹ trước khi coi đây là bản hoàn chỉnh)
 
 Repo có sẵn client API đầy đủ (`src/services/api.ts`, theo đúng đặc tả Swagger của backend FastAPI), nhưng **chưa phải mọi màn hình đều đã gọi qua client này**:

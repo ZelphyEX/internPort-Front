@@ -16,6 +16,14 @@ RUN npm ci
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
+# Chặn build "im lặng lỗi": thiếu build-arg thì api.ts rơi về fallback same-origin
+# "/api/v1", tức client gọi vào chính server này và nhận index.html thay vì JSON.
+RUN test -n "$VITE_API_BASE_URL" || { \
+      echo "ERROR: build-arg VITE_API_BASE_URL is empty."; \
+      echo "       Build with: docker build --build-arg VITE_API_BASE_URL=https://<backend-host>/api/v1 ."; \
+      exit 1; \
+    }
+
 # Copy mã nguồn và build ra dist/ (client) + dist/server.cjs (server).
 COPY . .
 RUN npm run build

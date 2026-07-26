@@ -1,23 +1,37 @@
 import React, { useState } from 'react';
 import { X, FileSpreadsheet } from 'lucide-react';
-import { DailyReport, Intern, Department } from '../types';
+import { DailyReport, Intern, Department, AuthUser } from '../types';
 
 interface AddReportModalProps {
   isOpen: boolean;
   onClose: () => void;
   interns: Intern[];
   onAddReport: (report: DailyReport) => void;
+  /** Người đang đăng nhập — LUÔN là tác giả của báo cáo (xem ghi chú bên dưới). */
+  currentUser: AuthUser | null;
 }
 
 export const AddReportModal: React.FC<AddReportModalProps> = ({
   isOpen,
   onClose,
   interns,
-  onAddReport
+  onAddReport,
+  currentUser
 }) => {
   if (!isOpen) return null;
 
-  const [selectedInternId, setSelectedInternId] = useState(interns[0]?.id || '');
+  // Trước đây form có ô chọn "Thực tập sinh nộp". Đó là sai:
+  //   - Backend BỎ QUA `intern_id` trong body POST /daily-reports — tác giả luôn là
+  //     người trong token. Chọn tên người khác chỉ làm dữ liệu hiển thị ở máy lệch
+  //     với dữ liệu đã lưu trên server (reload là mất).
+  //   - Với tài khoản INTERN, danh sách `interns` không được tải (GET /users cần
+  //     quyền MENTOR) nên ô chọn hiện toàn dữ liệu demo, thậm chí không có tên mình.
+  // Nay tác giả cố định là tài khoản đang đăng nhập.
+  const authorId = currentUser?.internId || currentUser?.id || '';
+  const authorName = currentUser?.name || 'Tôi';
+  const authorDepartment: Department =
+    interns.find(i => i.id === authorId)?.department || ('Java Back-End' as Department);
+
   const [completedToday, setCompletedToday] = useState('');
   const [tomorrowPlan, setTomorrowPlan] = useState('');
   const [blockers, setBlockers] = useState('');
@@ -27,13 +41,11 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
     e.preventDefault();
     if (!completedToday) return;
 
-    const selectedIntern = interns.find(i => i.id === selectedInternId);
-
     const newReport: DailyReport = {
       id: `REP-${String(Math.floor(Math.random() * 900) + 100)}`,
-      internId: selectedInternId,
-      internName: selectedIntern ? selectedIntern.name : 'Thực tập sinh',
-      department: selectedIntern ? selectedIntern.department : ('Java Back-End' as Department),
+      internId: authorId,
+      internName: authorName,
+      department: authorDepartment,
       date: new Date().toISOString().split('T')[0],
       completedToday,
       tomorrowPlan: tomorrowPlan || 'Tiếp tục hoàn thiện các công việc trong Sprint.',
@@ -63,16 +75,13 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
         <form onSubmit={handleSubmit} className="space-y-3 text-xs">
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Thực tập sinh nộp *</label>
-              <select
-                value={selectedInternId}
-                onChange={(e) => setSelectedInternId(e.target.value)}
-                className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 font-semibold"
+              <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Người nộp</label>
+              <div
+                title="Báo cáo luôn được ghi nhận cho tài khoản đang đăng nhập"
+                className="w-full px-3 py-2 bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl font-semibold text-slate-700 dark:text-slate-300 truncate"
               >
-                {interns.map(i => (
-                  <option key={i.id} value={i.id}>{i.name} ({i.department})</option>
-                ))}
-              </select>
+                {authorName}
+              </div>
             </div>
 
             <div>

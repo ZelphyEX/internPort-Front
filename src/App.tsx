@@ -11,6 +11,7 @@ import {
 
 import { Header } from './components/Header';
 import { Sidebar, NavTab } from './components/Sidebar';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { LoginView } from './components/LoginView';
 import { GroupSelectionView } from './components/GroupSelectionView';
 import { DashboardView } from './components/DashboardView';
@@ -97,6 +98,24 @@ export default function App() {
       setCurrentUser(null);
       localStorage.removeItem('gimasys_current_user');
     });
+  }, []);
+
+  // Vai trò dùng để dựng giao diện phải lấy từ SERVER, không tin localStorage.
+  // `gimasys_current_user` nằm trong localStorage nên ai cũng sửa được bằng DevTools
+  // (đổi role thành ADMIN để mở các màn quản trị). Backend vẫn chặn bằng 403 nên
+  // không lộ dữ liệu thật, nhưng UI sẽ hiển thị nhầm dữ liệu demo như thể là thật.
+  // Mỗi lần mở app, nếu còn phiên đăng nhập thật thì đồng bộ lại từ GET /auth/me.
+  useEffect(() => {
+    if (!tokenStore.isAuthenticated()) return;
+    authApi
+      .me()
+      .then((apiUser) => {
+        const fresh = apiUserToAuthUser(apiUser);
+        setCurrentUser(fresh);
+        setCurrentRole(fresh.role);
+        localStorage.setItem('gimasys_current_user', JSON.stringify(fresh));
+      })
+      .catch(() => {/* lỗi mạng: giữ phiên cục bộ; token hỏng đã có handler 401 ở trên */});
   }, []);
 
   useEffect(() => {
@@ -259,14 +278,17 @@ export default function App() {
     setCurrentGroupId(null);
   };
 
-  // Synchronize Role when User changes or Header switcher changes
+  // Đổi vai trò ĐANG XEM (chỉ Admin dùng, để kiểm tra giao diện của Mentor/Intern).
+  //
+  // Trước đây hàm này ghi đè luôn `currentUser.role` và lưu xuống localStorage. Hai hậu quả:
+  //   1. Admin bấm xem giao diện "Intern" là bị kẹt — ô đổi vai trò chỉ hiện với Admin,
+  //      mà vai trò đã bị ghi thành INTERN nên không còn đường quay lại (phải đăng xuất).
+  //   2. Vai trò thật của phiên đăng nhập bị sửa ở phía client và còn được lưu lại,
+  //      lệch hẳn với vai trò trong JWT mà backend dùng để phân quyền.
+  // Nay chỉ đổi `currentRole` (lớp hiển thị); `currentUser.role` luôn là vai trò thật
+  // do server trả về.
   const handleRoleChange = (newRole: UserRole) => {
     setCurrentRole(newRole);
-    if (currentUser) {
-      const updatedUser = { ...currentUser, role: newRole };
-      setCurrentUser(updatedUser);
-      localStorage.setItem('gimasys_current_user', JSON.stringify(updatedUser));
-    }
   };
 
   const handleLogin = (user: AuthUser) => {
@@ -792,16 +814,25 @@ export default function App() {
           onOpenAddIntern={() => setIsAddInternOpen(true)}
           onOpenAddTask={() => setIsAddTaskOpen(true)}
           onOpenAddReport={() => setIsAddReportOpen(true)}
-          onOpenInvite={() => setIsInviteOpen(true)}
+          // Mời/duyệt thành viên nhóm là quyền MENTOR trở lên (POST /groups/{id}/members).
+          // Intern thấy nút này sẽ tạo được mã mời cục bộ nhưng không đồng bộ được lên
+          // server -> ẩn hẳn thay vì để bấm rồi thất bại.
+          onOpenInvite={currentRole !== 'INTERN' ? () => setIsInviteOpen(true) : undefined}
           onOpenGroupScreen={() => setIsGroupScreenOpen(true)}
+          isGroupScreenActive={isGroupScreenOpen}
           pendingReviewsCount={pendingReportsCount}
         />
 
-        {/* Central View Content */}
+        {/* Central View Content.
+            Bọc ErrorBoundary: lỗi render của một màn hình chỉ hỏng vùng nội dung,
+            Header/Sidebar vẫn còn để chuyển sang mục khác — thay vì trắng cả trang.
+            resetKey đổi theo tab nên chuyển tab là tự thử render lại. */}
         <main className="flex-1 min-w-0">
+          <ErrorBoundary resetKey={isGroupScreenOpen ? 'groups' : activeTab}>
           {isGroupScreenOpen && (
             <GroupSelectionView
               currentUser={currentUser}
+              currentRole={currentRole}
               groups={groups}
               onCreateGroup={handleCreateGroup}
               onRequestJoinGroup={handleRequestJoinGroup}
@@ -898,6 +929,7 @@ export default function App() {
               onChangePassword={handleChangePassword}
             />
           )}
+          </ErrorBoundary>
         </main>
 
       </div>
@@ -933,6 +965,7 @@ export default function App() {
         onClose={() => setIsAddReportOpen(false)}
         interns={interns}
         onAddReport={handleAddReport}
+        currentUser={currentUser}
       />
 
       <InviteMemberModal

@@ -42,6 +42,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
 }) => {
   const { theme, setTheme } = useTheme();
 
+  // Vai trò THẬT của tài khoản (server trả về), khác với `currentRole` là vai trò
+  // đang xem thử. Phải khoá ô đổi vai trò theo vai trò thật, nếu không Admin bấm
+  // xem giao diện Intern là mất luôn ô đổi vai trò và không quay lại được.
+  const realRole = currentUser.role;
+  const isRealAdmin = realRole === 'ADMIN';
+  const isPreviewingOtherRole = currentRole !== realRole;
+
   // --- Hồ Sơ Cá Nhân: Tên & Ảnh đại diện ---
   const [profileName, setProfileName] = useState<string>(currentUser.name);
   const [avatarPreview, setAvatarPreview] = useState<string>(currentUser.avatar);
@@ -424,16 +431,24 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200 block flex items-center justify-between">
             <span className="flex items-center gap-1.5">
               <ShieldCheck className="w-4 h-4 text-amber-600" />
-              <span>{currentRole === 'ADMIN' ? 'Thay Đổi Vai Trò Tài Khoản:' : 'Vai Trò Tài Khoản:'}</span>
+              <span>{isRealAdmin ? 'Xem Thử Giao Diện Theo Vai Trò:' : 'Vai Trò Tài Khoản:'}</span>
             </span>
-            {currentRole !== 'ADMIN' && (
+            {!isRealAdmin && (
               <span className="text-[11px] text-amber-700 bg-amber-50 dark:bg-amber-950/30 px-2 py-0.5 rounded border border-amber-200 font-bold">
-                🔒 Chỉ Quản trị viên (Admin) mới có thể thay đổi vai trò.
+                🔒 Chỉ Quản trị viên (Admin) mới có thể đổi vai trò hiển thị.
               </span>
             )}
           </label>
 
-          {currentRole !== 'ADMIN' ? (
+          {isRealAdmin && isPreviewingOtherRole && (
+            <div className="text-[11px] font-bold text-blue-800 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-lg px-3 py-2">
+              Bạn đang xem thử giao diện <strong>{currentRole}</strong>. Vai trò thật của tài khoản
+              vẫn là <strong>{realRole}</strong> — quyền trên máy chủ không thay đổi. Chọn lại
+              &quot;{realRole}&quot; để quay về giao diện của mình.
+            </div>
+          )}
+
+          {!isRealAdmin ? (
             <div className="p-4 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl flex items-center gap-3">
               {(() => {
                 const current = rolesList.find(r => r.role === currentRole);

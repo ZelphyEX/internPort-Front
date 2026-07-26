@@ -26,8 +26,19 @@ interface SidebarProps {
   onOpenAddReport: () => void;
   onOpenInvite?: () => void;
   onOpenGroupScreen?: () => void;
+  /** true khi màn "Quản Lý Nhóm" đang mở — để tô sáng mục này như các tab khác. */
+  isGroupScreenActive?: boolean;
   pendingReviewsCount: number;
 }
+
+// Class dùng chung cho mọi mục điều hướng, để mục "Quản Lý Nhóm" (không phải NavTab)
+// vẫn sáng lên y hệt các tab còn lại khi đang được chọn.
+const navItemClass = (isActive: boolean) =>
+  `w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-sm transition-all ${
+    isActive
+      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
+      : 'hover:bg-slate-800 text-slate-400 hover:text-slate-100'
+  }`;
 
 export const Sidebar: React.FC<SidebarProps> = ({
   activeTab,
@@ -38,6 +49,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAddReport,
   onOpenInvite,
   onOpenGroupScreen,
+  isGroupScreenActive = false,
   pendingReviewsCount
 }) => {
   const navItems = [
@@ -111,17 +123,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <nav className="space-y-1">
             {navItems.slice(0, 1).map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              // Màn "Quản Lý Nhóm" phủ lên nội dung tab, nên khi nó mở thì không
+              // tab nào được coi là đang chọn (tránh sáng 2 mục cùng lúc).
+              const isActive = !isGroupScreenActive && activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   id={`nav-tab-${item.id}`}
                   onClick={() => onSelectTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
-                      : 'hover:bg-slate-800 text-slate-400 hover:text-slate-100'
-                  }`}
+                  className={navItemClass(isActive)}
                 >
                   <div className="flex items-center gap-3">
                     <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />
@@ -140,10 +150,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <button
                 id="nav-tab-groups"
                 onClick={onOpenGroupScreen}
-                className="w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-sm transition-all hover:bg-slate-800 text-slate-400 hover:text-slate-100"
+                aria-current={isGroupScreenActive ? 'page' : undefined}
+                className={navItemClass(isGroupScreenActive)}
               >
                 <div className="flex items-center gap-3">
-                  <Building2 className="w-4 h-4 text-slate-400" />
+                  <Building2 className={`w-4 h-4 ${isGroupScreenActive ? 'text-white' : 'text-slate-400'}`} />
                   <span>Quản Lý Nhóm</span>
                 </div>
               </button>
@@ -151,17 +162,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
             {navItems.slice(1).map((item) => {
               const Icon = item.icon;
-              const isActive = activeTab === item.id;
+              // Màn "Quản Lý Nhóm" phủ lên nội dung tab, nên khi nó mở thì không
+              // tab nào được coi là đang chọn (tránh sáng 2 mục cùng lúc).
+              const isActive = !isGroupScreenActive && activeTab === item.id;
               return (
                 <button
                   key={item.id}
                   id={`nav-tab-${item.id}`}
                   onClick={() => onSelectTab(item.id)}
-                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl font-medium text-sm transition-all ${
-                    isActive
-                      ? 'bg-blue-600 text-white shadow-md shadow-blue-900/30'
-                      : 'hover:bg-slate-800 text-slate-400 hover:text-slate-100'
-                  }`}
+                  className={navItemClass(isActive)}
                 >
                   <div className="flex items-center gap-3">
                     <Icon className={`w-4 h-4 ${isActive ? 'text-white' : 'text-slate-400'}`} />

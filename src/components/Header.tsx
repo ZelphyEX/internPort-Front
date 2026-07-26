@@ -50,6 +50,12 @@ export const Header: React.FC<HeaderProps> = ({
   const notifications = currentRole === 'INTERN'
     ? reports.filter(r => currentUser && r.internId === currentUser.internId && r.status === 'Needs Revision')
     : reports.filter(r => r.status === 'Pending');
+
+  // Số trên chuông phải khớp đúng danh sách bên dưới. Trước đây chuông luôn hiện
+  // `pendingReviewsCount` (số báo cáo chờ DUYỆT — việc của Mentor), nên Intern thấy
+  // badge "2" nhưng mở ra lại trống, vì danh sách của Intern lọc theo "Cần bổ sung".
+  const notifCount = currentRole === 'INTERN' ? notifications.length : pendingReviewsCount;
+  const notifTitle = currentRole === 'INTERN' ? 'Báo cáo cần bổ sung' : 'Báo cáo cần duyệt';
   const getRoleBadge = (role: UserRole) => {
     switch (role) {
       case 'ADMIN':
@@ -135,12 +141,12 @@ export const Header: React.FC<HeaderProps> = ({
                 type="button"
                 onClick={() => setIsNotifOpen(prev => !prev)}
                 className="p-2 text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 rounded-xl transition-colors relative cursor-pointer"
-                title="Báo cáo cần duyệt"
+                title={notifTitle}
               >
                 <Bell className="w-5 h-5" />
-                {pendingReviewsCount > 0 && (
+                {notifCount > 0 && (
                   <span className="absolute top-1 right-1 w-4 h-4 bg-red-500 text-white text-[10px] font-bold rounded-full flex items-center justify-center">
-                    {pendingReviewsCount}
+                    {notifCount}
                   </span>
                 )}
               </button>

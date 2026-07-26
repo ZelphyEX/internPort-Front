@@ -17,6 +17,9 @@ import {
 } from 'lucide-react';
 import { AuthUser, Group, UserRole } from '../types';
 
+// Ghi chú phân quyền: POST /groups yêu cầu quyền MENTOR trở lên, nên Intern chỉ
+// được THAM GIA nhóm bằng mã mời, không được tạo nhóm. Trước đây nút "Tạo Nhóm Mới"
+// hiện cho cả Intern -> bấm vào sẽ bị backend trả 403 (hoặc chỉ tạo nhóm ảo cục bộ).
 interface GroupSelectionViewProps {
   currentUser: AuthUser;
   groups: Group[];
@@ -26,6 +29,8 @@ interface GroupSelectionViewProps {
   onApproveMember: (groupId: string, userId: string) => void;
   onRejectMember: (groupId: string, userId: string) => void;
   initialJoinCode?: string;
+  /** Vai trò đang xem — dùng để ẩn thao tác tạo nhóm với Intern. */
+  currentRole: UserRole;
 }
 
 const getRoleLabel = (role: UserRole) => {
@@ -52,8 +57,10 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
   onSelectGroup,
   onApproveMember,
   onRejectMember,
-  initialJoinCode
+  initialJoinCode,
+  currentRole
 }) => {
+  const canCreateGroup = currentRole !== 'INTERN';
   const [isCreating, setIsCreating] = useState(false);
   const [isJoining, setIsJoining] = useState(!!initialJoinCode);
   const [newGroupName, setNewGroupName] = useState('');
@@ -124,12 +131,15 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
             Bạn muốn vào nhóm nào?
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            Tạo một nhóm mới để quản lý thực tập sinh, hoặc tham gia một nhóm đã có bằng mã mời / link mời.
+            {canCreateGroup
+              ? 'Tạo một nhóm mới để quản lý thực tập sinh, hoặc tham gia một nhóm đã có bằng mã mời / link mời.'
+              : 'Tham gia nhóm thực tập bằng mã mời hoặc link mời do Mentor/Admin gửi cho bạn.'}
           </p>
         </div>
 
         {/* Action Buttons */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-w-xl mx-auto">
+        <div className={`grid grid-cols-1 ${canCreateGroup ? 'sm:grid-cols-2' : ''} gap-3 max-w-xl mx-auto`}>
+          {canCreateGroup && (
           <button
             type="button"
             onClick={() => { setIsCreating(prev => !prev); setIsJoining(false); }}
@@ -145,6 +155,7 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
               <p className="text-[11px] text-slate-300">Bạn sẽ là Quản trị viên (Admin)</p>
             </div>
           </button>
+          )}
 
           <button
             type="button"
@@ -164,7 +175,7 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
         </div>
 
         {/* Create Group Form */}
-        {isCreating && (
+        {isCreating && canCreateGroup && (
           <form onSubmit={handleCreateSubmit} className="max-w-xl mx-auto bg-slate-800/90 border border-slate-700/80 rounded-2xl p-5 shadow-xl space-y-3 text-xs">
             <label className="font-bold text-slate-300 block">Tên Nhóm *</label>
             <input

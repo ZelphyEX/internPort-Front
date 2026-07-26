@@ -474,9 +474,11 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
   const [assignGroupId, setAssignGroupId] = useState('');
 
   const loadRoadmaps = () => {
+    // GET /roadmaps trả Page -> phải lấy .items. Trả thẳng response vào setRoadmaps
+    // sẽ khiến roadmaps là object và `roadmaps.map(...)` ném TypeError -> trắng trang.
     roadmapsApi
-      .list()
-      .then(setRoadmaps)
+      .list({ size: 100 })
+      .then((res) => setRoadmaps(res.items))
       .catch(() => setRoadmaps([]))
       .finally(() => setLoading(false));
   };
@@ -578,18 +580,42 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
 
   const handleAssign = async () => {
     if (!selectedId) return;
+
+    // Chỉ id số mới là tài khoản thật do backend cấp (dữ liệu demo dùng id dạng "INT-01").
+    const numericInternIds = assignInternIds.map(Number).filter(Number.isInteger);
+    const hasGroup = !!assignGroupId && Number.isInteger(Number(assignGroupId));
+
+    // Trước đây không kiểm tra gì: chọn rỗng (hoặc chỉ chọn intern demo) vẫn báo
+    // "Đã gán lộ trình" dù không gọi API nào — người dùng tưởng đã gán xong.
+    if (!hasGroup && numericInternIds.length === 0) {
+      alert('Hãy chọn ít nhất một Nhóm hoặc một Thực tập sinh (tài khoản thật) để gán.');
+      return;
+    }
+
     try {
-      if (assignGroupId) {
-        await roadmapsApi.assignGroup(selectedId, Number(assignGroupId));
+      // 2 endpoint trả về 2 dạng khác nhau: assign-group trả số đếm,
+      // assign cá nhân trả mảng `created`. Backend bỏ qua người đã được gán trước đó.
+      let assignedCount = 0;
+      let skippedCount = 0;
+      if (hasGroup) {
+        const res = await roadmapsApi.assignGroup(selectedId, Number(assignGroupId));
+        assignedCount += res.assigned_count;
+        skippedCount += res.skipped_existing;
       }
-      const numericInternIds = assignInternIds.map(Number).filter(Number.isInteger);
       if (numericInternIds.length > 0) {
-        await roadmapsApi.assign(selectedId, numericInternIds);
+        const res = await roadmapsApi.assign(selectedId, numericInternIds);
+        assignedCount += res.created.length;
+        skippedCount += numericInternIds.length - res.created.length;
       }
       setAssignInternIds([]);
       setAssignGroupId('');
       setIsAssigning(false);
-      alert('Đã gán lộ trình.');
+      const skippedNote = skippedCount > 0 ? ` (bỏ qua ${skippedCount} người đã được gán trước đó)` : '';
+      alert(
+        assignedCount > 0
+          ? `Đã gán lộ trình cho ${assignedCount} thực tập sinh${skippedNote}.`
+          : 'Không có ai được gán mới — tất cả những người bạn chọn đã được gán lộ trình này từ trước.'
+      );
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Gán lộ trình thất bại.');
     }

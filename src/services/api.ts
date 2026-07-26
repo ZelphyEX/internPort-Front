@@ -696,9 +696,14 @@ export const tagsApi = {
 // ============================================================================
 
 export const roadmapsApi = {
-  /** GET /roadmaps — Danh sách lộ trình. Quyền: INTERN/MENTOR. */
-  list() {
-    return request<ApiRoadmapListItem[]>('/roadmaps');
+  /**
+   * GET /roadmaps — Danh sách lộ trình. Quyền: INTERN/MENTOR.
+   * Backend trả **Page** (`{items,total,page,size,pages}`) như mọi list endpoint khác,
+   * KHÔNG phải mảng trần — khai sai kiểu ở đây từng làm `roadmaps.map` ném TypeError
+   * và trắng cả trang ở tab Lộ trình (xem RoadmapView.loadRoadmaps).
+   */
+  list(params?: { page?: number; size?: number; search?: string }) {
+    return request<Paginated<ApiRoadmapListItem>>('/roadmaps', { query: params });
   },
 
   /** POST /roadmaps — Tạo lộ trình. Quyền: MENTOR. */
@@ -745,9 +750,13 @@ export const roadmapsApi = {
     );
   },
 
-  /** POST /roadmaps/{roadmap_id}/assign-group — Bulk assign cho cả nhóm. Quyền: MENTOR. */
+  /**
+   * POST /roadmaps/{roadmap_id}/assign-group — Bulk assign cho cả nhóm. Quyền: MENTOR.
+   * Response KHÁC endpoint assign cá nhân: trả về số đếm (`assigned_count`,
+   * `skipped_existing`) chứ không phải mảng `created`.
+   */
   assignGroup(roadmapId: number, group_id: number) {
-    return request<{ created: Array<{ assignment_id: number; user_id: number }> }>(
+    return request<{ group_id: number; assigned_count: number; skipped_existing: number }>(
       `/roadmaps/${roadmapId}/assign-group`,
       { method: 'POST', body: { group_id } }
     );

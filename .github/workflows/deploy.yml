@@ -47,6 +47,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Fail sớm khi thiếu/sai cấu hình. Quan trọng nhất: VITE_API_BASE_URL được Vite
+      # "nướng" vào bundle client lúc BUILD. Nếu nó rỗng, image vẫn build và deploy
+      # thành công nhưng client rơi về fallback same-origin "/api/v1" -> gọi vào chính
+      # service frontend này -> Express trả index.html (HTTP 200, HTML) -> client parse
+      # HTML thành JSON và báo "Unexpected token '<'". Chặn ngay ở đây thay vì để
+      # phát hiện trên production.
+      - name: Validate required secrets/vars
+        env:
+          API_BASE: ${{ vars.VITE_API_BASE_URL }}
+        run: |
+          missing=()
+          [ -z "${{ vars.GCP_PROJECT_ID }}" ] && missing+=("vars.GCP_PROJECT_ID")
+          [ -z "${{ vars.GCP_REGION }}" ] && missing+=("vars.GCP_REGION")
+          [ -z "${{ vars.AR_REPOSITORY }}" ] && missing+=("vars.AR_REPOSITORY")
+          [ -z "${{ vars.CLOUD_RUN_SERVICE }}" ] && missing+=("vars.CLOUD_RUN_SERVICE")
+          [ -z "${{ vars.WIF_SERVICE_ACCOUNT }}" ] && missing+=("vars.WIF_SERVICE_ACCOUNT")
+          [ -z "${{ secrets.WIF_PROVIDER }}" ] && missing+=("secrets.WIF_PROVIDER")
+          [ -z "$API_BASE" ] && missing+=("vars.VITE_API_BASE_URL")
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Missing required GitHub secrets/variables: ${missing[*]}. Set them in Settings > Secrets and variables > Actions. NOTE: VITE_API_BASE_URL must be in the *Variables* tab (it is read via vars.*, not secrets.*)."
+            exit 1
+          fi
+          case "$API_BASE" in
+            https://*) ;;
+            *) echo "::error::VITE_API_BASE_URL must start with https:// (got '$API_BASE'). The site is served over HTTPS, so an http:// API URL is blocked by the browser as mixed content."; exit 1 ;;
+          esac
+          case "$API_BASE" in
+            */api/v1|*/api/v1/) ;;
+            *) echo "::error::VITE_API_BASE_URL must end with /api/v1 (got '$API_BASE'). The client appends paths like /auth/login straight onto it, so a missing prefix makes every request 404."; exit 1 ;;
+          esac
+          echo "Frontend will call API at: $API_BASE"
+
       - name: Authenticate to Google Cloud
         id: auth
         uses: google-github-actions/auth@v2
@@ -85,6 +117,11 @@ jobs:
           service: ${{ vars.CLOUD_RUN_SERVICE }}
           region: ${{ vars.GCP_REGION }}
           image: ${{ env.IMAGE }}:${{ github.sha }}
+          # Đây là site công khai: thiếu --allow-unauthenticated thì service mới tạo sẽ
+          # đòi xác thực IAM và trình duyệt nhận trang 403 Forbidden. Container nghe $PORT.
+          flags: >-
+            --allow-unauthenticated
+            --port=8080
           env_vars: |
             GEMINI_API_KEY=${{ secrets.GEMINI_API_KEY }}
 
