@@ -9,9 +9,14 @@
 /**
  * Base URL của API. Ưu tiên biến môi trường VITE_API_BASE_URL (đặt trong .env),
  * mặc định là "/api/v1" (đi qua proxy/same-origin khi deploy chung server).
+ *
+ * Lưu ý: PHẢI viết `import.meta.env.VITE_API_BASE_URL` liền mạch (không optional-chain
+ * lên `import.meta`/`env`) vì Vite/esbuild chỉ tĩnh thay thế đúng cú pháp này lúc build.
+ * Viết `(import.meta as any)?.env?.VITE_API_BASE_URL` sẽ KHÔNG được inline — bundle
+ * production sẽ luôn rơi về fallback "/api/v1" dù đã set biến môi trường lúc build.
  */
 export const API_BASE_URL: string =
-  (import.meta as any)?.env?.VITE_API_BASE_URL?.replace(/\/$/, '') || '/api/v1';
+  (import.meta.env.VITE_API_BASE_URL as string | undefined)?.replace(/\/$/, '') || '/api/v1';
 
 // Khóa lưu token trong localStorage
 const ACCESS_TOKEN_KEY = 'gimasys_access_token';

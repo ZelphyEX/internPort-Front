@@ -58,7 +58,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         email: loginEmail.trim(),
         password: loginPassword,
       });
-      onLogin(apiUserToAuthUser(res.user));
+      // API /auth/login không trả "email" trong object user -> dùng lại email vừa nhập.
+      onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || loginEmail.trim() }));
       return;
     } catch (err) {
       if (err instanceof ApiError) {
@@ -127,7 +128,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       // Đăng ký xong, đăng nhập ngay để có access/refresh token.
       try {
         const res = await authApi.login({ email: finalEmail, password: regPassword });
-        onLogin(apiUserToAuthUser(res.user));
+        onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || finalEmail }));
       } catch {
         // Không đăng nhập được ngay -> vẫn vào bằng thông tin tài khoản vừa tạo.
         onLogin(apiUserToAuthUser(created));

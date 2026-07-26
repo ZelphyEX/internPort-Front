@@ -11,6 +11,11 @@ WORKDIR /app
 COPY package.json package-lock.json ./
 RUN npm ci
 
+# VITE_API_BASE_URL được Vite "nướng" vào bundle client lúc build, nên phải truyền
+# qua build-arg (không phải env runtime) — xem .github/workflows/deploy.yml.
+ARG VITE_API_BASE_URL
+ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
+
 # Copy mã nguồn và build ra dist/ (client) + dist/server.cjs (server).
 COPY . .
 RUN npm run build

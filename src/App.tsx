@@ -44,7 +44,7 @@ import {
   ApiError,
   setUnauthorizedHandler,
 } from './services/api';
-import { feFileTypeToApiType, apiUserToAuthUser } from './services/mappers';
+import { feFileTypeToApiType, apiUserToAuthUser, apiUserToIntern, apiGroupToGroup, apiDocumentToResource } from './services/mappers';
 
 export default function App() {
   // Auth State
@@ -386,6 +386,34 @@ export default function App() {
   useEffect(() => {
     localStorage.setItem('gimasys_documents', JSON.stringify(documents));
   }, [documents]);
+
+  // Tải danh sách thật từ backend mỗi khi đã đăng nhập thật (có access_token).
+  // Online-first: thành công -> thay hẳn state cục bộ bằng dữ liệu server (server là
+  // nguồn sự thật khi online). Lỗi mạng/API -> im lặng giữ nguyên mock/local, không
+  // chặn UI hay hiện alert (khác các handler mutation vốn báo lỗi cho người dùng).
+  // usersApi/groupsApi yêu cầu quyền MENTOR trở lên (đặc tả), documentsApi thì mở cho INTERN.
+  // size tối đa backend cho phép là 100 (vượt quá -> 422); trang đầu là đủ cho quy mô hiện tại,
+  // nếu dữ liệu vượt 100 bản ghi cần làm phân trang thật (chưa có trong UI hiện tại).
+  useEffect(() => {
+    if (!currentUser || !tokenStore.isAuthenticated()) return;
+
+    documentsApi
+      .list({ size: 100 })
+      .then((res) => setDocuments(res.items.map(apiDocumentToResource)))
+      .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
+
+    if (currentRole !== 'INTERN') {
+      usersApi
+        .list({ size: 100, role: 'INTERN' })
+        .then((res) => setInterns(res.items.map(apiUserToIntern)))
+        .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
+
+      groupsApi
+        .list({ size: 100 })
+        .then((res) => setGroups(res.items.map((g) => apiGroupToGroup(g))))
+        .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
+    }
+  }, [currentUser, currentRole]);
 
   // Handler Functions
   const handleAddIntern = (newIntern: Intern) => {

@@ -1,6 +1,0 @@
-{
-  "name": "Gimasys Intern Portal",
-  "description": "Hệ thống quản lý thực tập sinh, theo dõi tiến độ đào tạo, dự án và đánh giá hiệu quả làm việc Gimasys",
-  "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
-}

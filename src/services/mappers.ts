@@ -16,6 +16,7 @@ import type {
   DocumentResource,
   Group,
   GroupMember,
+  Intern,
 } from '../types';
 
 // ---- User -----------------------------------------------------------------
@@ -40,6 +41,37 @@ export function apiUserToAuthUser(u: ApiUser): AuthUser {
   };
 }
 
+/**
+ * ApiUser (server, role INTERN) -> Intern (frontend danh sách thực tập sinh).
+ * Lưu ý: GET /users chỉ trả id/full_name/email/role/status/avatar_url — KHÔNG có
+ * department/mentor/project/score/skills... nên các trường đó phải để rỗng/mặc
+ * định thay vì bịa dữ liệu. Khi backend bổ sung field, cập nhật mapper này.
+ */
+export function apiUserToIntern(u: ApiUser): Intern {
+  return {
+    id: String(u.id),
+    name: u.full_name,
+    email: u.email,
+    phone: '',
+    avatar:
+      u.avatar_url ||
+      'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
+    department: 'Java Back-End',
+    roleTitle: 'Thực tập sinh Gimasys',
+    mentor: '',
+    mentorEmail: '',
+    startDate: '',
+    endDate: '',
+    status: u.status === 'LOCKED' ? 'Paused' : 'Active',
+    project: '',
+    projectId: '',
+    score: 0,
+    attendanceRate: 0,
+    skills: [],
+    roadmapProgress: 0,
+  };
+}
+
 // ---- Document -------------------------------------------------------------
 
 const API_TYPE_TO_FE_FILETYPE: Record<ApiDocType, DocumentResource['fileType']> = {
@@ -53,14 +85,16 @@ const API_TYPE_TO_FE_FILETYPE: Record<ApiDocType, DocumentResource['fileType']> 
 export function apiDocumentToResource(d: ApiDocument): DocumentResource {
   return {
     id: String(d.id),
-    title: d.title,
+    title: d.title || '',
     category: (d.tags && d.tags[0]) || 'API Docs',
     author: 'Gimasys',
     updatedAt: d.created_at,
     fileType: API_TYPE_TO_FE_FILETYPE[d.type] || 'MD',
     fileSize: '—',
     downloadCount: 0,
-    description: d.description,
+    // Backend thực tế có thể trả null dù kiểu khai báo là string (VD document id 16 trả description: null)
+    // -> phải fallback '' để tránh crash khi component gọi .toLowerCase() lúc tìm kiếm.
+    description: d.description || '',
     tags: d.tags || [],
   };
 }
