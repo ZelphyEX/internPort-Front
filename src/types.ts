@@ -33,7 +33,6 @@ export interface Intern {
   attendanceRate: number; // e.g. 96 (%)
   githubUrl?: string;
   skills: InternSkill[];
-  roadmapProgress: number; // 0 - 100 (%)
   bio?: string;
   university?: string;
   major?: string;
@@ -87,53 +86,6 @@ export interface DailyReport {
   mentorComment?: string;
   rating?: number; // 1 - 5 stars
   createdAt: string;
-}
-
-export interface CourseComment {
-  id: string;
-  courseTaskId: string;
-  authorId: string;
-  authorName: string;
-  authorRole: UserRole;
-  authorAvatar: string;
-  content: string;
-  createdAt: string;
-  isResolved?: boolean;
-  replyToId?: string;
-  codeSnippet?: string;
-}
-
-export interface CourseSection {
-  id: string;
-  title: string;
-  completed: boolean;
-  estimatedMinutes?: number;
-}
-
-export interface CourseMajorTask {
-  id: string;
-  title: string;
-  skilljarUrl?: string; // Link bài học Anthropic Skilljar
-  description?: string;
-  completed?: boolean;
-  sections: CourseSection[];
-  comments?: CourseComment[]; // Thảo luận & Q&A bài học
-}
-
-export interface TrainingModule {
-  id: string;
-  track: Department;
-  weekNumber: number;
-  title: string;
-  duration: string;
-  description: string;
-  keySkills: string[];
-  resourcesCount: number;
-  status: 'Not Started' | 'In Progress' | 'Completed';
-  skilljarUrl?: string; // Main Anthropic Skilljar URL
-  majorTasks?: CourseMajorTask[]; // Các Task lớn & Section nhỏ
-  color?: string; // Màu hiển thị của khoá học trên Lộ trình Đào tạo
-  isLocked?: boolean; // true = khoá học mặc định, không thể xoá (VD: CCA-F)
 }
 
 export interface DocumentResource {

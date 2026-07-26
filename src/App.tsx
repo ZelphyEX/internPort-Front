@@ -1,11 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, Intern, Project, TaskItem, DailyReport, TrainingModule, TaskStatus, AuthUser, DocumentResource, Group, GroupMember } from './types';
-import { 
-  INITIAL_INTERNS, 
-  INITIAL_PROJECTS, 
-  INITIAL_TASKS, 
-  INITIAL_DAILY_REPORTS, 
-  TRAINING_MODULES, 
+import { UserRole, Intern, Project, TaskItem, DailyReport, TaskStatus, AuthUser, DocumentResource, Group, GroupMember } from './types';
+import {
+  INITIAL_INTERNS,
+  INITIAL_PROJECTS,
+  INITIAL_TASKS,
+  INITIAL_DAILY_REPORTS,
   DOCUMENT_RESOURCES,
   DEMO_AUTH_USERS
 } from './data/mockData';
@@ -20,7 +19,6 @@ import { ProjectsView } from './components/ProjectsView';
 import { DailyReportsView } from './components/DailyReportsView';
 import { RoadmapView } from './components/RoadmapView';
 import { KnowledgeBaseView } from './components/KnowledgeBaseView';
-import { SkilljarCoursesView } from './components/SkilljarCoursesView';
 import { SettingsView } from './components/SettingsView';
 
 import { InternDetailModal } from './components/InternDetailModal';
@@ -41,10 +39,22 @@ import {
   usersApi,
   groupsApi,
   documentsApi,
+  projectsApi,
+  tasksApi,
+  dailyReportsApi,
   ApiError,
   setUnauthorizedHandler,
 } from './services/api';
-import { feFileTypeToApiType, apiUserToAuthUser, apiUserToIntern, apiGroupToGroup, apiDocumentToResource } from './services/mappers';
+import {
+  feFileTypeToApiType,
+  apiUserToAuthUser,
+  apiUserToIntern,
+  apiGroupToGroup,
+  apiDocumentToResource,
+  apiProjectToProject,
+  apiTaskToTaskItem,
+  apiDailyReportToReport,
+} from './services/mappers';
 
 export default function App() {
   // Auth State
@@ -327,6 +337,13 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_INTERNS;
   });
 
+  // Tham chiếu tới interns mới nhất để tra cứu department khi map Daily Report,
+  // không đưa vào dependency của useEffect tải dữ liệu (tránh gọi lại API liên tục).
+  const internsRef = React.useRef<Intern[]>(interns);
+  useEffect(() => {
+    internsRef.current = interns;
+  }, [interns]);
+
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('gimasys_projects');
     return saved ? JSON.parse(saved) : INITIAL_PROJECTS;
@@ -340,11 +357,6 @@ export default function App() {
   const [reports, setReports] = useState<DailyReport[]>(() => {
     const saved = localStorage.getItem('gimasys_reports');
     return saved ? JSON.parse(saved) : INITIAL_DAILY_REPORTS;
-  });
-
-  const [modules, setModules] = useState<TrainingModule[]>(() => {
-    const saved = localStorage.getItem('gimasys_modules');
-    return saved ? JSON.parse(saved) : TRAINING_MODULES;
   });
 
   const [documents, setDocuments] = useState<DocumentResource[]>(() => {
@@ -380,10 +392,6 @@ export default function App() {
   }, [reports]);
 
   useEffect(() => {
-    localStorage.setItem('gimasys_modules', JSON.stringify(modules));
-  }, [modules]);
-
-  useEffect(() => {
     localStorage.setItem('gimasys_documents', JSON.stringify(documents));
   }, [documents]);
 
@@ -413,6 +421,31 @@ export default function App() {
         .then((res) => setGroups(res.items.map((g) => apiGroupToGroup(g))))
         .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
     }
+
+    // Projects/Tasks/Daily Reports: mở cho mọi role đã đăng nhập — INTERN tự động
+    // chỉ thấy dữ liệu của chính mình phía server (theo mô tả GET /projects), không
+    // cần FE tự lọc thêm.
+    projectsApi
+      .list({ size: 100 })
+      .then((res) => setProjects(res.items.map(apiProjectToProject)))
+      .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
+
+    tasksApi
+      .list({ size: 100 })
+      .then((res) => setTasks(res.items.map(apiTaskToTaskItem)))
+      .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
+
+    dailyReportsApi
+      .list({ size: 100 })
+      .then((res) =>
+        setReports(
+          res.items.map((r) => {
+            const dept = internsRef.current.find((i) => i.id === String(r.intern_id))?.department;
+            return apiDailyReportToReport(r, dept);
+          })
+        )
+      )
+      .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
   }, [currentUser, currentRole]);
 
   // Handler Functions
@@ -420,59 +453,172 @@ export default function App() {
     setInterns(prev => [newIntern, ...prev]);
   };
 
-  const handleAddTask = (newTask: TaskItem) => {
+  // true nếu id là số nguyên do backend cấp (mock data dùng id dạng "TSK-001", "PRJ-00"...).
+  const isBackendId = (id: string) => {
+    const n = Number(id);
+    return Number.isInteger(n) && String(n) === id;
+  };
+
+  // Giao Task mới. Online: POST /tasks (đặc tả), rồi đồng bộ id thật từ server về
+  // client để các thao tác sau (sửa/xoá) gọi đúng endpoint. Lỗi mạng: thêm cục bộ.
+  const handleAddTask = async (newTask: TaskItem) => {
+    if (tokenStore.isAuthenticated()) {
+      try {
+        const created = await tasksApi.create({
+          title: newTask.title,
+          project_id: isBackendId(newTask.projectId) ? Number(newTask.projectId) : undefined,
+          assigned_intern_id: isBackendId(newTask.assignedInternId) ? Number(newTask.assignedInternId) : undefined,
+          status: newTask.status,
+          priority: newTask.priority,
+          due_date: newTask.dueDate || undefined,
+          description: newTask.description || undefined,
+        });
+        setTasks(prev => [{ ...newTask, id: String(created.id) }, ...prev]);
+        return;
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Giao task thất bại.');
+          return;
+        }
+        // Lỗi mạng: rơi xuống nhánh cục bộ.
+      }
+    }
     setTasks(prev => [newTask, ...prev]);
   };
 
-  const handleAddReport = (newReport: DailyReport) => {
+  // Nộp báo cáo ngày mới. Online: POST /daily-reports (đặc tả, 409 nếu đã báo cáo ngày đó).
+  const handleAddReport = async (newReport: DailyReport) => {
+    if (tokenStore.isAuthenticated()) {
+      try {
+        const created = await dailyReportsApi.create({
+          date: newReport.date,
+          completed_today: newReport.completedToday,
+          tomorrow_plan: newReport.tomorrowPlan || undefined,
+          blockers: newReport.blockers || undefined,
+          hours_logged: newReport.hoursLogged,
+        });
+        setReports(prev => [{ ...newReport, id: String(created.id) }, ...prev]);
+        return;
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Gửi báo cáo thất bại.');
+          return;
+        }
+        // Lỗi mạng: rơi xuống nhánh cục bộ.
+      }
+    }
     setReports(prev => [newReport, ...prev]);
   };
 
-  const handleUpdateTaskStatus = (taskId: string, newStatus: TaskStatus) => {
+  // Đổi trạng thái Task trên Kanban. Online: PATCH /tasks/{id}.
+  const handleUpdateTaskStatus = async (taskId: string, newStatus: TaskStatus) => {
+    if (tokenStore.isAuthenticated() && isBackendId(taskId)) {
+      try {
+        await tasksApi.update(Number(taskId), { status: newStatus });
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Cập nhật trạng thái task thất bại.');
+          return;
+        }
+        // Lỗi mạng: vẫn cập nhật cục bộ bên dưới.
+      }
+    }
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: newStatus } : t));
   };
 
-  const handleApproveReport = (reportId: string, comment: string, rating: number) => {
+  // Duyệt báo cáo ngày. Online: PATCH /daily-reports/{id}/review.
+  const handleApproveReport = async (reportId: string, comment: string, rating: number) => {
+    const finalComment = comment || 'Báo cáo đầy đủ, tiến độ tốt.';
+    const finalRating = rating || 5;
+    if (tokenStore.isAuthenticated() && isBackendId(reportId)) {
+      try {
+        await dailyReportsApi.review(Number(reportId), {
+          status: 'Approved',
+          mentor_comment: finalComment,
+          rating: finalRating,
+        });
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Duyệt báo cáo thất bại.');
+          return;
+        }
+      }
+    }
     setReports(prev => prev.map(r => r.id === reportId ? {
       ...r,
       status: 'Approved',
-      mentorComment: comment || 'Báo cáo đầy đủ, tiến độ tốt.',
-      rating: rating || 5
+      mentorComment: finalComment,
+      rating: finalRating
     } : r));
   };
 
-  const handleRequestRevisionReport = (reportId: string, comment: string) => {
+  // Yêu cầu chỉnh sửa báo cáo ngày. Online: PATCH /daily-reports/{id}/review.
+  const handleRequestRevisionReport = async (reportId: string, comment: string) => {
+    const finalComment = comment || 'Vui lòng bổ sung thêm thông tin về blockers.';
+    if (tokenStore.isAuthenticated() && isBackendId(reportId)) {
+      try {
+        await dailyReportsApi.review(Number(reportId), {
+          status: 'Needs Revision',
+          mentor_comment: finalComment,
+        });
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Yêu cầu chỉnh sửa thất bại.');
+          return;
+        }
+      }
+    }
     setReports(prev => prev.map(r => r.id === reportId ? {
       ...r,
       status: 'Needs Revision',
-      mentorComment: comment || 'Vui lòng bổ sung thêm thông tin về blockers.'
+      mentorComment: finalComment
     } : r));
   };
 
-  const handleToggleModuleStatus = (moduleId: string) => {
-    setModules(prev => prev.map(m => {
-      if (m.id === moduleId) {
-        const nextStatus = m.status === 'Completed' ? 'In Progress' : 'Completed';
-        return { ...m, status: nextStatus };
+  // Xoá 1 Task khỏi Kanban board. Online: DELETE /tasks/{id}.
+  const handleDeleteTask = async (taskId: string) => {
+    if (tokenStore.isAuthenticated() && isBackendId(taskId)) {
+      try {
+        await tasksApi.remove(Number(taskId));
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Xoá task thất bại.');
+          return;
+        }
       }
-      return m;
-    }));
-  };
-
-  // Xoá 1 Task khỏi Kanban board
-  const handleDeleteTask = (taskId: string) => {
+    }
     setTasks(prev => prev.filter(t => t.id !== taskId));
   };
 
-  // Xoá 1 Dự án (kèm xoá luôn toàn bộ Task thuộc dự án đó trên Kanban)
-  const handleDeleteProject = (projectId: string) => {
+  // Xoá 1 Dự án (kèm xoá luôn toàn bộ Task thuộc dự án đó trên Kanban). Online: DELETE /projects/{id}.
+  const handleDeleteProject = async (projectId: string) => {
+    if (tokenStore.isAuthenticated() && isBackendId(projectId)) {
+      try {
+        await projectsApi.remove(Number(projectId));
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Xoá dự án thất bại.');
+          return;
+        }
+      }
+    }
     setProjects(prev => prev.filter(p => p.id !== projectId));
     setTasks(prev => prev.filter(t => t.projectId !== projectId));
   };
 
-  // Thêm 1 Thực tập sinh vào danh sách thành viên của Dự án
-  const handleAddProjectMember = (projectId: string, internId: string) => {
+  // Thêm 1 Thực tập sinh vào danh sách thành viên của Dự án. Online: POST /projects/{id}/members.
+  const handleAddProjectMember = async (projectId: string, internId: string) => {
     if (!internId) return;
+    if (tokenStore.isAuthenticated() && isBackendId(projectId) && isBackendId(internId)) {
+      try {
+        await projectsApi.addMembers(Number(projectId), [Number(internId)]);
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Thêm thành viên dự án thất bại.');
+          return;
+        }
+      }
+    }
     setProjects(prev => prev.map(p => {
       if (p.id !== projectId) return p;
       const currentMembers = p.memberIds || [];
@@ -482,8 +628,18 @@ export default function App() {
     }));
   };
 
-  // Gỡ 1 Thực tập sinh khỏi danh sách thành viên của Dự án
-  const handleRemoveProjectMember = (projectId: string, internId: string) => {
+  // Gỡ 1 Thực tập sinh khỏi danh sách thành viên của Dự án. Online: DELETE /projects/{id}/members/{user_id}.
+  const handleRemoveProjectMember = async (projectId: string, internId: string) => {
+    if (tokenStore.isAuthenticated() && isBackendId(projectId) && isBackendId(internId)) {
+      try {
+        await projectsApi.removeMember(Number(projectId), Number(internId));
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Gỡ thành viên dự án thất bại.');
+          return;
+        }
+      }
+    }
     setProjects(prev => prev.map(p => {
       if (p.id !== projectId) return p;
       const nextMembers = (p.memberIds || []).filter(id => id !== internId);
@@ -714,21 +870,13 @@ export default function App() {
             />
           )}
 
-          {!isGroupScreenOpen && activeTab === 'skilljar' && (
-            <SkilljarCoursesView
-              modules={modules}
-              onUpdateModules={setModules}
-              onNavigateToTab={setActiveTab}
-              currentRole={currentRole}
-            />
-          )}
-
           {!isGroupScreenOpen && activeTab === 'roadmaps' && (
             <RoadmapView
-              trainingModules={modules}
-              onToggleModuleStatus={handleToggleModuleStatus}
-              onNavigateToProjects={() => setActiveTab('projects')}
-              onNavigateToTab={setActiveTab}
+              currentRole={currentRole}
+              currentUser={currentUser}
+              interns={interns}
+              groups={groups}
+              documents={documents}
             />
           )}
 

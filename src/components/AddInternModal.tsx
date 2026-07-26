@@ -48,7 +48,6 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
       projectId: 'PRJ-01',
       score: 8.5,
       attendanceRate: 100,
-      roadmapProgress: 10,
       university,
       skills: [
         { name: `${department} Basic`, level: 75, category: 'Core' },

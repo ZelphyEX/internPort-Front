@@ -276,19 +276,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
                   </div>
                 </div>
 
-                {/* Roadmap Progress Bar */}
-                <div className="space-y-1">
-                  <div className="flex items-center justify-between text-[11px]">
-                    <span className="text-slate-500 dark:text-slate-400">Tiến độ Lộ trình:</span>
-                    <span className="font-bold text-slate-900 dark:text-slate-100">{intern.roadmapProgress}%</span>
-                  </div>
-                  <div className="w-full bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                    <div 
-                      className="bg-blue-600 h-full rounded-full transition-all duration-300"
-                      style={{ width: `${intern.roadmapProgress}%` }}
-                    ></div>
-                  </div>
-                </div>
               </div>
 
               {/* Bottom Actions Row */}
@@ -328,7 +315,7 @@ export const InternsView: React.FC<InternsViewProps> = ({
                   <th className="p-4">Khối Kỹ thuật</th>
                   <th className="p-4">Mentor</th>
                   <th className="p-4">Trạng thái</th>
-                  <th className="p-4">Lộ trình</th>
+                  <th className="p-4">Lộ trình học tập</th>
                   <th className="p-4">Điểm</th>
                   <th className="p-4 text-right">Thao tác</th>
                 </tr>
@@ -361,10 +348,15 @@ export const InternsView: React.FC<InternsViewProps> = ({
                       </span>
                     </td>
                     <td className="p-4">
-                      <div className="w-24 bg-slate-100 dark:bg-slate-800 h-2 rounded-full overflow-hidden">
-                        <div className="bg-blue-600 h-full rounded-full" style={{ width: `${intern.roadmapProgress}%` }}></div>
-                      </div>
-                      <span className="text-[10px] text-slate-500 dark:text-slate-400 font-bold mt-1 block">{intern.roadmapProgress}%</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onSelectIntern(intern);
+                        }}
+                        className="text-[11px] font-bold text-blue-600 hover:underline"
+                      >
+                        Xem chi tiết lộ trình
+                      </button>
                     </td>
                     <td className="p-4 font-bold text-slate-900 dark:text-slate-100 text-sm">{intern.score}</td>
                     <td className="p-4 text-right">

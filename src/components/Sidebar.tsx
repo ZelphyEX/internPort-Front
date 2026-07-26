@@ -6,7 +6,6 @@ import {
   FileSpreadsheet,
   Compass,
   FolderGit2,
-  GraduationCap,
   Sparkles,
   PlusCircle,
   HelpCircle,
@@ -16,7 +15,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../types';
 
-export type NavTab = 'dashboard' | 'interns' | 'projects' | 'daily_reports' | 'skilljar' | 'roadmaps' | 'knowledge' | 'settings';
+export type NavTab = 'dashboard' | 'interns' | 'projects' | 'daily_reports' | 'roadmaps' | 'knowledge' | 'settings';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -54,12 +53,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Users,
       badge: null
     }] : []),
-    {
-      id: 'skilljar' as NavTab,
-      label: 'Khóa học Anthropic Skilljar',
-      icon: GraduationCap,
-      badge: 'LMS Sync'
-    },
     {
       id: 'projects' as NavTab,
       label: 'Dự án & Kanban Worklog',

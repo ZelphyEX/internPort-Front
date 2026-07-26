@@ -197,6 +197,15 @@ export type ApiRole = 'ADMIN' | 'MENTOR' | 'INTERN';
 export type ApiUserStatus = 'ACTIVE' | 'LOCKED';
 export type ApiDocType = 'VIDEO' | 'PDF' | 'LINK' | 'ARTICLE';
 
+// Lưu ý: giá trị "Salesforce/ERP" (không có khoảng trắng quanh dấu "/") — khác với
+// Department phía FE ("Salesforce / ERP"). Phải map qua lại bằng mappers.ts, không ép kiểu trực tiếp.
+export type ApiDepartment =
+  | 'Java Back-End'
+  | 'React Front-End'
+  | 'Cloud & DevOps'
+  | 'Salesforce/ERP'
+  | 'AI & Data Science';
+
 export interface ApiUser {
   id: number;
   full_name: string;
@@ -204,6 +213,20 @@ export interface ApiUser {
   role: ApiRole;
   status?: ApiUserStatus;
   avatar_url?: string | null;
+  // Hồ sơ Intern — chỉ có ý nghĩa khi role === 'INTERN', đều optional/nullable.
+  department?: ApiDepartment | null;
+  mentor_id?: number | null;
+  mentor_name?: string | null;
+  mentor_email?: string | null;
+  phone?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
+  university?: string | null;
+  major?: string | null;
+  bio?: string | null;
+  github_url?: string | null;
+  score?: number | null;
+  attendance_rate?: number | null;
 }
 
 export interface LoginResponse {
@@ -264,6 +287,10 @@ export interface ApiModule {
   title: string;
   position: number;
   description?: string;
+  track?: ApiDepartment | null;
+  week_number?: number | null;
+  duration_text?: string | null;
+  key_skills?: string[];
   documents?: ApiModuleDocument[];
 }
 
@@ -282,6 +309,18 @@ export interface ApiAssignedRoadmap {
   progress_percent: number;
   completed_lessons: number;
   total_lessons: number;
+}
+
+/** GET /roadmap-assignments item — khác shape với ApiAssignedRoadmap (GET /me/roadmaps). */
+export interface ApiAssignmentListItem {
+  assignment_id: number;
+  roadmap_id: number;
+  roadmap_title: string;
+  user_id: number;
+  user_name: string;
+  status: 'IN_PROGRESS' | 'COMPLETED';
+  progress_percent: number;
+  assigned_at: string;
 }
 
 export interface ApiLessonState {
@@ -317,6 +356,8 @@ export interface ApiComment {
   id: number;
   user: { id: number; full_name: string; avatar_url?: string };
   content: string;
+  code_snippet?: string | null;
+  is_resolved?: boolean;
   created_at: string;
   parent_comment_id?: number | null;
   replies?: ApiComment[];
@@ -326,6 +367,8 @@ export interface ApiDashboardMe {
   total_roadmaps: number;
   completed_roadmaps: number;
   overall_progress_percent: number;
+  task_completion_percent: number;
+  pending_reports_count: number;
   roadmaps: Array<{ assignment_id: number; title: string; progress_percent: number }>;
 }
 
@@ -333,7 +376,90 @@ export interface ApiDashboardOverview {
   total_interns: number;
   active_assignments: number;
   completed_assignments: number;
+  avg_score: number;
+  completed_tasks_this_week: number;
+  pending_reviews_count: number;
   by_group: Array<{ group_id: number; name: string; avg_progress_percent: number }>;
+}
+
+// ---- Projects ---------------------------------------------------------------
+
+export type ApiProjectStatus = 'In Planning' | 'Active' | 'Under Review' | 'Completed';
+
+export interface ApiProject {
+  id: number;
+  code: string;
+  title: string;
+  department?: ApiDepartment | null;
+  status: ApiProjectStatus;
+  lead_user_id?: number | null;
+  lead_name?: string | null;
+  progress_percent: number;
+  deadline?: string | null;
+  description?: string | null;
+  tags: string[];
+  member_count: number;
+  created_at: string;
+}
+
+export interface ApiProjectMember {
+  id: number;
+  full_name: string;
+  email: string;
+  avatar_url?: string | null;
+}
+
+export interface ApiProjectDetail extends ApiProject {
+  members: ApiProjectMember[];
+}
+
+// ---- Tasks --------------------------------------------------------------------
+
+export type ApiTaskStatus = 'To Do' | 'In Progress' | 'In Review' | 'Done' | 'Blocked';
+export type ApiTaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
+
+export interface ApiTask {
+  id: number;
+  title: string;
+  project_id?: number | null;
+  project_code?: string | null;
+  project_title?: string | null;
+  assigned_intern_id?: number | null;
+  assigned_intern_name?: string | null;
+  mentor_id?: number | null;
+  mentor_name?: string | null;
+  status: ApiTaskStatus;
+  priority: ApiTaskPriority;
+  due_date?: string | null;
+  description?: string | null;
+  pr_url?: string | null;
+  mentor_feedback?: string | null;
+  completed_at?: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+// ---- Daily Reports --------------------------------------------------------------
+
+export type ApiDailyReportStatus = 'Pending' | 'Approved' | 'Needs Revision';
+
+export interface ApiDailyReport {
+  id: number;
+  intern_id: number;
+  intern_name?: string | null;
+  date: string;
+  completed_today: string;
+  tomorrow_plan?: string | null;
+  blockers?: string | null;
+  hours_logged?: number | null;
+  status: ApiDailyReportStatus;
+  mentor_comment?: string | null;
+  rating?: number | null;
+  reviewed_by?: number | null;
+  reviewer_name?: string | null;
+  reviewed_at?: string | null;
+  created_at: string;
+  updated_at: string;
 }
 
 // ============================================================================
@@ -401,14 +527,34 @@ export const usersApi = {
     return request<Paginated<ApiUser>>('/users', { query: params });
   },
 
-  /** POST /users — Tạo tài khoản (thường Admin tạo MENTOR). Quyền: ADMIN. */
-  create(payload: { full_name: string; email: string; password: string; role: ApiRole }) {
+  /** POST /users — Tạo tài khoản MENTOR/ADMIN (không tạo được INTERN — dùng /auth/register). Quyền: ADMIN. */
+  create(payload: { full_name: string; email: string; password: string; role: 'ADMIN' | 'MENTOR' }) {
     return request<ApiUser>('/users', { method: 'POST', body: payload });
   },
 
   /** GET /users/{id} — Chi tiết user. Quyền: MENTOR. */
   get(id: number) {
     return request<ApiUser>(`/users/${id}`);
+  },
+
+  /** PATCH /users/{id}/profile — Cập nhật hồ sơ Intern (department/mentor/score...). Quyền: MENTOR. */
+  updateProfile(
+    id: number,
+    payload: Partial<{
+      department: ApiDepartment;
+      mentor_id: number;
+      phone: string;
+      start_date: string;
+      end_date: string;
+      university: string;
+      major: string;
+      bio: string;
+      github_url: string;
+      score: number;
+      attendance_rate: number;
+    }>
+  ) {
+    return request<ApiUser>(`/users/${id}/profile`, { method: 'PATCH', body: payload });
   },
 
   /** PATCH /users/{id}/lock — Khóa tài khoản. Quyền: MENTOR. */
@@ -576,7 +722,18 @@ export const roadmapsApi = {
   },
 
   /** POST /roadmaps/{roadmap_id}/modules — Thêm chặng. Quyền: MENTOR. */
-  addModule(roadmapId: number, payload: { title: string; description?: string; position: number }) {
+  addModule(
+    roadmapId: number,
+    payload: {
+      title: string;
+      description?: string;
+      position?: number;
+      track?: ApiDepartment;
+      week_number?: number;
+      duration_text?: string;
+      key_skills?: string[];
+    }
+  ) {
     return request<ApiModule>(`/roadmaps/${roadmapId}/modules`, { method: 'POST', body: payload });
   },
 
@@ -599,7 +756,18 @@ export const roadmapsApi = {
 
 export const modulesApi = {
   /** PATCH /modules/{id} — Sửa chặng (kể cả đổi position). Quyền: MENTOR. */
-  update(id: number, payload: Partial<{ title: string; description: string; position: number }>) {
+  update(
+    id: number,
+    payload: Partial<{
+      title: string;
+      description: string;
+      position: number;
+      track: ApiDepartment;
+      week_number: number;
+      duration_text: string;
+      key_skills: string[];
+    }>
+  ) {
     return request<ApiModule>(`/modules/${id}`, { method: 'PATCH', body: payload });
   },
 
@@ -629,9 +797,9 @@ export const moduleDocumentsApi = {
 // ============================================================================
 
 export const assignmentsApi = {
-  /** GET /roadmap-assignments — Danh sách lượt gán. Quyền: MENTOR. */
-  list() {
-    return request<Paginated<ApiAssignedRoadmap>>('/roadmap-assignments');
+  /** GET /roadmap-assignments — Danh sách lượt gán, lọc theo roadmap/intern/nhóm/status. Quyền: MENTOR. */
+  list(params?: { page?: number; size?: number; roadmap_id?: number; user_id?: number; group_id?: number; status?: 'IN_PROGRESS' | 'COMPLETED' }) {
+    return request<Paginated<ApiAssignmentListItem>>('/roadmap-assignments', { query: params });
   },
 
   /** DELETE /roadmap-assignments/{id} — Hủy gán. Quyền: MENTOR. */
@@ -707,11 +875,16 @@ export const commentsApi = {
     return request<ApiComment[]>(`/lessons/${moduleDocumentId}/comments`);
   },
 
-  /** POST /lessons/{module_document_id}/comments — Viết comment/reply. */
-  create(moduleDocumentId: number, content: string, parent_comment_id: number | null = null) {
+  /** POST /lessons/{module_document_id}/comments — Viết comment/reply, có thể kèm code_snippet. */
+  create(
+    moduleDocumentId: number,
+    content: string,
+    parent_comment_id: number | null = null,
+    code_snippet?: string
+  ) {
     return request<ApiComment>(`/lessons/${moduleDocumentId}/comments`, {
       method: 'POST',
-      body: { content, parent_comment_id },
+      body: { content, parent_comment_id, code_snippet },
     });
   },
 
@@ -723,6 +896,207 @@ export const commentsApi = {
   /** DELETE /comments/{id} — Xóa comment (chủ comment hoặc MENTOR). */
   remove(id: number) {
     return request<void>(`/comments/${id}`, { method: 'DELETE' });
+  },
+
+  /** PATCH /comments/{id}/resolve — Đánh dấu đã giải quyết câu hỏi. Quyền: MENTOR. */
+  resolve(id: number, isResolved = true) {
+    return request<ApiComment>(`/comments/${id}/resolve`, {
+      method: 'PATCH',
+      body: { is_resolved: isResolved },
+    });
+  },
+};
+
+// ============================================================================
+// 11. Dự án (Projects)
+// ============================================================================
+
+export const projectsApi = {
+  /**
+   * GET /projects — Danh sách dự án. Quyền: INTERN/MENTOR (INTERN luôn chỉ thấy
+   * dự án của chính mình bất kể filter truyền vào).
+   */
+  list(params?: {
+    page?: number;
+    size?: number;
+    search?: string;
+    department?: ApiDepartment;
+    status?: ApiProjectStatus;
+    member_id?: number;
+  }) {
+    return request<Paginated<ApiProject>>('/projects', { query: params });
+  },
+
+  /** POST /projects — Tạo dự án. Quyền: MENTOR/ADMIN. 409 nếu trùng `code`. */
+  create(payload: {
+    code: string;
+    title: string;
+    department?: ApiDepartment;
+    status?: ApiProjectStatus;
+    lead_user_id?: number;
+    progress_percent?: number;
+    deadline?: string;
+    description?: string;
+    tag_ids?: number[];
+    member_ids?: number[];
+  }) {
+    return request<ApiProject>('/projects', { method: 'POST', body: payload });
+  },
+
+  /** GET /projects/{id} — Chi tiết dự án kèm thành viên. */
+  get(id: number) {
+    return request<ApiProjectDetail>(`/projects/${id}`);
+  },
+
+  /** PATCH /projects/{id} — Sửa dự án. Quyền: MENTOR/ADMIN. */
+  update(
+    id: number,
+    payload: Partial<{
+      code: string;
+      title: string;
+      department: ApiDepartment;
+      status: ApiProjectStatus;
+      lead_user_id: number;
+      progress_percent: number;
+      deadline: string;
+      description: string;
+      tag_ids: number[];
+    }>
+  ) {
+    return request<ApiProject>(`/projects/${id}`, { method: 'PATCH', body: payload });
+  },
+
+  /** DELETE /projects/{id} — Xóa mềm. Quyền: MENTOR/ADMIN. */
+  remove(id: number) {
+    return request<void>(`/projects/${id}`, { method: 'DELETE' });
+  },
+
+  /** POST /projects/{id}/members — Thêm nhiều thành viên. Quyền: MENTOR/ADMIN. */
+  addMembers(id: number, user_ids: number[]) {
+    return request<ApiProjectMember[]>(`/projects/${id}/members`, {
+      method: 'POST',
+      body: { user_ids },
+    });
+  },
+
+  /** DELETE /projects/{id}/members/{user_id} — Gỡ 1 thành viên. Quyền: MENTOR/ADMIN. */
+  removeMember(id: number, userId: number) {
+    return request<void>(`/projects/${id}/members/${userId}`, { method: 'DELETE' });
+  },
+};
+
+// ============================================================================
+// 12. Công việc (Tasks)
+// ============================================================================
+
+export const tasksApi = {
+  /** GET /tasks — Danh sách task, lọc theo project/intern/status/priority. */
+  list(params?: {
+    page?: number;
+    size?: number;
+    project_id?: number;
+    assigned_intern_id?: number;
+    status?: ApiTaskStatus;
+    priority?: ApiTaskPriority;
+  }) {
+    return request<Paginated<ApiTask>>('/tasks', { query: params });
+  },
+
+  /** POST /tasks — Tạo task. Quyền: MENTOR/ADMIN. `mentor_id` mặc định là người gọi. */
+  create(payload: {
+    title: string;
+    project_id?: number;
+    assigned_intern_id?: number;
+    mentor_id?: number;
+    status?: ApiTaskStatus;
+    priority?: ApiTaskPriority;
+    due_date?: string;
+    description?: string;
+    pr_url?: string;
+  }) {
+    return request<ApiTask>('/tasks', { method: 'POST', body: payload });
+  },
+
+  /** GET /tasks/{id} — Chi tiết task. */
+  get(id: number) {
+    return request<ApiTask>(`/tasks/${id}`);
+  },
+
+  /** PATCH /tasks/{id} — Sửa task (đổi status, PR url, feedback...). */
+  update(
+    id: number,
+    payload: Partial<{
+      title: string;
+      project_id: number;
+      assigned_intern_id: number;
+      mentor_id: number;
+      status: ApiTaskStatus;
+      priority: ApiTaskPriority;
+      due_date: string;
+      description: string;
+      pr_url: string;
+      mentor_feedback: string;
+    }>
+  ) {
+    return request<ApiTask>(`/tasks/${id}`, { method: 'PATCH', body: payload });
+  },
+
+  /** DELETE /tasks/{id} — Xóa task. Quyền: MENTOR/ADMIN. */
+  remove(id: number) {
+    return request<void>(`/tasks/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============================================================================
+// 13. Báo cáo hằng ngày (Daily Reports)
+// ============================================================================
+
+export const dailyReportsApi = {
+  /** GET /daily-reports — Danh sách báo cáo, lọc theo intern/khoảng ngày/status. */
+  list(params?: {
+    page?: number;
+    size?: number;
+    intern_id?: number;
+    date_from?: string;
+    date_to?: string;
+    status?: ApiDailyReportStatus;
+  }) {
+    return request<Paginated<ApiDailyReport>>('/daily-reports', { query: params });
+  },
+
+  /** POST /daily-reports — Tạo báo cáo của chính mình. 409 nếu đã báo cáo ngày đó. */
+  create(payload: {
+    date: string;
+    completed_today: string;
+    tomorrow_plan?: string;
+    blockers?: string;
+    hours_logged?: number;
+  }) {
+    return request<ApiDailyReport>('/daily-reports', { method: 'POST', body: payload });
+  },
+
+  /** GET /daily-reports/{id} — Chi tiết báo cáo. */
+  get(id: number) {
+    return request<ApiDailyReport>(`/daily-reports/${id}`);
+  },
+
+  /** PATCH /daily-reports/{id} — Sửa báo cáo của chính mình. */
+  update(
+    id: number,
+    payload: Partial<{
+      date: string;
+      completed_today: string;
+      tomorrow_plan: string;
+      blockers: string;
+      hours_logged: number;
+    }>
+  ) {
+    return request<ApiDailyReport>(`/daily-reports/${id}`, { method: 'PATCH', body: payload });
+  },
+
+  /** PATCH /daily-reports/{id}/review — Duyệt báo cáo (Approved/Needs Revision). Quyền: MENTOR/ADMIN. */
+  review(id: number, payload: { status: ApiDailyReportStatus; mentor_comment?: string; rating?: number }) {
+    return request<ApiDailyReport>(`/daily-reports/${id}/review`, { method: 'PATCH', body: payload });
   },
 };
 
@@ -743,6 +1117,9 @@ export const api = {
   learning: learningApi,
   dashboard: dashboardApi,
   comments: commentsApi,
+  projects: projectsApi,
+  tasks: tasksApi,
+  dailyReports: dailyReportsApi,
 };
 
 export default api;

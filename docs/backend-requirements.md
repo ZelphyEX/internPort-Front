@@ -1,110 +1,72 @@
 # Yêu cầu bổ sung/điều chỉnh API Backend — Gimasys Intern Portal
 
-Tài liệu này gửi cho team backend (FastAPI, Swagger tại `/docs`), tổng hợp từ việc rà soát Frontend (React) để nối API thật. Mục tiêu: liệt kê chính xác chỗ nào API hiện tại **chưa đủ** để Frontend hiển thị đúng những gì đang có trên UI (Roadmap học tập, Dashboard, Comment bài học, Projects/Tasks/Daily Reports), kèm đề xuất field/endpoint cụ thể để backend có thể bắt tay vào làm ngay.
+> **Cập nhật**: Backend đã triển khai đầy đủ tất cả các mục dưới đây (mục 1-8). Tài liệu này giữ lại làm lịch sử/tham chiếu — mỗi mục đã đánh dấu ✅ **Đã triển khai** kèm ghi chú xác minh thực tế. Chỉ còn 1 điểm mở ở mục 5 (xem ghi chú cuối mục).
 
-**Đã nối tốt, không cần sửa**: `auth/*`, `users` (list/get/lock/unlock/remove — chỉ thiếu field, xem mục 1), `groups/*`, `documents/*`, `tags/*`, `roadmaps/modules/assignments/learning/dashboard/comments` (đã có đủ endpoint, chỉ cần bổ sung như mục 5-7 bên dưới nếu muốn khớp UI hiện tại).
+Tài liệu gốc gửi cho team backend (FastAPI, Swagger tại `/docs`), tổng hợp từ việc rà soát Frontend (React) để nối API thật.
 
----
-
-## 1. `Users` — thiếu field hồ sơ Intern
-
-Hiện `GET /users`, `GET /users/{id}` chỉ trả: `id, full_name, email, role, status, avatar_url`. Frontend cần thêm (optional, chỉ có ý nghĩa với `role=INTERN`):
-
-| Field đề xuất | Kiểu | Ghi chú |
-|---|---|---|
-| `department` | enum | `Java Back-End \| React Front-End \| Cloud & DevOps \| Salesforce/ERP \| AI & Data Science` |
-| `mentor_id`, `mentor_name`, `mentor_email` | number/string | Mentor phụ trách intern này |
-| `phone` | string | |
-| `start_date`, `end_date` | date | Thời gian thực tập |
-| `university`, `major` | string | |
-| `bio` | string | |
-| `github_url` | string | |
-| `score`, `attendance_rate` | number | Điểm đánh giá / tỉ lệ chuyên cần |
-
-Đề xuất: thêm các field này vào cả `GET /users` (list) và `GET /users/{id}`, cho phép `PATCH` bởi MENTOR/ADMIN (endpoint riêng, ví dụ `PATCH /users/{id}/profile`, tách khỏi `PATCH /auth/me` vốn chỉ để tự sửa hồ sơ của chính mình).
+**Đã nối tốt (Frontend)**: `auth/*`, `users/*`, `groups/*`, `documents/*`, `tags/*`, `roadmaps/modules/assignments/learning/dashboard/comments/*`, `projects/*`, `tasks/*`, `daily-reports/*` — toàn bộ đã có component/hàm gọi API thật trong `src/App.tsx`/`src/components/RoadmapView.tsx`.
 
 ---
 
-## 2. `Projects` — chưa có resource này
+## 1. `Users` — field hồ sơ Intern — ✅ Đã triển khai
 
-Frontend có màn "Dự án" (Project) hoàn toàn không có endpoint tương ứng. Đề xuất:
+`GET /users` (schema `UserListItem`) và `GET /users/{id}` (schema `UserOut`) giờ trả đủ: `department, mentor_id, mentor_name, mentor_email, phone, start_date, end_date, university, major, bio, github_url, score, attendance_rate`, cùng endpoint `PATCH /users/{id}/profile` để sửa các field này (quyền MENTOR).
 
-```
-GET    /projects                      (phân trang, filter department/status)
-POST   /projects                      (MENTOR/ADMIN)
-GET    /projects/{id}
-PATCH  /projects/{id}
-DELETE /projects/{id}
-POST   /projects/{id}/members         { user_ids: number[] }
-DELETE /projects/{id}/members/{user_id}
-```
+Xác minh: đọc trực tiếp `openapi.json`, khớp 100% với đề xuất ban đầu. Đã cập nhật `ApiUser`, `usersApi.updateProfile`, mapper `apiUserToIntern` trong Frontend.
 
-Field gợi ý: `code, title, department, status (In Planning|Active|Under Review|Completed), lead_user_id, member_ids[], progress_percent, deadline, description, tags[]`.
+Lưu ý nhỏ: `department` backend dùng `"Salesforce/ERP"` (không khoảng trắng), FE dùng `"Salesforce / ERP"` — Frontend đã tự map 2 chiều (`API_DEPARTMENT_TO_FE`/`FE_DEPARTMENT_TO_API` trong `mappers.ts`), backend không cần đổi gì thêm.
 
 ---
 
-## 3. `Tasks` — chưa có resource này
+## 2. `Projects` — ✅ Đã triển khai
 
-```
-GET    /tasks           (filter project_id, assigned_intern_id, status)
-POST   /tasks
-PATCH  /tasks/{id}       (đổi status, pr_url, mentor_feedback)
-DELETE /tasks/{id}
-```
-
-Field gợi ý: `title, project_id, assigned_intern_id, mentor_id, status (To Do|In Progress|In Review|Done|Blocked), priority (Low|Medium|High|Urgent), due_date, description, pr_url, mentor_feedback`.
+Đầy đủ `GET/POST /projects`, `GET/PATCH/DELETE /projects/{id}`, `POST/DELETE /projects/{id}/members[/{user_id}]`, đúng field đề xuất. Xác minh: `GET /projects`, tạo/xoá thành viên đã test qua Frontend, response khớp `ProjectOut`/`ProjectDetailOut`.
 
 ---
 
-## 4. `Daily Reports` — chưa có resource này
+## 3. `Tasks` — ✅ Đã triển khai
 
-```
-GET    /daily-reports              (filter intern_id, khoảng ngày, status)
-POST   /daily-reports               (Intern tự tạo báo cáo hằng ngày)
-PATCH  /daily-reports/{id}/review   (Mentor duyệt)
-```
-
-Field gợi ý: `intern_id, date, completed_today, tomorrow_plan, blockers, hours_logged, status (Pending|Approved|Needs Revision), mentor_comment, rating (1-5)`.
+Đầy đủ `GET/POST /tasks`, `GET/PATCH/DELETE /tasks/{id}`, đúng field/enum đề xuất (`TaskStatus`, `TaskPriority`). Xác minh qua Frontend.
 
 ---
 
-## 5. `Roadmap`/`Module` — làm rõ mô hình dữ liệu
+## 4. `Daily Reports` — ✅ Đã triển khai
 
-Frontend hiện có mô hình học tập chi tiết hơn `Module` hiện tại của backend: mỗi "khoá học" có `track` (department), `weekNumber`, `duration`, `keySkills[]`, `resourcesCount`, link Skilljar riêng; bên trong mỗi khoá lại có nhiều **major task**, mỗi major task có nhiều **section** nhỏ (checkbox hoàn thành riêng) + thảo luận riêng theo từng task.
-
-Đề xuất tối thiểu — thêm field cho `Module`:
-- `track` (department), `week_number`, `duration_text`, `key_skills: string[]`
-
-Với phần "major task -> section", cần một buổi trao đổi riêng để thống nhất: có thể map `ModuleDocument` hiện tại thành 1 "task", và thêm 1 cấp con mới (`sections`) nếu backend đồng ý mở rộng model — đây là thay đổi kiến trúc nên không đưa quyết định sẵn ở đây, chỉ nêu vấn đề.
+Đầy đủ `GET/POST /daily-reports`, `GET/PATCH /daily-reports/{id}`, `PATCH /daily-reports/{id}/review`. **Đã test thật**: tạo 1 báo cáo qua `POST /daily-reports` với tài khoản INTERN thật, đọc lại đúng dữ liệu.
 
 ---
 
-## 6. `Comments` — thiếu field
+## 5. `Roadmap`/`Module` — ✅ Đã triển khai (Module), Section vẫn chỉ ở FE
 
-`ApiComment` hiện: `id, user, content, created_at, parent_comment_id, replies`. Frontend cần thêm (optional):
-- `code_snippet: string | null` — cho phép đính kèm đoạn code khi hỏi/thảo luận bài học.
-- `is_resolved: boolean` (mặc định `false`) — đề xuất endpoint riêng `PATCH /comments/{id}/resolve` (quyền MENTOR) vì đây là quyền khác với quyền sửa nội dung comment (chủ comment).
+Đã thêm đủ field cho `Module`: `track`, `week_number`, `duration_text`, `key_skills: string[]` — xác minh qua `ModuleCreate`/`ModuleOut` trong `openapi.json`.
 
----
-
-## 7. `Dashboard` — bổ sung sau khi có Projects/Tasks/Daily Reports
-
-Sau khi mục 2-4 có backend, đề xuất bổ sung vào response hiện tại:
-- `GET /dashboard/me`: thêm `task_completion_percent`, `pending_reports_count`
-- `GET /dashboard/overview`: thêm `avg_score`, `completed_tasks_this_week`, `pending_reviews_count`
+**Quyết định cuối cùng cho phần "major task -> section"**: Frontend đã chọn hướng **bỏ cấp Section con**, xây lại `RoadmapView.tsx` hoàn toàn theo đúng mô hình 2 cấp của backend (`Roadmap → Module → Lesson`, mỗi Lesson là 1 Document được gán vào Module qua `POST /modules/{id}/documents`, chỉ có 1 trạng thái hoàn thành `completed: boolean`, không có checklist con). Không cần backend thay đổi gì thêm cho mục này — vấn đề coi như đã đóng, không phải chờ họp riêng nữa.
 
 ---
 
-## 8. Sửa nhanh (không cần thiết kế lại gì)
+## 6. `Comments` — ✅ Đã triển khai
 
-- **`ApiDocument.description`**: OpenAPI khai `string` (bắt buộc) nhưng thực tế API trả `null` cho một số document (đã gặp khi test, ví dụ document id 16-18 trong DB hiện tại). Đề xuất: hoặc luôn trả `""` thay vì `null`, hoặc sửa schema Swagger thành `string | null` cho đúng thực tế — hiện Frontend đã tự fallback `''` để không bị lỗi, nhưng schema sai sẽ gây lỗi cho các client khác generate type từ OpenAPI.
-- **Giới hạn `size` (phân trang)**: các endpoint list (`/users`, `/groups`, `/documents`...) hiện giới hạn `size <= 100`, vượt quá sẽ trả `422`. Điều này đúng và Frontend đã tuân theo, chỉ đề nghị ghi rõ constraint này trong mô tả Swagger (`description`) để client khác không phải dò lỗi mới biết.
+`ApiComment` giờ có `code_snippet`, `is_resolved`, kèm endpoint riêng `PATCH /comments/{id}/resolve`. Xác minh qua `CommentOut`/`CommentCreate` trong `openapi.json`; đã wire vào `RoadmapView.tsx` (component `CommentThread`).
 
 ---
 
-## Đề xuất thứ tự ưu tiên
+## 7. `Dashboard` — ✅ Đã triển khai
 
-1. **Nhanh, nên làm ngay**: mục 8 (description null, ghi rõ giới hạn size).
-2. **Trung bình**: mục 1 (field hồ sơ Users), mục 6 (field comment).
-3. **Lớn, cần thiết kế**: mục 2-4 (Projects/Tasks/Daily Reports — resource hoàn toàn mới).
-4. **Cần họp riêng để thống nhất mô hình**: mục 5 (Roadmap/Module mở rộng), mục 7 (Dashboard, phụ thuộc mục 2-4).
+`GET /dashboard/me` có thêm `task_completion_percent`, `pending_reports_count`; `GET /dashboard/overview` có thêm `avg_score`, `completed_tasks_this_week`, `pending_reviews_count`. Đã cập nhật type `ApiDashboardMe`/`ApiDashboardOverview` phía Frontend.
+
+**Còn một việc phía Frontend** (không phải backend): `DashboardView.tsx` hiện vẫn tự tính toán từ `interns`/`projects`/`tasks`/`reports` cục bộ, **chưa gọi `dashboardApi.me()`/`overview()`** — đây là việc còn lại của Frontend, không cần backend làm gì thêm.
+
+---
+
+## 8. Sửa nhanh — ✅ Đã triển khai
+
+- `ApiDocument.description`: đã sửa schema thành nullable đúng (`anyOf: [string, null]`).
+- Giới hạn `size <= 100`: đã ghi rõ trong `description` của param `size` trên mọi endpoint list (`"Items per page, 1..100 (default 20). A value above 100 is rejected with 422."`).
+
+---
+
+## Việc còn lại (chỉ phía Frontend, không cần backend)
+
+1. `DashboardView.tsx` chưa gọi `dashboardApi.me()`/`overview()` (mục 7).
+2. `SkilljarCoursesView.tsx` (tab "Khóa học Anthropic Skilljar") **vẫn đang dùng dữ liệu mock/localStorage cũ**, chưa được rework sang API thật — chỉ có tab "Lộ trình Đào tạo & Skills" (`RoadmapView.tsx`) đã nối thật. Hai tab này trùng khái niệm; cân nhắc hợp nhất hoặc rework nốt Skilljar trong một đợt sau.
+3. `Intern.roadmapProgress` (1 số duy nhất trên hồ sơ Intern) không còn khớp với mô hình thật (1 intern có thể có nhiều lộ trình, mỗi lộ trình 1 % tiến độ riêng qua `ApiAssignedRoadmap.progress_percent`) — cần quyết định UI hiển thị lại chỗ này nếu muốn chính xác.

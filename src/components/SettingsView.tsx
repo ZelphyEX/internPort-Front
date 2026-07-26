@@ -134,13 +134,13 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
     {
       role: 'INTERN',
       label: 'Học viên (Thực tập sinh)',
-      desc: 'Chỉ xem bài học Skilljar, tự tick hoàn thành Section, gửi báo cáo Standup hằng ngày.',
+      desc: 'Xem lộ trình đào tạo được giao, tự đánh dấu hoàn thành bài học, gửi báo cáo Standup hằng ngày.',
       badgeBg: 'bg-emerald-100 text-emerald-800 border-emerald-300'
     },
     {
       role: 'MENTOR',
       label: 'Mentor Hướng dẫn',
-      desc: 'Thêm/sửa khóa học Skilljar, giao Task, phê duyệt báo cáo Standup, đánh giá kết quả thực tập.',
+      desc: 'Thêm/sửa lộ trình đào tạo, giao Task, phê duyệt báo cáo Standup, đánh giá kết quả thực tập.',
       badgeBg: 'bg-blue-100 text-blue-800 border-blue-300'
     },
     {
@@ -175,7 +175,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
             Cài Đặt Hệ Thống & Cấu Hình Portal
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-0.5">
-            Tùy chỉnh thông tin người dùng, cổng học tập Anthropic Skilljar, vai trò trải nghiệm và thông báo.
+            Tùy chỉnh thông tin người dùng, lộ trình đào tạo, vai trò trải nghiệm và thông báo.
           </p>
         </div>
 

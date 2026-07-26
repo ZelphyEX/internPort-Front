@@ -3,7 +3,6 @@ import {
   Project,
   TaskItem,
   DailyReport,
-  TrainingModule,
   DocumentResource,
   SystemStats,
   AuthUser
@@ -28,7 +27,6 @@ export const INITIAL_INTERNS: Intern[] = [
     score: 9.2,
     attendanceRate: 98,
     githubUrl: 'https://github.com/an-nguyen-dev',
-    roadmapProgress: 80,
     university: 'Đại học Bách Khoa Hà Nội',
     major: 'Công nghệ Thông tin',
     bio: 'Đam mê phát triển backend quy mô lớn, RESTful APIs và Kafka message queue. Đang làm quen với Spring Cloud.',
@@ -59,7 +57,6 @@ export const INITIAL_INTERNS: Intern[] = [
     score: 8.8,
     attendanceRate: 96,
     githubUrl: 'https://github.com/bichle-frontend',
-    roadmapProgress: 75,
     university: 'Đại học Quốc Gia Hà Nội (UET)',
     major: 'Khoa học Máy tính',
     bio: 'Đặc biệt yêu thích xây dựng giao diện chuẩn Accessibility, TailwindCSS và State Management với Redux/Zustand.',
@@ -90,7 +87,6 @@ export const INITIAL_INTERNS: Intern[] = [
     score: 8.5,
     attendanceRate: 94,
     githubUrl: 'https://github.com/duc-cloud-dev',
-    roadmapProgress: 60,
     university: 'Học viện Công nghệ Bưu chính Viễn thông (PTIT)',
     major: 'An toàn Thông tin & Mạng máy tính',
     bio: 'Quan tâm tới Infrastructure as Code (Terraform), Kubernetes, Helm Charts và giám sát với Prometheus + Grafana.',
@@ -121,7 +117,6 @@ export const INITIAL_INTERNS: Intern[] = [
     score: 9.0,
     attendanceRate: 100,
     githubUrl: 'https://github.com/long-salesforce',
-    roadmapProgress: 85,
     university: 'Đại học Kinh tế Quốc dân (NEU)',
     major: 'Hệ thống Thông tin Quản lý (MIS)',
     bio: 'Kỹ năng phân tích nghiệp vụ tốt, hiểu rõ Apex Code, Lightning Web Components (LWC) và quy trình CRM doanh nghiệp.',
@@ -152,7 +147,6 @@ export const INITIAL_INTERNS: Intern[] = [
     score: 9.4,
     attendanceRate: 98,
     githubUrl: 'https://github.com/thaonguyen-ai',
-    roadmapProgress: 45,
     university: 'Đại học Bách Khoa Hà Nội',
     major: 'Trí tuệ Nhân tạo & Khoa học Dữ liệu',
     bio: 'Tập trung nghiên cứu LLM, RAG (Retrieval-Augmented Generation), LangChain, Python FastAPI và tối ưu hóa Prompting.',
@@ -449,8 +443,6 @@ export const INITIAL_DAILY_REPORTS: DailyReport[] = [
     createdAt: '2025-03-19T17:15:00Z'
   }
 ];
-
-export const TRAINING_MODULES: TrainingModule[] = [];
 
 export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {

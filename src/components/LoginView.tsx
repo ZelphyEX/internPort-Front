@@ -178,7 +178,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         score: 8.5,
         attendanceRate: 100,
         githubUrl: `https://github.com/${regName.toLowerCase().replace(/\s+/g, '')}`,
-        roadmapProgress: 10,
         university: 'Đại học Công nghệ',
         major: 'Công nghệ Thông tin',
         bio: 'Thực tập sinh mới gia nhập Gimasys. Đang theo học lộ trình đào tạo Onboarding.',
