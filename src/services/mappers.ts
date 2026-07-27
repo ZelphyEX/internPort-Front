@@ -124,6 +124,7 @@ export function apiDocumentToResource(d: ApiDocument): DocumentResource {
     // -> phải fallback '' để tránh crash khi component gọi .toLowerCase() lúc tìm kiếm.
     description: d.description || '',
     tags: d.tags || [],
+    contentUrl: d.content_url || undefined,
   };
 }
 

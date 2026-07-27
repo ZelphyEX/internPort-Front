@@ -94,11 +94,15 @@ export interface DocumentResource {
   category: 'Coding Standard' | 'Onboarding' | 'Architecture' | 'Template' | 'API Docs' | 'CCA-F Certificate' | string;
   author: string;
   updatedAt: string;
+  /** Suy ra từ đuôi file lúc tải lên, không cho người dùng tự chọn. */
   fileType: 'PDF' | 'DOCX' | 'SLIDE' | 'MD';
+  /** Suy ra từ kích thước thật của file (`File.size`), không nhập tay. */
   fileSize: string;
   downloadCount: number;
   description: string;
   tags: string[];
+  /** URL công khai của file trên Cloud Storage (server: `documents.content_url`). */
+  contentUrl?: string;
 }
 
 export interface SystemStats {

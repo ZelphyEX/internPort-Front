@@ -10,7 +10,8 @@ import {
   MessageSquare,
   User,
   Calendar,
-  Send
+  Send,
+  X
 } from 'lucide-react';
 import { DailyReport, UserRole, AuthUser } from '../types';
 
@@ -110,14 +111,28 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
         </div>
       </div>
 
-      {/* AI Summary Banner if active */}
+      {/* AI Summary Banner if active.
+          Trước đây khối này dùng gradient amber/indigo/blue + nền `bg-white/80` cố định:
+          lạc tông so với các thẻ khác của portal, và ở chế độ tối thì chữ sáng nằm trên
+          nền trắng nên gần như không đọc được. Nay dùng đúng bộ màu thẻ chung
+          (trắng / slate-800) với điểm nhấn indigo giống nút AI Assistant trên Header. */}
       {aiSummary && (
-        <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-blue-500/10 border border-amber-200/80 rounded-2xl p-5 space-y-2">
-          <div className="flex items-center gap-2 text-amber-800 font-extrabold text-sm">
-            <Sparkles className="w-4 h-4 text-amber-600" />
-            <span>TỔNG HỢP STANDUP HẰNG NGÀY BẰNG AI (Gemini)</span>
+        <div className="bg-white dark:bg-slate-800 border border-indigo-200 dark:border-indigo-900 rounded-2xl shadow-2xs overflow-hidden">
+          <div className="flex items-center justify-between gap-2 px-5 py-3 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900">
+            <div className="flex items-center gap-2 text-indigo-800 dark:text-indigo-300 font-extrabold text-xs uppercase tracking-wide">
+              <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
+              <span>Tổng hợp Standup hằng ngày bằng AI (Gemini)</span>
+            </div>
+            <button
+              type="button"
+              onClick={() => setAiSummary(null)}
+              title="Đóng bản tổng hợp"
+              className="p-1 rounded-lg text-indigo-400 hover:text-indigo-700 dark:hover:text-indigo-200 hover:bg-indigo-100 dark:hover:bg-indigo-900/60 shrink-0"
+            >
+              <X className="w-4 h-4" />
+            </button>
           </div>
-          <div className="prose prose-xs max-w-none text-slate-700 dark:text-slate-300 leading-relaxed whitespace-pre-line bg-white/80 p-4 rounded-xl border border-amber-100">
+          <div className="p-5 text-xs leading-relaxed whitespace-pre-line text-slate-700 dark:text-slate-200">
             {aiSummary}
           </div>
         </div>

@@ -578,7 +578,10 @@ export default function App() {
         const created = await documentsApi.create({
           title: newDoc.title,
           description: newDoc.description,
-          content_url: '',
+          // URL file đã tải lên bucket (KnowledgeBaseView gọi POST /documents/upload
+          // trước, rồi truyền content_url vào đây). Trước đây luôn gửi chuỗi rỗng nên
+          // tài liệu tạo ra không có file để tải về.
+          content_url: newDoc.contentUrl || '',
           type: feFileTypeToApiType(newDoc.fileType),
         });
         // Đồng bộ id server (dạng số) về client để lần xoá sau gọi đúng endpoint.
