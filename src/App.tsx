@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, Intern, Project, TaskItem, DailyReport, TaskStatus, AuthUser, DocumentResource, Group, GroupMember } from './types';
+import { UserRole, Intern, Project, TaskItem, DailyReport, TaskStatus, AuthUser, DocumentResource, Group } from './types';
 import {
   INITIAL_INTERNS,
   INITIAL_PROJECTS,
@@ -27,7 +27,6 @@ import { AddInternModal } from './components/AddInternModal';
 import { AddTaskModal } from './components/AddTaskModal';
 import { AddReportModal } from './components/AddReportModal';
 import { AIAssistantModal } from './components/AIAssistantModal';
-import { InviteMemberModal } from './components/InviteMemberModal';
 import { AddProjectMemberModal } from './components/AddProjectMemberModal';
 
 // Lớp gọi REST API theo đặc tả (JWT, tự refresh khi 401). Xem src/services/api.ts.
@@ -77,20 +76,6 @@ export default function App() {
     return saved ? JSON.parse(saved) : [];
   });
 
-  const [currentGroupId, setCurrentGroupId] = useState<string | null>(() => {
-    return localStorage.getItem('gimasys_current_group_id');
-  });
-
-  // Đọc mã mời từ URL (?joinCode=XXXX) nếu người dùng vào bằng link chia sẻ
-  const [initialJoinCode, setInitialJoinCode] = useState<string>('');
-  useEffect(() => {
-    const params = new URLSearchParams(window.location.search);
-    const codeFromUrl = params.get('joinCode');
-    if (codeFromUrl) {
-      setInitialJoinCode(codeFromUrl.toUpperCase());
-    }
-  }, []);
-
   // Khi phiên hết hạn (refresh token cũng hỏng), API sẽ gọi callback này để
   // đưa người dùng về màn đăng nhập.
   useEffect(() => {
@@ -122,40 +107,29 @@ export default function App() {
     localStorage.setItem('gimasys_groups', JSON.stringify(groups));
   }, [groups]);
 
-  useEffect(() => {
-    if (currentGroupId) {
-      localStorage.setItem('gimasys_current_group_id', currentGroupId);
-    } else {
-      localStorage.removeItem('gimasys_current_group_id');
-    }
-  }, [currentGroupId]);
 
-  // Tạo mã mời nhóm ngẫu nhiên, không trùng với nhóm đã có
-  const generateGroupCode = (): string => {
-    const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
-    let code = '';
-    do {
-      code = Array.from({ length: 6 }, () => chars[Math.floor(Math.random() * chars.length)]).join('');
-    } while (groups.some(g => g.code === code));
-    return code;
+  // Tải lại danh sách nhóm từ server (dùng sau khi tạo nhóm / thêm / gỡ thành viên,
+  // để số thành viên hiển thị luôn khớp với dữ liệu thật).
+  const reloadGroups = () => {
+    if (!tokenStore.isAuthenticated() || currentRole === 'INTERN') return;
+    groupsApi
+      .list({ size: 100 })
+      .then(res => setGroups(res.items.map(g => apiGroupToGroup(g))))
+      .catch(() => {/* lỗi mạng: giữ nguyên danh sách đang có */});
   };
 
-  // Tạo nhóm mới - người tạo mặc định là Admin.
-  // Online: POST /groups (đặc tả) để lấy id do backend cấp; luồng mã mời/duyệt
-  // thành viên vẫn xử lý cục bộ vì đặc tả không có cơ chế join-code.
-  // Offline/demo hoặc lỗi mạng: tạo nhóm cục bộ như cũ.
-  const handleCreateGroup = async (name: string) => {
+  // Tạo nhóm mới (quyền MENTOR trở lên).
+  // Online: POST /groups rồi tải lại danh sách từ server — server là nguồn sự thật,
+  // nhờ vậy nhóm mới hiển thị ngay và vẫn còn sau khi F5.
+  // Offline/demo: tạo bản ghi cục bộ để bản demo không gãy.
+  const handleCreateGroup = async (name: string, cohort: string) => {
     if (!currentUser) return;
 
-    let groupId = `GRP-${Date.now().toString().slice(-8)}`;
     if (tokenStore.isAuthenticated()) {
       try {
-        // cohort mặc định theo năm hiện tại vì UI chưa thu thập trường này
-        const created = await groupsApi.create({
-          name,
-          cohort: String(new Date().getFullYear()),
-        });
-        groupId = String(created.id);
+        await groupsApi.create({ name, cohort: cohort || String(new Date().getFullYear()) });
+        reloadGroups();
+        return;
       } catch (err) {
         if (err instanceof ApiError) {
           alert(err.detail || 'Tạo nhóm thất bại.');
@@ -166,116 +140,15 @@ export default function App() {
     }
 
     const newGroup: Group = {
-      id: groupId,
+      id: `GRP-${Date.now().toString().slice(-8)}`,
       name,
-      code: generateGroupCode(),
+      cohort,
       createdBy: currentUser.id,
       createdAt: new Date().toISOString(),
-      members: [
-        {
-          userId: currentUser.id,
-          userName: currentUser.name,
-          userEmail: currentUser.email,
-          avatar: currentUser.avatar,
-          role: 'ADMIN',
-          status: 'Approved',
-          joinedAt: new Date().toISOString()
-        }
-      ]
+      members: [],
+      memberCount: 0
     };
     setGroups(prev => [...prev, newGroup]);
-    setCurrentGroupId(newGroup.id);
-    setCurrentRole('ADMIN');
-  };
-
-  // Gửi yêu cầu tham gia nhóm bằng mã mời - cần Admin của nhóm xác nhận
-  const handleRequestJoinGroup = (code: string, role: UserRole): { success: boolean; message: string } => {
-    if (!currentUser) return { success: false, message: 'Bạn cần đăng nhập trước.' };
-
-    const targetGroup = groups.find(g => g.code === code);
-    if (!targetGroup) {
-      return { success: false, message: 'Mã nhóm không tồn tại. Vui lòng kiểm tra lại.' };
-    }
-
-    const existingMember = targetGroup.members.find(m => m.userId === currentUser.id);
-    if (existingMember) {
-      if (existingMember.status === 'Approved') {
-        return { success: false, message: 'Bạn đã là thành viên của nhóm này rồi.' };
-      }
-      if (existingMember.status === 'Pending') {
-        return { success: false, message: 'Yêu cầu tham gia của bạn đang chờ Admin xác nhận.' };
-      }
-    }
-
-    const newMember: GroupMember = {
-      userId: currentUser.id,
-      userName: currentUser.name,
-      userEmail: currentUser.email,
-      avatar: currentUser.avatar,
-      role,
-      status: 'Pending',
-      joinedAt: new Date().toISOString()
-    };
-
-    setGroups(prev => prev.map(g => {
-      if (g.id !== targetGroup.id) return g;
-      const membersWithoutMe = g.members.filter(m => m.userId !== currentUser.id);
-      return { ...g, members: [...membersWithoutMe, newMember] };
-    }));
-
-    return { success: true, message: `Đã gửi yêu cầu tham gia nhóm "${targetGroup.name}". Vui lòng chờ Admin xác nhận.` };
-  };
-
-  // Chọn 1 nhóm để vào (đồng bộ vai trò hiện tại theo vai trò của mình trong nhóm đó)
-  const handleSelectGroup = (groupId: string) => {
-    if (!currentUser) return;
-    const targetGroup = groups.find(g => g.id === groupId);
-    if (!targetGroup) return;
-    const membership = targetGroup.members.find(m => m.userId === currentUser.id);
-    if (!membership || membership.status !== 'Approved') return;
-
-    setCurrentGroupId(groupId);
-    setCurrentRole(membership.role);
-    setActiveTab('dashboard');
-    setIsGroupScreenOpen(false);
-  };
-
-  // [Admin] Duyệt yêu cầu tham gia nhóm
-  // [Admin] Duyệt yêu cầu tham gia nhóm.
-  // Luồng "mã mời + duyệt" là cơ chế cục bộ (đặc tả không có endpoint duyệt:
-  // theo đặc tả Mentor/Admin thêm thẳng thành viên qua POST /groups/{id}/members).
-  // Vì vậy: nếu cả nhóm và người dùng đều mang id số do backend cấp thì đồng bộ
-  // bằng addMembers; còn lại chỉ cập nhật cục bộ để demo không vỡ.
-  const handleApproveMember = (groupId: string, userId: string) => {
-    if (tokenStore.isAuthenticated() && /^\d+$/.test(groupId) && /^\d+$/.test(userId)) {
-      groupsApi.addMembers(Number(groupId), [Number(userId)]).catch(err => {
-        if (err instanceof ApiError) alert(err.detail || 'Duyệt thành viên thất bại.');
-        /* lỗi mạng: bỏ qua, vẫn duyệt cục bộ bên dưới */
-      });
-    }
-    setGroups(prev => prev.map(g => {
-      if (g.id !== groupId) return g;
-      return {
-        ...g,
-        members: g.members.map(m => m.userId === userId ? { ...m, status: 'Approved' as const } : m)
-      };
-    }));
-  };
-
-  // [Admin] Từ chối yêu cầu tham gia nhóm
-  const handleRejectMember = (groupId: string, userId: string) => {
-    setGroups(prev => prev.map(g => {
-      if (g.id !== groupId) return g;
-      return {
-        ...g,
-        members: g.members.map(m => m.userId === userId ? { ...m, status: 'Rejected' as const } : m)
-      };
-    }));
-  };
-
-  // Quay lại màn hình chọn nhóm
-  const handleBackToGroups = () => {
-    setCurrentGroupId(null);
   };
 
   // Đổi vai trò ĐANG XEM (chỉ Admin dùng, để kiểm tra giao diện của Mentor/Intern).
@@ -359,6 +232,10 @@ export default function App() {
     return saved ? JSON.parse(saved) : INITIAL_INTERNS;
   });
 
+  // Mentor thật lấy từ `GET /users?role=MENTOR` (quyền MENTOR trở lên). Không lưu
+  // localStorage vì đây chỉ là dữ liệu tra cứu cho các dropdown chọn mentor.
+  const [mentors, setMentors] = useState<AuthUser[]>([]);
+
   // Tham chiếu tới interns mới nhất để tra cứu department khi map Daily Report,
   // không đưa vào dependency của useEffect tải dữ liệu (tránh gọi lại API liên tục).
   const internsRef = React.useRef<Intern[]>(interns);
@@ -392,7 +269,6 @@ export default function App() {
   const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isAddReportOpen, setIsAddReportOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
-  const [isInviteOpen, setIsInviteOpen] = useState(false);
   const [isAddProjectMemberOpen, setIsAddProjectMemberOpen] = useState(false);
   const [isGroupScreenOpen, setIsGroupScreenOpen] = useState(false);
 
@@ -442,6 +318,12 @@ export default function App() {
         .list({ size: 100 })
         .then((res) => setGroups(res.items.map((g) => apiGroupToGroup(g))))
         .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
+
+      // Mentor thật — dùng cho dropdown chọn mentor khi giao việc/dự án.
+      usersApi
+        .list({ size: 100, role: 'MENTOR' })
+        .then((res) => setMentors(res.items.map(apiUserToAuthUser)))
+        .catch(() => {/* offline: allMentors sẽ rơi về danh sách demo */});
     }
 
     // Projects/Tasks/Daily Reports: mở cho mọi role đã đăng nhập — INTERN tự động
@@ -766,25 +648,14 @@ export default function App() {
     return <LoginView onLogin={handleLogin} />;
   }
 
-  // Nhóm hiện tại đang chọn (nếu có) - chỉ dùng để hiển thị thông tin, không còn chặn truy cập portal
-  const activeGroup = groups.find(g => g.id === currentGroupId);
-
-  // Danh sách Mentor có thể được gán vào dự án (để phân quyền Mentor tham gia dự án nào)
-  // Gộp từ tài khoản mẫu (DEMO_AUTH_USERS) + Mentor đã được duyệt trong nhóm hiện tại
-  const groupMentors: AuthUser[] = (activeGroup?.members || [])
-    .filter(m => m.role === 'MENTOR' && m.status === 'Approved')
-    .map(m => ({
-      id: m.userId,
-      name: m.userName,
-      email: m.userEmail,
-      role: 'MENTOR' as const,
-      roleTitle: 'Mentor',
-      avatar: m.avatar
-    }));
-  const allMentors: AuthUser[] = [
-    ...DEMO_AUTH_USERS.filter(u => u.role === 'MENTOR'),
-    ...groupMentors.filter(gm => !DEMO_AUTH_USERS.some(u => u.id === gm.id))
-  ];
+  // Danh sách Mentor để chọn khi giao việc / gán vào dự án.
+  // Trước đây lấy từ "thành viên có vai trò MENTOR trong nhóm đang chọn" — nhưng
+  // `GET /groups/{id}` không trả vai trò của thành viên, nên thực tế danh sách này
+  // luôn rỗng và dropdown chỉ hiện tài khoản demo. Nay lấy thẳng Mentor thật từ
+  // `GET /users?role=MENTOR`; chỉ khi chưa tải được (offline/demo) mới dùng dữ liệu mẫu.
+  const allMentors: AuthUser[] = mentors.length > 0
+    ? mentors
+    : DEMO_AUTH_USERS.filter(u => u.role === 'MENTOR');
 
   return (
     <div className="min-h-screen bg-slate-100 dark:bg-slate-950 text-slate-800 dark:text-slate-200 font-sans flex flex-col antialiased selection:bg-blue-600 selection:text-white">
@@ -814,11 +685,9 @@ export default function App() {
           onOpenAddIntern={() => setIsAddInternOpen(true)}
           onOpenAddTask={() => setIsAddTaskOpen(true)}
           onOpenAddReport={() => setIsAddReportOpen(true)}
-          // Mời/duyệt thành viên nhóm là quyền MENTOR trở lên (POST /groups/{id}/members).
-          // Intern thấy nút này sẽ tạo được mã mời cục bộ nhưng không đồng bộ được lên
-          // server -> ẩn hẳn thay vì để bấm rồi thất bại.
-          onOpenInvite={currentRole !== 'INTERN' ? () => setIsInviteOpen(true) : undefined}
-          onOpenGroupScreen={() => setIsGroupScreenOpen(true)}
+          // Quản lý nhóm là chức năng của MENTOR trở lên: backend chặn `GET /groups`
+          // với Intern, nên với Intern mục này bị ẩn hẳn khỏi thanh bên.
+          onOpenGroupScreen={currentRole !== 'INTERN' ? () => setIsGroupScreenOpen(true) : undefined}
           isGroupScreenActive={isGroupScreenOpen}
           pendingReviewsCount={pendingReportsCount}
         />
@@ -834,12 +703,9 @@ export default function App() {
               currentUser={currentUser}
               currentRole={currentRole}
               groups={groups}
+              interns={interns}
               onCreateGroup={handleCreateGroup}
-              onRequestJoinGroup={handleRequestJoinGroup}
-              onSelectGroup={handleSelectGroup}
-              onApproveMember={handleApproveMember}
-              onRejectMember={handleRejectMember}
-              initialJoinCode={initialJoinCode}
+              onReloadGroups={reloadGroups}
             />
           )}
 
@@ -865,7 +731,6 @@ export default function App() {
               interns={interns}
               onSelectIntern={setSelectedIntern}
               onOpenAddIntern={() => setIsAddInternOpen(true)}
-              onOpenInvite={() => setIsInviteOpen(true)}
               onDeleteIntern={handleDeleteIntern}
               onKickIntern={handleKickIntern}
               currentRole={currentRole}
@@ -966,12 +831,6 @@ export default function App() {
         interns={interns}
         onAddReport={handleAddReport}
         currentUser={currentUser}
-      />
-
-      <InviteMemberModal
-        isOpen={isInviteOpen}
-        onClose={() => setIsInviteOpen(false)}
-        group={activeGroup || null}
       />
 
       <AddProjectMemberModal

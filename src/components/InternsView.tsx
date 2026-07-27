@@ -16,8 +16,7 @@ import {
   ExternalLink,
   ChevronRight,
   Trash2,
-  UserX,
-  UserPlus
+  UserX
 } from 'lucide-react';
 import { Intern, Department, InternStatus, UserRole } from '../types';
 
@@ -25,7 +24,6 @@ interface InternsViewProps {
   interns: Intern[];
   onSelectIntern: (intern: Intern) => void;
   onOpenAddIntern: () => void;
-  onOpenInvite?: () => void;
   onDeleteIntern?: (internId: string) => void;
   onKickIntern?: (internId: string) => void;
   currentRole: UserRole;
@@ -36,7 +34,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
   interns,
   onSelectIntern,
   onOpenAddIntern,
-  onOpenInvite,
   onDeleteIntern,
   onKickIntern,
   currentRole,
@@ -115,16 +112,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
 
         {(currentRole === 'ADMIN' || currentRole === 'MENTOR') && (
           <div className="flex items-center gap-2 shrink-0">
-            {onOpenInvite && (
-              <button
-                id="btn-invite-intern-main"
-                onClick={onOpenInvite}
-                className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-blue-700 dark:text-blue-300 bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 dark:hover:bg-blue-900/40 border border-blue-200 dark:border-blue-800 transition-all cursor-pointer"
-              >
-                <UserPlus className="w-4 h-4" />
-                <span>Mời Thực tập sinh</span>
-              </button>
-            )}
             <button
               id="btn-add-intern-main"
               onClick={onOpenAddIntern}

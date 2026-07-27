@@ -143,7 +143,13 @@ export function feFileTypeToApiType(ft: DocumentResource['fileType']): ApiDocTyp
 
 // ---- Group ----------------------------------------------------------------
 
-/** ApiGroup (server) -> Group (frontend). */
+/**
+ * ApiGroup (server) -> Group (frontend).
+ *
+ * ⚠️ `GET /groups` (danh sách) chỉ trả `member_count`, KHÔNG trả mảng thành viên —
+ * chỉ `GET /groups/{id}` mới có. Nên với nhóm tải từ danh sách, `members` luôn rỗng
+ * và phải dùng `memberCount` để hiển thị số thành viên; đừng lọc nhóm theo `members`.
+ */
 export function apiGroupToGroup(g: ApiGroup, createdBy = ''): Group {
   const members: GroupMember[] = (g.members || []).map((m) => ({
     userId: String(m.id),
@@ -157,10 +163,11 @@ export function apiGroupToGroup(g: ApiGroup, createdBy = ''): Group {
   return {
     id: String(g.id),
     name: g.name,
-    code: g.cohort || '',
+    cohort: g.cohort || '',
     createdBy,
     createdAt: new Date().toISOString(),
     members,
+    memberCount: g.member_count ?? members.length,
   };
 }
 

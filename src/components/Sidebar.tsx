@@ -10,7 +10,6 @@ import {
   PlusCircle,
   HelpCircle,
   Settings,
-  UserPlus,
   Building2
 } from 'lucide-react';
 import { UserRole } from '../types';
@@ -24,7 +23,6 @@ interface SidebarProps {
   onOpenAddIntern: () => void;
   onOpenAddTask: () => void;
   onOpenAddReport: () => void;
-  onOpenInvite?: () => void;
   onOpenGroupScreen?: () => void;
   /** true khi màn "Quản Lý Nhóm" đang mở — để tô sáng mục này như các tab khác. */
   isGroupScreenActive?: boolean;
@@ -47,7 +45,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAddIntern,
   onOpenAddTask,
   onOpenAddReport,
-  onOpenInvite,
   onOpenGroupScreen,
   isGroupScreenActive = false,
   pendingReviewsCount
@@ -108,17 +105,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <p className="text-[11px] font-bold uppercase tracking-wider text-slate-500 mb-3 px-3">
             Menu Quản lý
           </p>
-
-          {onOpenInvite && (
-            <button
-              id="btn-invite-member"
-              onClick={onOpenInvite}
-              className="w-full mb-3 flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl font-bold text-xs text-blue-400 bg-blue-500/10 hover:bg-blue-500/20 border border-blue-500/30 transition-all cursor-pointer"
-            >
-              <UserPlus className="w-4 h-4" />
-              <span>Mời Người Vào Nhóm</span>
-            </button>
-          )}
 
           <nav className="space-y-1">
             {navItems.slice(0, 1).map((item) => {

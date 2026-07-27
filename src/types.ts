@@ -143,10 +143,23 @@ export interface GroupMember {
 export interface Group {
   id: string;
   name: string;
-  code: string; // Mã mời để join nhóm
-  createdBy: string; // userId của người tạo (mặc định là Admin)
+  /**
+   * Niên khoá của nhóm (server: `groups.cohort`), vd "2026".
+   * Trước đây trường này bị dùng làm "mã mời" sinh ngẫu nhiên ở client — đã bỏ,
+   * vì backend không có cơ chế tham gia bằng mã. Nay Mentor/Admin thêm thẳng
+   * thành viên qua `POST /groups/{id}/members`.
+   */
+  cohort: string;
+  createdBy: string; // userId của người tạo
   createdAt: string;
+  /** Chỉ có dữ liệu khi gọi `GET /groups/{id}`; danh sách nhóm không trả kèm. */
   members: GroupMember[];
+  /**
+   * Số thành viên do server báo (`GET /groups` trả `member_count`).
+   * Cần trường riêng vì endpoint danh sách KHÔNG trả kèm mảng thành viên —
+   * `members` sẽ rỗng với dữ liệu tải từ server, chỉ `GET /groups/{id}` mới có.
+   */
+  memberCount?: number;
 }
 
 export interface AIEvalReport {
