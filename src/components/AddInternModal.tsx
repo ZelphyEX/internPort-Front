@@ -1,6 +1,8 @@
 import React, { useState } from 'react';
-import { X, UserPlus } from 'lucide-react';
+import { X, UserPlus, Loader2 } from 'lucide-react';
 import { Intern, Department, InternStatus } from '../types';
+import { usersApi, tokenStore, ApiError } from '../services/api';
+import { apiUserToIntern, FE_DEPARTMENT_TO_API } from '../services/mappers';
 
 interface AddInternModalProps {
   isOpen: boolean;
@@ -8,6 +10,14 @@ interface AddInternModalProps {
   onAddIntern: (newIntern: Intern) => void;
 }
 
+/**
+ * Tạo tài khoản Thực tập sinh THẬT trên hệ thống (`POST /users`).
+ *
+ * Trước đây form này chỉ thêm một bản ghi ảo vào bộ nhớ trình duyệt, kèm điểm và
+ * kỹ năng bịa sẵn — tải lại trang là mất. Nay backend đã cho MENTOR/ADMIN tạo tài
+ * khoản INTERN nên form gọi API thật; các trường hồ sơ (khối kỹ thuật, trường học,
+ * mentor phụ trách...) được cập nhật sau bằng `PATCH /users/{id}/profile`.
+ */
 export const AddInternModal: React.FC<AddInternModalProps> = ({
   isOpen,
   onClose,
@@ -17,24 +27,66 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
 
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [phone, setPhone] = useState('');
   const [department, setDepartment] = useState<Department>('Java Back-End');
   const [roleTitle, setRoleTitle] = useState('Thực tập sinh Java Spring');
   const [mentor, setMentor] = useState('Trần Tuấn Anh (Senior Architect)');
   const [project, setProject] = useState('Hệ thống Quản lý Khách hàng Enterprise');
   const [university, setUniversity] = useState('Đại học Bách Khoa Hà Nội');
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !email) return;
+    setError('');
+    if (!name.trim() || !email.trim()) return;
+    if (password.length < 6) {
+      setError('Mật khẩu khởi tạo phải có ít nhất 6 ký tự.');
+      return;
+    }
 
-    const confirmed = window.confirm(`Xác nhận thêm thực tập sinh "${name}" (${email}) vào hệ thống?`);
-    if (!confirmed) return;
+    const finalEmail = email.includes('@') ? email.trim() : `${email.trim()}@gimasys.vn`;
 
+    if (tokenStore.isAuthenticated()) {
+      setSaving(true);
+      try {
+        const created = await usersApi.create({
+          full_name: name.trim(),
+          email: finalEmail,
+          password,
+          role: 'INTERN',
+        });
+        // Bổ sung hồ sơ ngay sau khi có id thật (không chặn nếu bước này lỗi).
+        try {
+          await usersApi.updateProfile(created.id, {
+            department: FE_DEPARTMENT_TO_API[department],
+            phone: phone.trim() || undefined,
+            university: university.trim() || undefined,
+          });
+        } catch {
+          /* hồ sơ có thể sửa lại sau ở màn chi tiết */
+        }
+        onAddIntern(apiUserToIntern({ ...created, department: FE_DEPARTMENT_TO_API[department] }));
+        onClose();
+        return;
+      } catch (err) {
+        setError(
+          err instanceof ApiError
+            ? err.detail || 'Tạo tài khoản thất bại.'
+            : 'Không kết nối được máy chủ. Kiểm tra mạng rồi thử lại.'
+        );
+        return;
+      } finally {
+        setSaving(false);
+      }
+    }
+
+    // Chế độ demo (chưa đăng nhập thật): chỉ thêm cục bộ để bản demo không gãy.
     const newIntern: Intern = {
       id: `INT-${String(Math.floor(Math.random() * 900) + 100)}`,
-      name,
-      email,
+      name: name.trim(),
+      email: finalEmail,
       phone: phone || '0988 000 000',
       avatar: `https://images.unsplash.com/photo-${1534528741775 + Math.floor(Math.random() * 1000)}?auto=format&fit=crop&q=80&w=300`,
       department,
@@ -42,17 +94,14 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
       mentor,
       mentorEmail: 'mentor@gimasys.vn',
       startDate: new Date().toISOString().split('T')[0],
-      endDate: '2025-06-30',
+      endDate: '',
       status: 'Onboarding' as InternStatus,
       project,
-      projectId: 'PRJ-01',
-      score: 8.5,
-      attendanceRate: 100,
+      projectId: '',
+      score: 0,
+      attendanceRate: 0,
       university,
-      skills: [
-        { name: `${department} Basic`, level: 75, category: 'Core' },
-        { name: 'Git Workflow', level: 80, category: 'Tools' }
-      ]
+      skills: []
     };
 
     onAddIntern(newIntern);
@@ -109,6 +158,21 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
             </div>
           </div>
 
+          <div>
+            <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">
+              Mật khẩu khởi tạo * <span className="font-normal text-slate-400">(tối thiểu 6 ký tự)</span>
+            </label>
+            <input
+              type="text"
+              required
+              minLength={6}
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              placeholder="Gửi mật khẩu này cho thực tập sinh để đăng nhập lần đầu"
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
+            />
+          </div>
+
           <div className="grid grid-cols-2 gap-3">
             <div>
               <label className="font-bold text-slate-700 dark:text-slate-300 block mb-1">Khối Kỹ thuật *</label>
@@ -146,19 +210,28 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
             />
           </div>
 
+          {error && (
+            <p className="text-[11px] font-bold text-red-700 bg-red-50 dark:bg-red-950/30 dark:text-red-300 border border-red-200 dark:border-red-900 rounded-lg px-3 py-2">
+              {error}
+            </p>
+          )}
+
           <div className="pt-3 border-t border-slate-100 dark:border-slate-800 flex items-center justify-end gap-2">
             <button
               type="button"
               onClick={onClose}
-              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold"
+              disabled={saving}
+              className="px-4 py-2 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-slate-200 text-slate-700 dark:text-slate-300 font-bold disabled:opacity-50"
             >
               Hủy
             </button>
             <button
               type="submit"
-              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold shadow-xs"
+              disabled={saving}
+              className="px-5 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-bold shadow-xs inline-flex items-center gap-1.5"
             >
-              Lưu Thực tập sinh
+              {saving && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>{saving ? 'Đang tạo tài khoản...' : 'Tạo tài khoản Thực tập sinh'}</span>
             </button>
           </div>
         </form>

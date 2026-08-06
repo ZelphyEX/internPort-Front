@@ -10,11 +10,13 @@ import {
   PlusCircle,
   HelpCircle,
   Settings,
-  Building2
+  Building2,
+  UserCheck
 } from 'lucide-react';
 import { UserRole } from '../types';
+import { canManageContent, canManageInterns } from '../services/permissions';
 
-export type NavTab = 'dashboard' | 'interns' | 'projects' | 'daily_reports' | 'roadmaps' | 'knowledge' | 'settings';
+export type NavTab = 'dashboard' | 'interns' | 'mentors' | 'projects' | 'daily_reports' | 'roadmaps' | 'knowledge' | 'settings';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -27,6 +29,8 @@ interface SidebarProps {
   /** true khi màn "Quản Lý Nhóm" đang mở — để tô sáng mục này như các tab khác. */
   isGroupScreenActive?: boolean;
   pendingReviewsCount: number;
+  /** Số Mentor đang chờ Admin duyệt — hiện thành badge ở tab "Quản lý Mentor". */
+  pendingMentorCount?: number;
 }
 
 // Class dùng chung cho mọi mục điều hướng, để mục "Quản Lý Nhóm" (không phải NavTab)
@@ -47,7 +51,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onOpenAddReport,
   onOpenGroupScreen,
   isGroupScreenActive = false,
-  pendingReviewsCount
+  pendingReviewsCount,
+  pendingMentorCount = 0
 }) => {
   const navItems = [
     {
@@ -61,6 +66,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
       label: 'Quản lý Thực tập sinh',
       icon: Users,
       badge: null
+    }] : []),
+    // Duyệt yêu cầu mở tài khoản Mentor là việc riêng của Quản trị viên.
+    ...(currentRole === 'ADMIN' ? [{
+      id: 'mentors' as NavTab,
+      label: 'Quản lý Mentor',
+      icon: UserCheck,
+      badge: pendingMentorCount > 0 ? `${pendingMentorCount} chờ duyệt` : null
     }] : []),
     {
       id: 'projects' as NavTab,
@@ -179,7 +191,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
             Thao tác nhanh
           </p>
           <div className="space-y-2">
-            {(currentRole === 'ADMIN' || currentRole === 'MENTOR') && (
+            {/* Thêm TTS: cả Mentor và Admin (quản lý tài khoản). */}
+            {canManageInterns(currentRole) && (
               <button
                 id="btn-quick-add-intern"
                 onClick={onOpenAddIntern}
@@ -190,7 +203,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
               </button>
             )}
 
-            {(currentRole === 'ADMIN' || currentRole === 'MENTOR') && (
+            {/* Giao task là nghiệp vụ -> chỉ Mentor. */}
+            {canManageContent(currentRole) && (
               <button
                 id="btn-quick-add-task"
                 onClick={onOpenAddTask}

@@ -16,6 +16,7 @@ import {
   Loader2
 } from 'lucide-react';
 import { DocumentResource, UserRole } from '../types';
+import { canManageContent } from '../services/permissions';
 import { documentsApi, tokenStore, ApiError } from '../services/api';
 
 interface KnowledgeBaseViewProps {
@@ -30,7 +31,8 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [previewDoc, setPreviewDoc] = useState<DocumentResource | null>(null);
 
-  const canManage = currentRole !== 'INTERN';
+  // Admin chỉ xem thư viện; thêm/xoá tài liệu là việc của Mentor.
+  const canManage = canManageContent(currentRole ?? 'INTERN');
 
   const handleDeleteClick = (e: React.MouseEvent, docId: string, docTitle: string) => {
     e.stopPropagation();
@@ -417,11 +419,11 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
 
                 <button
                   onClick={() => openDocument(doc)}
-                  title={doc.contentUrl ? 'Mở / tải file' : 'Tài liệu này chưa đính kèm file'}
+                  title={doc.contentUrl ? 'Mở tài liệu' : 'Tài liệu này chưa đính kèm file'}
                   className="px-3 py-1.5 rounded-xl bg-blue-50 dark:bg-blue-950/40 hover:bg-blue-100 text-blue-700 dark:text-blue-300 font-bold text-xs flex items-center gap-1 transition-colors cursor-pointer disabled:opacity-40"
                 >
-                  <Download className="w-3.5 h-3.5" />
-                  <span>Tải về</span>
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  <span>Truy cập</span>
                 </button>
               </div>
             </div>
@@ -459,7 +461,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
                 onClick={() => openDocument(previewDoc)}
                 className="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white font-bold rounded-xl shadow-xs cursor-pointer shrink-0"
               >
-                {previewDoc.contentUrl ? 'Mở / Tải xuống' : 'Chưa có file'}
+                {previewDoc.contentUrl ? 'Truy cập tài liệu' : 'Chưa có file'}
               </button>
             </div>
           </div>

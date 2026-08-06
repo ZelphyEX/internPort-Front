@@ -1,36 +1,28 @@
 import React, { useEffect, useState } from 'react';
 import {
   Compass,
-  CheckCircle2,
-  Circle,
   Plus,
   X,
-  FileText,
   Trash2,
-  MessageSquare,
-  Code2,
-  Send,
-  Check,
+  ChevronRight,
   Users as UsersIcon,
   Loader2,
   GraduationCap,
-  ExternalLink,
 } from 'lucide-react';
 import { AuthUser, Intern, Group, DocumentResource, UserRole } from '../types';
+import { canManageContent, ADMIN_READ_ONLY_NOTE } from '../services/permissions';
+import { ModuleDetailPanel, ModuleDeadlineChip } from './ModuleDetailPanel';
 import {
-  tokenStore,
   ApiError,
   roadmapsApi,
   modulesApi,
-  moduleDocumentsApi,
   learningApi,
-  commentsApi,
+  tokenStore,
   ApiRoadmapListItem,
   ApiRoadmapDetail,
   ApiModule,
   ApiAssignedRoadmap,
   ApiAssignedRoadmapDetail,
-  ApiComment,
   ApiDepartment,
 } from '../services/api';
 
@@ -49,143 +41,6 @@ const DEPARTMENT_OPTIONS: ApiDepartment[] = [
   'Salesforce/ERP',
   'AI & Data Science',
 ];
-
-// ============================================================================
-// Khối bình luận theo bài học (module_document_id) — dùng chung cho cả 2 vai trò.
-// Phong cách "Thảo Luận & Hỏi Đáp Bài Học" mượn từ giao diện Skilljar cũ.
-// Lưu ý: ApiComment.user không có field "role" nên không thể tô màu badge theo
-// vai trò tác giả như bản mock cũ — mọi bình luận dùng chung 1 kiểu hiển thị.
-// ============================================================================
-
-const CommentThread: React.FC<{ moduleDocumentId: number; currentRole: UserRole }> = ({
-  moduleDocumentId,
-  currentRole,
-}) => {
-  const [comments, setComments] = useState<ApiComment[] | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [content, setContent] = useState('');
-  const [codeSnippet, setCodeSnippet] = useState('');
-  const [showCode, setShowCode] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
-
-  const load = () => {
-    setLoading(true);
-    commentsApi
-      .list(moduleDocumentId)
-      .then(setComments)
-      .catch(() => setComments([]))
-      .finally(() => setLoading(false));
-  };
-
-  useEffect(() => {
-    load();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [moduleDocumentId]);
-
-  const handleSubmit = async () => {
-    if (!content.trim()) return;
-    setSubmitting(true);
-    try {
-      await commentsApi.create(moduleDocumentId, content.trim(), null, codeSnippet.trim() || undefined);
-      setContent('');
-      setCodeSnippet('');
-      setShowCode(false);
-      load();
-    } catch (err) {
-      alert(err instanceof ApiError ? err.detail : 'Gửi bình luận thất bại.');
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
-  const handleResolve = async (commentId: number, next: boolean) => {
-    try {
-      await commentsApi.resolve(commentId, next);
-      load();
-    } catch (err) {
-      alert(err instanceof ApiError ? err.detail : 'Cập nhật thất bại.');
-    }
-  };
-
-  return (
-    <div className="mt-3 p-4 bg-slate-50/90 dark:bg-slate-900/60 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3 text-xs">
-      <div className="flex items-center gap-1.5 font-extrabold text-slate-700 dark:text-slate-200">
-        <MessageSquare className="w-3.5 h-3.5" /> Thảo Luận &amp; Hỏi Đáp Bài Học
-      </div>
-
-      {loading && <p className="text-[11px] text-slate-400">Đang tải bình luận...</p>}
-      {!loading && comments && comments.length === 0 && (
-        <p className="text-[11px] text-slate-400 italic">Chưa có bình luận nào.</p>
-      )}
-      {!loading &&
-        comments?.map((c) => (
-          <div key={c.id} className="p-3 bg-white dark:bg-slate-800 rounded-xl border border-slate-200 dark:border-slate-700 space-y-2 shadow-2xs">
-            <div className="flex items-center justify-between gap-2">
-              <div className="flex items-center gap-2">
-                {c.user.avatar_url ? (
-                  <img src={c.user.avatar_url} alt={c.user.full_name} className="w-6 h-6 rounded-full object-cover border border-slate-200 dark:border-slate-700" />
-                ) : (
-                  <div className="w-6 h-6 rounded-full bg-blue-100 text-blue-700 font-bold text-[10px] flex items-center justify-center">
-                    {c.user.full_name.slice(0, 1).toUpperCase()}
-                  </div>
-                )}
-                <span className="font-bold text-slate-700 dark:text-slate-200">{c.user.full_name}</span>
-              </div>
-              <div className="flex items-center gap-2">
-                {c.is_resolved && (
-                  <span className="px-2 py-0.5 rounded-full bg-emerald-100 text-emerald-800 text-[10px] font-extrabold flex items-center gap-1 border border-emerald-300">
-                    <Check className="w-3 h-3 text-emerald-600" /> Đã Giải Đáp
-                  </span>
-                )}
-                {currentRole !== 'INTERN' && (
-                  <button onClick={() => handleResolve(c.id, !c.is_resolved)} className="text-[10px] font-bold text-blue-600 hover:underline">
-                    {c.is_resolved ? 'Bỏ đánh dấu' : 'Đánh dấu Đã Giải Đáp'}
-                  </button>
-                )}
-              </div>
-            </div>
-            <p className="text-slate-600 dark:text-slate-300 whitespace-pre-wrap">{c.content}</p>
-            {c.code_snippet && (
-              <pre className="p-2.5 bg-slate-900 text-emerald-400 rounded-lg text-[11px] font-mono overflow-x-auto border border-slate-800">
-                <code>{c.code_snippet}</code>
-              </pre>
-            )}
-          </div>
-        ))}
-
-      <div className="pt-1 space-y-1.5">
-        <textarea
-          value={content}
-          onChange={(e) => setContent(e.target.value)}
-          rows={2}
-          placeholder="Viết câu hỏi / bình luận..."
-          className="w-full p-2.5 bg-white dark:bg-slate-800 border border-slate-300 dark:border-slate-600 rounded-xl text-xs focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-        />
-        {showCode && (
-          <textarea
-            value={codeSnippet}
-            onChange={(e) => setCodeSnippet(e.target.value)}
-            rows={3}
-            placeholder="Đoạn code / log lỗi đính kèm (tuỳ chọn)"
-            className="w-full p-2.5 bg-slate-900 text-emerald-400 font-mono rounded-xl text-[11px] focus:outline-none focus:ring-2 focus:ring-emerald-500"
-          />
-        )}
-        <div className="flex items-center justify-between">
-          <button onClick={() => setShowCode((s) => !s)} className="flex items-center gap-1 text-[11px] font-bold text-slate-500 hover:text-slate-700 dark:hover:text-slate-300">
-            <Code2 className="w-3.5 h-3.5" /> {showCode ? 'Bỏ code' : '+ Đính kèm code snippet / Lỗi log'}
-          </button>
-          <button
-            onClick={handleSubmit}
-            disabled={submitting || !content.trim()}
-            className="px-4 py-2 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-extrabold text-xs rounded-xl shadow-xs flex items-center gap-1.5"
-          >
-            <Send className="w-3.5 h-3.5" /> Gửi Thảo Luận
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-};
 
 // ============================================================================
 // Thẻ "khoá học" (Module) + danh sách bài học — phong cách mượn từ tab Skilljar cũ.
@@ -210,80 +65,6 @@ function ModuleHeaderMeta({ m }: { m: { track?: ApiDepartment | null; week_numbe
   );
 }
 
-interface LessonLike {
-  module_document_id: number;
-  title: string;
-  content_url?: string | null;
-  completed?: boolean;
-}
-
-interface LessonCardProps {
-  lesson: LessonLike;
-  onToggle?: () => void;
-  busy?: boolean;
-  expanded: boolean;
-  onToggleComments: () => void;
-  showRemove?: boolean;
-  onRemove?: () => void;
-}
-
-const LessonCard: React.FC<LessonCardProps> = ({
-  lesson,
-  onToggle,
-  busy,
-  expanded,
-  onToggleComments,
-  showRemove,
-  onRemove,
-}) => {
-  const completed = !!lesson.completed;
-  return (
-    <div
-      className={`rounded-2xl p-4 border transition-all ${
-        completed
-          ? 'bg-emerald-50/40 dark:bg-emerald-950/20 border-emerald-300'
-          : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-blue-300 shadow-2xs'
-      }`}
-    >
-      <div className="flex items-center gap-2.5">
-        {onToggle ? (
-          <button onClick={onToggle} disabled={busy} className="shrink-0">
-            {completed ? <CheckCircle2 className="w-5 h-5 text-emerald-600" /> : <Circle className="w-5 h-5 text-slate-400" />}
-          </button>
-        ) : (
-          <FileText className="w-4 h-4 text-slate-400 shrink-0" />
-        )}
-        <span className={`flex-1 text-xs ${completed ? 'line-through text-slate-500 dark:text-slate-400' : 'font-semibold text-slate-800 dark:text-slate-200'}`}>
-          {lesson.title}
-        </span>
-        {completed && (
-          <span className="text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-emerald-100 text-emerald-800 border border-emerald-300 flex items-center gap-1 shrink-0">
-            <CheckCircle2 className="w-3 h-3" /> Đã Hoàn Thành
-          </span>
-        )}
-        <button onClick={onToggleComments} className="text-slate-400 hover:text-slate-600 shrink-0">
-          <MessageSquare className="w-4 h-4" />
-        </button>
-        {showRemove && (
-          <button onClick={onRemove} className="text-slate-300 hover:text-red-500 shrink-0">
-            <X className="w-4 h-4" />
-          </button>
-        )}
-      </div>
-      {lesson.content_url && (
-        <a
-          href={lesson.content_url}
-          target="_blank"
-          rel="noreferrer"
-          className="mt-3 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-extrabold text-white bg-gradient-to-r from-orange-600 to-amber-600 hover:from-orange-500 hover:to-amber-500 shadow-md border border-orange-400"
-        >
-          <ExternalLink className="w-3.5 h-3.5" /> Mở Bài Học Anthropic Skilljar
-        </a>
-      )}
-      {expanded && <CommentThread moduleDocumentId={lesson.module_document_id} currentRole={onToggle ? 'INTERN' : 'MENTOR'} />}
-    </div>
-  );
-}
 
 // ============================================================================
 // Vai trò INTERN — xem lộ trình được giao + đánh dấu hoàn thành bài học.
@@ -293,9 +74,10 @@ const InternRoadmapView: React.FC = () => {
   const [myRoadmaps, setMyRoadmaps] = useState<ApiAssignedRoadmap[] | null>(null);
   const [selectedAssignmentId, setSelectedAssignmentId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ApiAssignedRoadmapDetail | null>(null);
-  const [expandedLessonId, setExpandedLessonId] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const [busyLessonId, setBusyLessonId] = useState<number | null>(null);
+  // Chặng học đang mở chi tiết (null = đang xem danh sách chặng).
+  const [openModuleId, setOpenModuleId] = useState<number | null>(null);
 
   useEffect(() => {
     learningApi
@@ -324,6 +106,8 @@ const InternRoadmapView: React.FC = () => {
       learningApi.myRoadmapDetail(selectedAssignmentId).then(setDetail).catch(() => {});
     }
   };
+
+  const openModule = detail?.modules.find((m) => m.id === openModuleId) || null;
 
   const toggleLesson = async (moduleDocumentId: number, completed: boolean) => {
     if (selectedAssignmentId == null) return;
@@ -390,7 +174,35 @@ const InternRoadmapView: React.FC = () => {
       </div>
 
       <div className="lg:col-span-2 space-y-4">
-        {detail && (
+        {/* Đang mở chi tiết một chặng học */}
+        {detail && openModule && (
+          <ModuleDetailPanel
+            module={{
+              id: openModule.id,
+              title: openModule.title,
+              track: openModule.track,
+              week_number: openModule.week_number,
+              duration_text: openModule.duration_text,
+              start_date: openModule.start_date,
+              end_date: openModule.end_date,
+              lessons: openModule.lessons.map((l) => ({
+                module_document_id: l.module_document_id,
+                title: l.title,
+                content_url: l.content_url,
+                attachments: l.attachments,
+                completed: l.completed,
+              })),
+            }}
+            currentRole="INTERN"
+            readOnly
+            onToggleLesson={toggleLesson}
+            busyLessonId={busyLessonId}
+            onChanged={refreshDetail}
+            onBack={() => setOpenModuleId(null)}
+          />
+        )}
+
+        {detail && !openModule && (
           <>
             {/* Banner tổng quan lộ trình, phong cách "command center" của Skilljar */}
             <div className="bg-slate-900 text-white rounded-2xl p-6 shadow-md relative overflow-hidden space-y-3">
@@ -408,31 +220,33 @@ const InternRoadmapView: React.FC = () => {
               <p className="relative z-10 text-xl font-black text-emerald-400">{detail.progress_percent}% hoàn thành</p>
             </div>
 
-            {detail.modules.map((m) => (
-              <div key={m.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="bg-slate-900 text-white p-4">
-                  <div className="flex items-center gap-2 font-extrabold text-sm">
-                    <GraduationCap className="w-4 h-4 text-amber-400" /> {m.title}
+            {/* Bấm vào chặng học -> mở chi tiết (danh sách bài học + tài liệu đính kèm) */}
+            {detail.modules.map((m) => {
+              const done = m.lessons.filter((l) => l.completed).length;
+              return (
+                <button
+                  key={m.id}
+                  onClick={() => setOpenModuleId(m.id)}
+                  className="w-full text-left bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:border-blue-400 transition-colors cursor-pointer"
+                >
+                  <div className="bg-slate-900 text-white p-4">
+                    <div className="flex items-center justify-between gap-2">
+                      <div className="flex items-center gap-2 font-extrabold text-sm">
+                        <GraduationCap className="w-4 h-4 text-amber-400" /> {m.title}
+                      </div>
+                      <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+                    </div>
+                    <ModuleHeaderMeta m={m} />
                   </div>
-                  <ModuleHeaderMeta m={m} />
-                </div>
-                <div className="p-3 space-y-2.5">
-                  {m.lessons.length === 0 && <p className="text-xs text-slate-400 text-center py-4">Chưa có bài học nào trong chặng này.</p>}
-                  {m.lessons.map((lesson) => (
-                    <LessonCard
-                      key={lesson.module_document_id}
-                      lesson={lesson}
-                      busy={busyLessonId === lesson.module_document_id}
-                      onToggle={() => toggleLesson(lesson.module_document_id, lesson.completed)}
-                      expanded={expandedLessonId === lesson.module_document_id}
-                      onToggleComments={() =>
-                        setExpandedLessonId((id) => (id === lesson.module_document_id ? null : lesson.module_document_id))
-                      }
-                    />
-                  ))}
-                </div>
-              </div>
-            ))}
+                  <div className="p-3 flex items-center justify-between gap-3">
+                    <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                      {done}/{m.lessons.length} bài học đã hoàn thành
+                    </span>
+                    <ModuleDeadlineChip endDate={m.end_date} />
+                  </div>
+                </button>
+              );
+            })}
           </>
         )}
       </div>
@@ -444,16 +258,19 @@ const InternRoadmapView: React.FC = () => {
 // Vai trò MENTOR/ADMIN — quản lý Roadmap/Module/Lesson + gán cho Intern/Nhóm.
 // ============================================================================
 
-const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; documents: DocumentResource[] }> = ({
-  interns,
-  groups,
-  documents,
-}) => {
+const MentorRoadmapView: React.FC<{
+  interns: Intern[];
+  groups: Group[];
+  documents: DocumentResource[];
+  /** true với ADMIN: chỉ xem cấu trúc lộ trình, ẩn mọi thao tác tạo/sửa/xoá/gán. */
+  readOnly?: boolean;
+}> = ({ interns, groups, documents, readOnly = false }) => {
   const [roadmaps, setRoadmaps] = useState<ApiRoadmapListItem[] | null>(null);
   const [selectedId, setSelectedId] = useState<number | null>(null);
   const [detail, setDetail] = useState<ApiRoadmapDetail | null>(null);
   const [loading, setLoading] = useState(true);
-  const [expandedLessonId, setExpandedLessonId] = useState<number | null>(null);
+  // Chặng học đang mở chi tiết (null = đang xem danh sách chặng).
+  const [openModuleId, setOpenModuleId] = useState<number | null>(null);
 
   const [isCreatingRoadmap, setIsCreatingRoadmap] = useState(false);
   const [newRoadmapTitle, setNewRoadmapTitle] = useState('');
@@ -465,9 +282,8 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
   const [newModuleWeek, setNewModuleWeek] = useState(1);
   const [newModuleDuration, setNewModuleDuration] = useState('');
   const [newModuleSkills, setNewModuleSkills] = useState('');
+  const [newModuleEnd, setNewModuleEnd] = useState('');
 
-  const [addingLessonToModuleId, setAddingLessonToModuleId] = useState<number | null>(null);
-  const [lessonDocumentId, setLessonDocumentId] = useState('');
 
   const [isAssigning, setIsAssigning] = useState(false);
   const [assignInternIds, setAssignInternIds] = useState<string[]>([]);
@@ -490,6 +306,8 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
   const loadDetail = (id: number) => {
     roadmapsApi.get(id).then(setDetail).catch(() => setDetail(null));
   };
+
+  const openModule = detail?.modules.find((m) => m.id === openModuleId) || null;
 
   useEffect(() => {
     if (selectedId != null) loadDetail(selectedId);
@@ -534,10 +352,12 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
           .map((s) => s.trim())
           .filter(Boolean),
         position: (detail?.modules.length || 0) + 1,
+        end_date: newModuleEnd || undefined,
       });
       setNewModuleTitle('');
       setNewModuleDuration('');
       setNewModuleSkills('');
+      setNewModuleEnd('');
       setIsAddingModule(false);
       loadDetail(selectedId);
     } catch (err) {
@@ -552,29 +372,6 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
       loadDetail(selectedId);
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Xoá chặng thất bại.');
-    }
-  };
-
-  const handleAddLesson = async (moduleId: number) => {
-    const docId = Number(lessonDocumentId);
-    if (!selectedId || !Number.isInteger(docId)) return;
-    try {
-      await modulesApi.addDocuments(moduleId, [{ document_id: docId, position: 1 }]);
-      setLessonDocumentId('');
-      setAddingLessonToModuleId(null);
-      loadDetail(selectedId);
-    } catch (err) {
-      alert(err instanceof ApiError ? err.detail : 'Gán tài liệu thất bại.');
-    }
-  };
-
-  const handleRemoveLesson = async (moduleDocumentId: number) => {
-    if (!selectedId || !window.confirm('Gỡ bài học này khỏi chặng?')) return;
-    try {
-      await moduleDocumentsApi.remove(moduleDocumentId);
-      loadDetail(selectedId);
-    } catch (err) {
-      alert(err instanceof ApiError ? err.detail : 'Gỡ bài học thất bại.');
     }
   };
 
@@ -632,14 +429,20 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
   return (
     <div className="p-6 grid grid-cols-1 lg:grid-cols-3 gap-5">
       <div className="lg:col-span-1 space-y-3">
-        <button
-          onClick={() => setIsCreatingRoadmap((s) => !s)}
-          className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold"
-        >
-          <Plus className="w-4 h-4" /> Tạo lộ trình mới
-        </button>
+        {readOnly ? (
+          <p className="text-[11px] font-bold text-blue-800 bg-blue-50 dark:bg-blue-950/30 dark:text-blue-300 border border-blue-200 dark:border-blue-800 rounded-xl px-3 py-2.5">
+            {ADMIN_READ_ONLY_NOTE}
+          </p>
+        ) : (
+          <button
+            onClick={() => setIsCreatingRoadmap((s) => !s)}
+            className="w-full flex items-center justify-center gap-2 px-3 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold"
+          >
+            <Plus className="w-4 h-4" /> Tạo lộ trình mới
+          </button>
+        )}
 
-        {isCreatingRoadmap && (
+        {isCreatingRoadmap && !readOnly && (
           <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-xl p-3 space-y-2">
             <input
               value={newRoadmapTitle}
@@ -672,15 +475,17 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
           >
             <div className="flex items-center justify-between gap-2">
               <p className="font-bold text-sm">{r.title}</p>
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteRoadmap(r.id);
-                }}
-                className={selectedId === r.id ? 'text-blue-100 hover:text-white' : 'text-slate-300 hover:text-red-500'}
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteRoadmap(r.id);
+                  }}
+                  className={selectedId === r.id ? 'text-blue-100 hover:text-white' : 'text-slate-300 hover:text-red-500'}
+                >
+                  <Trash2 className="w-3.5 h-3.5" />
+                </button>
+              )}
             </div>
             <p className={`text-[11px] mt-1 ${selectedId === r.id ? 'text-blue-100' : 'text-slate-400'}`}>
               {r.module_count || 0} chặng học
@@ -693,19 +498,48 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
       </div>
 
       <div className="lg:col-span-2 space-y-4">
-        {detail && (
+        {/* Đang mở chi tiết một chặng học */}
+        {detail && openModule && (
+          <ModuleDetailPanel
+            module={{
+              id: openModule.id,
+              title: openModule.title,
+              description: openModule.description,
+              track: openModule.track,
+              week_number: openModule.week_number,
+              duration_text: openModule.duration_text,
+              start_date: openModule.start_date,
+              end_date: openModule.end_date,
+              lessons: (openModule.documents || []).map((d) => ({
+                module_document_id: d.module_document_id,
+                title: d.title,
+                content_url: d.content_url,
+                attachments: d.attachments,
+              })),
+            }}
+            currentRole={readOnly ? 'ADMIN' : 'MENTOR'}
+            documents={documents}
+            readOnly={readOnly}
+            onChanged={() => selectedId != null && loadDetail(selectedId)}
+            onBack={() => setOpenModuleId(null)}
+          />
+        )}
+
+        {detail && !openModule && (
           <>
             <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between">
               <div>
                 <h3 className="font-extrabold text-slate-800 dark:text-slate-100">{detail.title}</h3>
                 {detail.description && <p className="text-xs text-slate-400 mt-0.5">{detail.description}</p>}
               </div>
-              <button
-                onClick={() => setIsAssigning((s) => !s)}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-xs font-bold text-slate-700 dark:text-slate-200"
-              >
-                <UsersIcon className="w-3.5 h-3.5" /> Gán lộ trình
-              </button>
+              {!readOnly && (
+                <button
+                  onClick={() => setIsAssigning((s) => !s)}
+                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-xs font-bold text-slate-700 dark:text-slate-200"
+                >
+                  <UsersIcon className="w-3.5 h-3.5" /> Gán lộ trình
+                </button>
+              )}
             </div>
 
             {isAssigning && (
@@ -752,9 +586,16 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
               </div>
             )}
 
+            {/* Bấm vào chặng học -> mở chi tiết (bài học, tài liệu đính kèm, hạn) */}
             {detail.modules.map((m: ApiModule) => (
-              <div key={m.id} className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden">
-                <div className="bg-slate-900 text-white p-4 flex items-start justify-between gap-2">
+              <div
+                key={m.id}
+                className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 overflow-hidden hover:border-blue-400 transition-colors"
+              >
+                <button
+                  onClick={() => setOpenModuleId(m.id)}
+                  className="w-full text-left bg-slate-900 text-white p-4 flex items-start justify-between gap-2 cursor-pointer"
+                >
                   <div>
                     <div className="flex items-center gap-2 font-extrabold text-sm">
                       <GraduationCap className="w-4 h-4 text-amber-400" /> {m.title}
@@ -770,59 +611,30 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
                       </div>
                     )}
                   </div>
-                  <button onClick={() => handleDeleteModule(m.id)} className="text-slate-400 hover:text-red-400 shrink-0">
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                </div>
+                  <ChevronRight className="w-4 h-4 text-slate-400 shrink-0 mt-1" />
+                </button>
 
-                <div className="p-3 space-y-2.5">
-                  {(m.documents || []).map((lesson) => (
-                    <LessonCard
-                      key={lesson.module_document_id}
-                      lesson={lesson}
-                      expanded={expandedLessonId === lesson.module_document_id}
-                      onToggleComments={() =>
-                        setExpandedLessonId((id) => (id === lesson.module_document_id ? null : lesson.module_document_id))
-                      }
-                      showRemove
-                      onRemove={() => handleRemoveLesson(lesson.module_document_id)}
-                    />
-                  ))}
-
-                  {addingLessonToModuleId === m.id ? (
-                    <div className="flex items-center gap-2">
-                      <select
-                        value={lessonDocumentId}
-                        onChange={(e) => setLessonDocumentId(e.target.value)}
-                        className="flex-1 px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900"
+                <div className="p-3 flex items-center justify-between gap-3">
+                  <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400">
+                    {(m.documents || []).length} bài học
+                  </span>
+                  <div className="flex items-center gap-2">
+                    <ModuleDeadlineChip endDate={m.end_date} />
+                    {!readOnly && (
+                      <button
+                        onClick={() => handleDeleteModule(m.id)}
+                        title="Xoá chặng học"
+                        className="text-slate-300 hover:text-red-500 shrink-0"
                       >
-                        <option value="">— Chọn tài liệu có sẵn —</option>
-                        {documents.map((d) => (
-                          <option key={d.id} value={d.id}>
-                            {d.title}
-                          </option>
-                        ))}
-                      </select>
-                      <button onClick={() => handleAddLesson(m.id)} className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
-                        Gán
+                        <Trash2 className="w-4 h-4" />
                       </button>
-                      <button onClick={() => setAddingLessonToModuleId(null)} className="text-slate-400 hover:text-slate-600">
-                        <X className="w-4 h-4" />
-                      </button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setAddingLessonToModuleId(m.id)}
-                      className="flex items-center gap-1.5 text-[11px] font-bold text-blue-600 hover:underline"
-                    >
-                      <Plus className="w-3.5 h-3.5" /> Gán tài liệu làm bài học
-                    </button>
-                  )}
+                    )}
+                  </div>
                 </div>
               </div>
             ))}
 
-            {isAddingModule ? (
+            {readOnly ? null : isAddingModule ? (
               <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-2">
                 <input
                   value={newModuleTitle}
@@ -863,6 +675,17 @@ const MentorRoadmapView: React.FC<{ interns: Intern[]; groups: Group[]; document
                   placeholder="Kỹ năng chính, cách nhau bởi dấu phẩy"
                   className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900"
                 />
+                <div>
+                  <label className="text-[11px] font-bold text-slate-500 dark:text-slate-400 block mb-1">
+                    Hạn hoàn thành chặng học (hiển thị &quot;còn N ngày&quot;)
+                  </label>
+                  <input
+                    type="date"
+                    value={newModuleEnd}
+                    onChange={(e) => setNewModuleEnd(e.target.value)}
+                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900"
+                  />
+                </div>
                 <div className="flex gap-2">
                   <button onClick={handleAddModule} className="flex-1 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold">
                     Thêm chặng
@@ -920,7 +743,13 @@ export const RoadmapView: React.FC<RoadmapViewProps> = ({ currentRole, interns, 
       {currentRole === 'INTERN' ? (
         <InternRoadmapView />
       ) : (
-        <MentorRoadmapView interns={interns} groups={groups} documents={documents} />
+        // ADMIN chỉ xem cấu trúc lộ trình; MENTOR mới được tạo/sửa/gán.
+        <MentorRoadmapView
+          interns={interns}
+          groups={groups}
+          documents={documents}
+          readOnly={!canManageContent(currentRole)}
+        />
       )}
     </div>
   );

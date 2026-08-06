@@ -19,6 +19,7 @@ import {
   UserX
 } from 'lucide-react';
 import { Intern, Department, InternStatus, UserRole } from '../types';
+import { canManageInterns } from '../services/permissions';
 
 interface InternsViewProps {
   interns: Intern[];
@@ -46,7 +47,9 @@ export const InternsView: React.FC<InternsViewProps> = ({
 
   const isAdmin = currentRole === 'ADMIN';
   const isMentor = currentRole === 'MENTOR';
-  const canManage = isAdmin || isMentor;
+  // Quản lý tài khoản Thực tập sinh là quyền của CẢ Mentor và Admin
+  // (khác các mục nghiệp vụ — Admin chỉ được xem). Xem services/permissions.ts.
+  const canManage = canManageInterns(currentRole);
 
   // ADMIN: xoá vĩnh viễn tài khoản. MENTOR: chỉ xoá khỏi khoá học (đổi trạng thái, không mất dữ liệu).
   const handleRemoveClick = (e: React.MouseEvent, internId: string, internName: string) => {
@@ -110,7 +113,7 @@ export const InternsView: React.FC<InternsViewProps> = ({
           </p>
         </div>
 
-        {(currentRole === 'ADMIN' || currentRole === 'MENTOR') && (
+        {canManage && (
           <div className="flex items-center gap-2 shrink-0">
             <button
               id="btn-add-intern-main"

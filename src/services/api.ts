@@ -194,7 +194,21 @@ async function tryRefresh(): Promise<boolean> {
 // ============================================================================
 
 export type ApiRole = 'ADMIN' | 'MENTOR' | 'INTERN';
-export type ApiUserStatus = 'ACTIVE' | 'LOCKED';
+/** PENDING = Mentor tự đăng ký, đang chờ Admin duyệt (chưa đăng nhập được). */
+export type ApiUserStatus = 'ACTIVE' | 'LOCKED' | 'PENDING';
+/** Vai trò được phép tự đăng ký — không có ADMIN. */
+export type ApiRegisterRole = 'INTERN' | 'MENTOR';
+
+/**
+ * Backend trả 403 kèm detail bắt đầu bằng chuỗi này khi tài khoản Mentor chưa
+ * được duyệt. Frontend dựa vào đó để chuyển sang màn "đang chờ duyệt".
+ */
+export const PENDING_APPROVAL_CODE = 'PENDING_APPROVAL';
+
+/** True nếu lỗi là "tài khoản Mentor đang chờ Admin duyệt". */
+export function isPendingApprovalError(err: unknown): boolean {
+  return err instanceof ApiError && err.status === 403 && err.detail.includes(PENDING_APPROVAL_CODE);
+}
 export type ApiDocType = 'VIDEO' | 'PDF' | 'LINK' | 'ARTICLE';
 
 // Lưu ý: giá trị "Salesforce/ERP" (không có khoảng trắng quanh dấu "/") — khác với
@@ -274,12 +288,26 @@ export interface ApiRoadmapListItem {
   module_count?: number;
 }
 
-export interface ApiModuleDocument {
-  module_document_id: number;
+/** Tài liệu đính kèm hiển thị ngay dưới một bài học. */
+export interface ApiLessonAttachment {
+  attachment_id: number;
   document_id: number;
   title: string;
-  type?: ApiDocType;
-  content_url?: string;
+  type: ApiDocType;
+  content_url: string;
+  position: number;
+}
+
+export interface ApiModuleDocument {
+  module_document_id: number;
+  /** null với bài học tạo tay (chỉ có tên + link), không lấy từ Thư viện. */
+  document_id?: number | null;
+  title: string;
+  type?: ApiDocType | null;
+  /** Link mở khi bấm vào tên bài học (video / bài giảng). */
+  content_url?: string | null;
+  position?: number;
+  attachments?: ApiLessonAttachment[];
 }
 
 export interface ApiModule {
@@ -291,6 +319,9 @@ export interface ApiModule {
   week_number?: number | null;
   duration_text?: string | null;
   key_skills?: string[];
+  /** Hạn của chặng học (YYYY-MM-DD) — dùng để hiển thị "còn N ngày". */
+  start_date?: string | null;
+  end_date?: string | null;
   documents?: ApiModuleDocument[];
 }
 
@@ -326,10 +357,11 @@ export interface ApiAssignmentListItem {
 export interface ApiLessonState {
   module_document_id: number;
   title: string;
-  type?: ApiDocType;
-  content_url?: string;
+  type?: ApiDocType | null;
+  content_url?: string | null;
   completed: boolean;
   completed_at?: string | null;
+  attachments?: ApiLessonAttachment[];
 }
 
 export interface ApiAssignedRoadmapDetail {
@@ -341,6 +373,11 @@ export interface ApiAssignedRoadmapDetail {
     id: number;
     title: string;
     position: number;
+    track?: ApiDepartment | null;
+    week_number?: number | null;
+    duration_text?: string | null;
+    start_date?: string | null;
+    end_date?: string | null;
     lessons: ApiLessonState[];
   }>;
 }
@@ -467,8 +504,17 @@ export interface ApiDailyReport {
 // ============================================================================
 
 export const authApi = {
-  /** POST /auth/register — Đăng ký (chỉ tạo INTERN). Công khai. */
-  register(payload: { full_name: string; email: string; password: string }) {
+  /**
+   * POST /auth/register — Đăng ký. Công khai.
+   * `role: 'INTERN'` (mặc định) dùng được ngay; `role: 'MENTOR'` tạo ở trạng thái
+   * PENDING và phải chờ Admin duyệt mới đăng nhập được.
+   */
+  register(payload: {
+    full_name: string;
+    email: string;
+    password: string;
+    role?: ApiRegisterRole;
+  }) {
     return request<ApiUser>('/auth/register', { method: 'POST', body: payload, auth: false });
   },
 
@@ -527,9 +573,23 @@ export const usersApi = {
     return request<Paginated<ApiUser>>('/users', { query: params });
   },
 
-  /** POST /users — Tạo tài khoản MENTOR/ADMIN (không tạo được INTERN — dùng /auth/register). Quyền: ADMIN. */
-  create(payload: { full_name: string; email: string; password: string; role: 'ADMIN' | 'MENTOR' }) {
+  /**
+   * POST /users — Tạo tài khoản. Quyền: MENTOR trở lên.
+   * Luật vai trò (403 nếu vi phạm): MENTOR chỉ tạo được `INTERN`;
+   * ADMIN tạo được `INTERN` hoặc `MENTOR`. Không tạo được ADMIN qua API.
+   */
+  create(payload: {
+    full_name: string;
+    email: string;
+    password: string;
+    role?: 'INTERN' | 'MENTOR';
+  }) {
     return request<ApiUser>('/users', { method: 'POST', body: payload });
+  },
+
+  /** PATCH /users/{id}/approve — Duyệt Mentor đang chờ (PENDING -> ACTIVE). Quyền: ADMIN. */
+  approve(id: number) {
+    return request<ApiUser>(`/users/${id}/approve`, { method: 'PATCH' });
   },
 
   /** GET /users/{id} — Chi tiết user. Quyền: MENTOR. */
@@ -567,7 +627,10 @@ export const usersApi = {
     return request<ApiUser>(`/users/${id}/unlock`, { method: 'PATCH' });
   },
 
-  /** DELETE /users/{id} — Xóa mềm. Quyền: ADMIN. */
+  /**
+   * DELETE /users/{id} — Xoá mềm. Quyền: MENTOR trở lên.
+   * MENTOR chỉ xoá được INTERN; ADMIN xoá được INTERN/MENTOR; không ai xoá được ADMIN.
+   */
   remove(id: number) {
     return request<void>(`/users/${id}`, { method: 'DELETE' });
   },
@@ -737,6 +800,8 @@ export const roadmapsApi = {
       week_number?: number;
       duration_text?: string;
       key_skills?: string[];
+      start_date?: string | null;
+      end_date?: string | null;
     }
   ) {
     return request<ApiModule>(`/roadmaps/${roadmapId}/modules`, { method: 'POST', body: payload });
@@ -764,7 +829,7 @@ export const roadmapsApi = {
 };
 
 export const modulesApi = {
-  /** PATCH /modules/{id} — Sửa chặng (kể cả đổi position). Quyền: MENTOR. */
+  /** PATCH /modules/{id} — Sửa chặng (kể cả đổi position, hạn hoàn thành). Quyền: MENTOR. */
   update(
     id: number,
     payload: Partial<{
@@ -775,6 +840,8 @@ export const modulesApi = {
       week_number: number;
       duration_text: string;
       key_skills: string[];
+      start_date: string | null;
+      end_date: string | null;
     }>
   ) {
     return request<ApiModule>(`/modules/${id}`, { method: 'PATCH', body: payload });
@@ -785,7 +852,18 @@ export const modulesApi = {
     return request<void>(`/modules/${id}`, { method: 'DELETE' });
   },
 
-  /** POST /modules/{module_id}/documents — Gán tài liệu vào chặng. Quyền: MENTOR. */
+  /**
+   * POST /modules/{module_id}/lessons — Tạo BÀI HỌC bằng tên + link. Quyền: MENTOR.
+   * Không sinh bản ghi nào trong Thư viện Tài liệu.
+   */
+  createLesson(moduleId: number, payload: { title: string; content_url: string; position?: number }) {
+    return request<ApiModuleDocument>(`/modules/${moduleId}/lessons`, {
+      method: 'POST',
+      body: payload,
+    });
+  },
+
+  /** POST /modules/{module_id}/documents — Tạo bài học TỪ tài liệu có sẵn. Quyền: MENTOR. */
   addDocuments(moduleId: number, items: Array<{ document_id: number; position: number }>) {
     return request<ApiModuleDocument[]>(`/modules/${moduleId}/documents`, {
       method: 'POST',
@@ -795,9 +873,29 @@ export const modulesApi = {
 };
 
 export const moduleDocumentsApi = {
-  /** DELETE /module-documents/{id} — Gỡ 1 tài liệu khỏi chặng. Quyền: MENTOR. */
+  /** PATCH /module-documents/{id} — Sửa tên/link/thứ tự bài học. Quyền: MENTOR. */
+  update(id: number, payload: Partial<{ title: string; content_url: string; position: number }>) {
+    return request<ApiModuleDocument>(`/module-documents/${id}`, { method: 'PATCH', body: payload });
+  },
+
+  /** DELETE /module-documents/{id} — Xoá 1 bài học khỏi chặng. Quyền: MENTOR. */
   remove(id: number) {
     return request<void>(`/module-documents/${id}`, { method: 'DELETE' });
+  },
+
+  /** POST /module-documents/{id}/attachments — Đính tài liệu vào bài học. Quyền: MENTOR. */
+  attachDocuments(moduleDocumentId: number, document_ids: number[]) {
+    return request<ApiLessonAttachment[]>(`/module-documents/${moduleDocumentId}/attachments`, {
+      method: 'POST',
+      body: { document_ids },
+    });
+  },
+
+  /** DELETE /module-documents/{id}/attachments/{document_id} — Gỡ tài liệu khỏi bài học. */
+  detachDocument(moduleDocumentId: number, documentId: number) {
+    return request<void>(`/module-documents/${moduleDocumentId}/attachments/${documentId}`, {
+      method: 'DELETE',
+    });
   },
 };
 

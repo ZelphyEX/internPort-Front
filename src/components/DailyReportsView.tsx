@@ -14,6 +14,7 @@ import {
   X
 } from 'lucide-react';
 import { DailyReport, UserRole, AuthUser } from '../types';
+import { canReviewReports } from '../services/permissions';
 
 interface DailyReportsViewProps {
   reports: DailyReport[];
@@ -244,7 +245,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                       </div>
                     )}
                   </div>
-                ) : (currentRole === 'ADMIN' || currentRole === 'MENTOR') ? (
+                ) : canReviewReports(currentRole) ? (
                   /* Mentor Review Actions Controls */
                   <div className="pt-3 border-t border-slate-100 dark:border-slate-800 space-y-3 bg-slate-50/80 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
                     <span className="font-extrabold text-xs text-slate-800 dark:text-slate-200 block">

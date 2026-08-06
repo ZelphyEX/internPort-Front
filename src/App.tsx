@@ -16,6 +16,7 @@ import { LoginView } from './components/LoginView';
 import { GroupSelectionView } from './components/GroupSelectionView';
 import { DashboardView } from './components/DashboardView';
 import { InternsView } from './components/InternsView';
+import { MentorsView } from './components/MentorsView';
 import { ProjectsView } from './components/ProjectsView';
 import { DailyReportsView } from './components/DailyReportsView';
 import { RoadmapView } from './components/RoadmapView';
@@ -24,10 +25,8 @@ import { SettingsView } from './components/SettingsView';
 
 import { InternDetailModal } from './components/InternDetailModal';
 import { AddInternModal } from './components/AddInternModal';
-import { AddTaskModal } from './components/AddTaskModal';
 import { AddReportModal } from './components/AddReportModal';
 import { AIAssistantModal } from './components/AIAssistantModal';
-import { AddProjectMemberModal } from './components/AddProjectMemberModal';
 
 // Lớp gọi REST API theo đặc tả (JWT, tự refresh khi 401). Xem src/services/api.ts.
 // Toàn bộ handler dưới đây theo mẫu "online-first, fallback localStorage":
@@ -235,6 +234,7 @@ export default function App() {
   // Mentor thật lấy từ `GET /users?role=MENTOR` (quyền MENTOR trở lên). Không lưu
   // localStorage vì đây chỉ là dữ liệu tra cứu cho các dropdown chọn mentor.
   const [mentors, setMentors] = useState<AuthUser[]>([]);
+  const [pendingMentorCount, setPendingMentorCount] = useState(0);
 
   // Tham chiếu tới interns mới nhất để tra cứu department khi map Daily Report,
   // không đưa vào dependency của useEffect tải dữ liệu (tránh gọi lại API liên tục).
@@ -266,10 +266,8 @@ export default function App() {
   // Modal States
   const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null);
   const [isAddInternOpen, setIsAddInternOpen] = useState(false);
-  const [isAddTaskOpen, setIsAddTaskOpen] = useState(false);
   const [isAddReportOpen, setIsAddReportOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
-  const [isAddProjectMemberOpen, setIsAddProjectMemberOpen] = useState(false);
   const [isGroupScreenOpen, setIsGroupScreenOpen] = useState(false);
 
   // Sync to LocalStorage
@@ -319,10 +317,16 @@ export default function App() {
         .then((res) => setGroups(res.items.map((g) => apiGroupToGroup(g))))
         .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
 
-      // Mentor thật — dùng cho dropdown chọn mentor khi giao việc/dự án.
+      // Mentor thật — dùng cho dropdown chọn mentor khi giao việc/dự án, đồng thời
+      // đếm số Mentor đang chờ Admin duyệt để hiện badge ở thanh bên.
       usersApi
         .list({ size: 100, role: 'MENTOR' })
-        .then((res) => setMentors(res.items.map(apiUserToAuthUser)))
+        .then((res) => {
+          setMentors(
+            res.items.filter((u) => u.status === 'ACTIVE').map(apiUserToAuthUser)
+          );
+          setPendingMentorCount(res.items.filter((u) => u.status === 'PENDING').length);
+        })
         .catch(() => {/* offline: allMentors sẽ rơi về danh sách demo */});
     }
 
@@ -388,6 +392,40 @@ export default function App() {
       }
     }
     setTasks(prev => [newTask, ...prev]);
+  };
+
+  // Tải lại danh sách dự án (dùng sau khi tạo dự án / đổi thành viên để `membersCount`
+  // và tiến độ hiển thị khớp dữ liệu thật trên server).
+  const reloadProjects = () => {
+    if (!tokenStore.isAuthenticated()) return;
+    projectsApi
+      .list({ size: 100 })
+      .then((res) => setProjects(res.items.map(apiProjectToProject)))
+      .catch(() => {/* lỗi mạng: giữ nguyên danh sách đang có */});
+  };
+
+  // Tạo dự án mới (quyền MENTOR). `code` là duy nhất -> backend trả 409 nếu trùng.
+  const handleCreateProject = async (data: {
+    code: string;
+    title: string;
+    description: string;
+    deadline: string;
+  }) => {
+    if (!tokenStore.isAuthenticated()) {
+      alert('Cần đăng nhập bằng tài khoản thật để tạo dự án.');
+      return;
+    }
+    try {
+      await projectsApi.create({
+        code: data.code,
+        title: data.title,
+        description: data.description || undefined,
+        deadline: data.deadline || undefined,
+      });
+      reloadProjects();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail || 'Tạo dự án thất bại.' : 'Tạo dự án thất bại.');
+    }
   };
 
   // Nộp báo cáo ngày mới. Online: POST /daily-reports (đặc tả, 409 nếu đã báo cáo ngày đó).
@@ -686,13 +724,14 @@ export default function App() {
           onSelectTab={(tab) => { setActiveTab(tab); setIsGroupScreenOpen(false); }}
           currentRole={currentRole}
           onOpenAddIntern={() => setIsAddInternOpen(true)}
-          onOpenAddTask={() => setIsAddTaskOpen(true)}
+          onOpenAddTask={() => { setActiveTab('projects'); setIsGroupScreenOpen(false); }}
           onOpenAddReport={() => setIsAddReportOpen(true)}
           // Quản lý nhóm là chức năng của MENTOR trở lên: backend chặn `GET /groups`
           // với Intern, nên với Intern mục này bị ẩn hẳn khỏi thanh bên.
           onOpenGroupScreen={currentRole !== 'INTERN' ? () => setIsGroupScreenOpen(true) : undefined}
           isGroupScreenActive={isGroupScreenOpen}
           pendingReviewsCount={pendingReportsCount}
+          pendingMentorCount={pendingMentorCount}
         />
 
         {/* Central View Content.
@@ -723,7 +762,7 @@ export default function App() {
               onNavigateTab={setActiveTab}
               onSelectIntern={setSelectedIntern}
               onOpenAddIntern={() => setIsAddInternOpen(true)}
-              onOpenAddTask={() => setIsAddTaskOpen(true)}
+              onOpenAddTask={() => { setActiveTab('projects'); setIsGroupScreenOpen(false); }}
               onOpenAddReport={() => setIsAddReportOpen(true)}
               onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
             />
@@ -741,19 +780,21 @@ export default function App() {
             />
           )}
 
+          {!isGroupScreenOpen && activeTab === 'mentors' && currentRole === 'ADMIN' && (
+            <MentorsView currentRole={currentRole} />
+          )}
+
           {!isGroupScreenOpen && activeTab === 'projects' && (
             <ProjectsView
               projects={projects}
               tasks={tasks}
               interns={interns}
-              mentors={allMentors}
               onUpdateTaskStatus={handleUpdateTaskStatus}
-              onOpenAddTask={() => setIsAddTaskOpen(true)}
-              onOpenAddMember={() => setIsAddProjectMemberOpen(true)}
+              onAddTask={handleAddTask}
               onDeleteTask={handleDeleteTask}
+              onCreateProject={handleCreateProject}
               onDeleteProject={handleDeleteProject}
-              onAddProjectMember={handleAddProjectMember}
-              onRemoveProjectMember={handleRemoveProjectMember}
+              onReloadProjects={reloadProjects}
               currentRole={currentRole}
             />
           )}
@@ -819,30 +860,12 @@ export default function App() {
         onAddIntern={handleAddIntern}
       />
 
-      <AddTaskModal
-        isOpen={isAddTaskOpen}
-        onClose={() => setIsAddTaskOpen(false)}
-        interns={interns}
-        projects={projects}
-        onAddTask={handleAddTask}
-        onAddProjectMember={handleAddProjectMember}
-      />
-
       <AddReportModal
         isOpen={isAddReportOpen}
         onClose={() => setIsAddReportOpen(false)}
         interns={interns}
         onAddReport={handleAddReport}
         currentUser={currentUser}
-      />
-
-      <AddProjectMemberModal
-        isOpen={isAddProjectMemberOpen}
-        onClose={() => setIsAddProjectMemberOpen(false)}
-        projects={projects}
-        interns={interns}
-        mentors={allMentors}
-        onAddProjectMember={handleAddProjectMember}
       />
 
       <AIAssistantModal

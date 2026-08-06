@@ -21,8 +21,9 @@ import {
 import { AuthUser, UserRole, Department, Intern } from '../types';
 import { DEMO_AUTH_USERS } from '../data/mockData';
 // Đăng nhập/đăng ký qua REST API theo đặc tả (tự lưu token). Xem src/services/api.ts.
-import { authApi, ApiError } from '../services/api';
+import { authApi, ApiError, ApiRegisterRole, isPendingApprovalError } from '../services/api';
 import { apiUserToAuthUser } from '../services/mappers';
+import { PendingApprovalView } from './PendingApprovalView';
 
 interface LoginViewProps {
   onLogin: (user: AuthUser, newIntern?: Intern) => void;
@@ -40,11 +41,16 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [regEmail, setRegEmail] = useState('');
   const [regPassword, setRegPassword] = useState('');
   const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  const [regRole, setRegRole] = useState<UserRole>('INTERN');
+  // Chỉ cho tự đăng ký INTERN hoặc MENTOR — không ai tự đăng ký làm ADMIN.
+  const [regRole, setRegRole] = useState<ApiRegisterRole>('INTERN');
   const [regDepartment] = useState<Department>('Java Back-End');
   const [regError, setRegError] = useState('');
 
   const [loginError, setLoginError] = useState('');
+
+  // Khác null = đang hiển thị màn "tài khoản Mentor chờ Admin duyệt".
+  // Vào màn này khi: (a) vừa đăng ký làm Mentor, hoặc (b) Mentor chưa duyệt thử đăng nhập.
+  const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -62,6 +68,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || loginEmail.trim() }));
       return;
     } catch (err) {
+      // Tài khoản Mentor chưa được Admin duyệt -> đưa sang màn chờ duyệt.
+      if (isPendingApprovalError(err)) {
+        setPendingEmail(loginEmail.trim());
+        return;
+      }
       if (err instanceof ApiError) {
         // Backend phản hồi (sai email/mật khẩu, tài khoản bị khóa...) -> báo lỗi, không fallback.
         setLoginError(err.detail || 'Đăng nhập thất bại. Vui lòng thử lại.');
@@ -117,14 +128,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
     const finalEmail = regEmail.includes('@') ? regEmail.trim() : `${regEmail.trim()}@gimasys.vn`;
 
-    // Online-first: đặc tả POST /auth/register chỉ tạo tài khoản INTERN.
-    // Đăng ký thành công -> đăng nhập luôn để lấy token, rồi vào portal.
+    // Online-first:
+    //   role = INTERN -> tài khoản dùng được ngay, đăng nhập luôn và vào portal.
+    //   role = MENTOR -> backend tạo ở trạng thái PENDING, chưa đăng nhập được;
+    //                    chuyển sang màn "chờ Quản trị viên duyệt".
     try {
       const created = await authApi.register({
         full_name: regName.trim(),
         email: finalEmail,
         password: regPassword,
+        role: regRole,
       });
+
+      if (regRole === 'MENTOR') {
+        setPendingEmail(finalEmail);
+        return;
+      }
+
       // Đăng ký xong, đăng nhập ngay để có access/refresh token.
       try {
         const res = await authApi.login({ email: finalEmail, password: regPassword });
@@ -142,17 +162,22 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       // Lỗi mạng / chưa có backend -> rơi xuống chế độ demo cục bộ bên dưới.
     }
 
+    // Chế độ demo (mất mạng): tài khoản Mentor vẫn phải qua bước duyệt, nên không
+    // cho vào thẳng portal — hiển thị màn chờ duyệt cho đúng luồng thật.
+    if (regRole === 'MENTOR') {
+      setPendingEmail(finalEmail);
+      return;
+    }
+
     const newId = `INT-${Math.floor(100 + Math.random() * 900)}`;
 
     const newUser: AuthUser = {
       id: `USR-${Date.now()}`,
       name: regName.trim(),
       email: regEmail.includes('@') ? regEmail.trim() : `${regEmail.trim()}@gimasys.vn`,
-      role: regRole,
+      role: regRole as UserRole,
       department: regDepartment,
-      roleTitle: regRole === 'ADMIN' ? 'Quản trị viên / HR Manager' :
-                 regRole === 'MENTOR' ? 'Mentor Hướng dẫn Kỹ thuật' :
-                 `Thực tập sinh ${regDepartment}`,
+      roleTitle: `Thực tập sinh ${regDepartment}`,
       avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300`,
       internId: regRole === 'INTERN' ? newId : undefined
     };
@@ -196,6 +221,21 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const handleQuickDemoClick = (demoUser: AuthUser) => {
     onLogin(demoUser);
   };
+
+  // Tài khoản Mentor chờ duyệt: không vào portal được, hiện màn giải thích.
+  if (pendingEmail) {
+    return (
+      <PendingApprovalView
+        email={pendingEmail}
+        onBackToLogin={() => {
+          setPendingEmail(null);
+          setActiveMode('login');
+          setLoginEmail(pendingEmail);
+          setLoginError('');
+        }}
+      />
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between selection:bg-blue-600 selection:text-white relative overflow-hidden">
@@ -403,17 +443,23 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 </div>
               </div>
 
+              {/* Không có lựa chọn ADMIN: tài khoản Quản trị viên do hệ thống cấp,
+                  không ai tự đăng ký được (backend cũng chặn ở POST /auth/register). */}
               <div>
                 <label className="font-bold text-slate-300 block mb-1">Vai trò đăng ký *</label>
                 <select
                   value={regRole}
-                  onChange={(e) => setRegRole(e.target.value as UserRole)}
+                  onChange={(e) => setRegRole(e.target.value as ApiRegisterRole)}
                   className="w-full px-3 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
                 >
                   <option value="INTERN">🎓 Thực tập sinh (INTERN)</option>
                   <option value="MENTOR">👨‍🏫 Mentor Hướng dẫn (MENTOR)</option>
-                  <option value="ADMIN">🛡️ Quản trị viên Nhân sự (ADMIN)</option>
                 </select>
+                <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
+                  {regRole === 'INTERN'
+                    ? 'Đăng ký xong bạn vào portal được ngay.'
+                    : 'Tài khoản Mentor cần Quản trị viên duyệt trước khi đăng nhập được.'}
+                </p>
               </div>
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
