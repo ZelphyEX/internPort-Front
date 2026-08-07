@@ -469,31 +469,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                   />
                 </div>
-                <GoogleLogin
-                  onSuccess={async (credentialResponse) => {
-                    if (credentialResponse.credential) {
-                      setLoginError('');
-                      try {
-                        const res = await authApi.loginWithGoogle({
-                          credential: credentialResponse.credential,
-                        });
-                        onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email }));
-                      } catch (err) {
-                        if (err instanceof ApiError) {
-                          setLoginError(err.detail || 'Đăng nhập Google thất bại.');
-                        } else {
-                          setLoginError('Lỗi kết nối tới máy chủ.');
-                        }
-                      }
-                    }
-                  }}
-                  onError={() => {
-                    setLoginError('Đăng nhập bằng tài khoản Google thất bại.');
-                  }}
-                  width="100%"
-                  theme="filled_black"
-                  shape="pill"
-                />
               </div>
 
               {loginError && (
@@ -502,16 +477,41 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 </p>
               )}
 
-              <div className="pt-2 flex flex-col sm:flex-row gap-3">
+              <div className="pt-2 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
                 <button
                   type="submit"
-                  className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer"
+                  className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer h-[40px]"
                 >
                   <span>Đăng nhập hệ thống</span>
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
-
+                <div className="flex-1 flex justify-center sm:justify-start min-h-[40px] items-center">
+                  <GoogleLogin
+                    onSuccess={async (credentialResponse) => {
+                      if (credentialResponse.credential) {
+                        setLoginError('');
+                        try {
+                          const res = await authApi.loginWithGoogle({
+                            credential: credentialResponse.credential,
+                          });
+                          onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email }));
+                        } catch (err) {
+                          if (err instanceof ApiError) {
+                            setLoginError(err.detail || 'Đăng nhập Google thất bại.');
+                          } else {
+                            setLoginError('Lỗi kết nối tới máy chủ.');
+                          }
+                        }
+                      }
+                    }}
+                    onError={() => {
+                      setLoginError('Đăng nhập bằng tài khoản Google thất bại.');
+                    }}
+                    theme="filled_black"
+                    shape="pill"
+                  />
+                </div>
               </div>
 
               {/* Demo Accounts Quick Link bar */}
