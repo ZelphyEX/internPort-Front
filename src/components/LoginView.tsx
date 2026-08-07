@@ -78,10 +78,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
   useEffect(() => {
-    if (googleClientId && typeof google !== 'undefined') {
+    if (typeof google !== 'undefined') {
       try {
         google.accounts.id.initialize({
-          client_id: googleClientId,
+          client_id: googleClientId || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
           callback: handleGoogleLoginSuccess,
         });
         google.accounts.id.renderButton(
@@ -109,34 +109,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     }
   };
 
-  const handleMockGoogleSSOClick = async () => {
-    setLoginError('');
-    const email = window.prompt(
-      "MOCK GOOGLE SSO: Nhập email Google bạn muốn dùng để đăng nhập (phải thuộc miền @gimasys.com hoặc @edu.gimasys.com):",
-      "test.google@gimasys.com"
-    );
-    if (!email) return;
-
-    const emailTrimmed = email.trim();
-    if (!isValidEmailDomain(emailTrimmed)) {
-      setLoginError('Chỉ chấp nhận email thuộc tên miền @gimasys.com hoặc @edu.gimasys.com.');
-      return;
-    }
-
-    const name = window.prompt("Nhập họ tên của bạn:", "Google User") || "Google User";
-    const mockToken = `mock_google_token_${emailTrimmed}_${name.trim().replace(/\s+/g, '-')}`;
-
-    try {
-      const res = await authApi.loginWithGoogle({ credential: mockToken });
-      onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || emailTrimmed }));
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setLoginError(err.detail || 'Đăng nhập Google thất bại.');
-      } else {
-        setLoginError('Lỗi kết nối. Vui lòng thử lại.');
-      }
-    }
-  };
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -460,35 +432,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
-                {googleClientId ? (
-                  <div id="google-sso-container" className="shrink-0 flex items-center"></div>
-                ) : (
-                  <button
-                    type="button"
-                    onClick={handleMockGoogleSSOClick}
-                    className="py-3 px-4 bg-slate-900 border border-slate-700 hover:bg-slate-800 text-white font-bold rounded-xl transition-all flex items-center justify-center gap-2 cursor-pointer shrink-0"
-                  >
-                    <svg className="w-4 h-4" viewBox="0 0 24 24">
-                      <path
-                        fill="#EA4335"
-                        d="M5.266 9.765A7.077 7.077 0 0 1 12 4.909c1.69 0 3.218.6 4.418 1.582L19.91 3C17.782 1.145 15.055 0 12 0 7.359 0 3.373 2.768 1.482 6.786l3.784 2.979z"
-                      />
-                      <path
-                        fill="#4285F4"
-                        d="M23.49 12.275c0-.827-.074-1.625-.21-2.395H12v4.541h6.447c-.277 1.458-1.097 2.695-2.33 3.529l3.633 2.816C21.874 18.796 23.49 15.82 23.49 12.275z"
-                      />
-                      <path
-                        fill="#34A853"
-                        d="M12 24c3.24 0 5.959-1.077 7.945-2.918l-3.633-2.816c-1.008.675-2.298 1.076-3.795 1.076-2.923 0-5.4-1.973-6.284-4.622L1.45 17.69A11.942 11.942 0 0 0 12 24z"
-                      />
-                      <path
-                        fill="#FBBC05"
-                        d="M5.716 14.72c-.227-.676-.356-1.398-.356-2.147 0-.749.13-1.47.356-2.147L1.932 7.447a11.946 11.946 0 0 0 0 9.426l3.784-2.153z"
-                      />
-                    </svg>
-                    <span>Sign in with Google</span>
-                  </button>
-                )}
+                <div id="google-sso-container" className="shrink-0 flex items-center"></div>
               </div>
 
               {/* Demo Accounts Quick Link bar */}
