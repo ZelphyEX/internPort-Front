@@ -11,12 +11,13 @@ import {
   HelpCircle,
   Settings,
   Building2,
-  UserCheck
+  UserCheck,
+  GraduationCap
 } from 'lucide-react';
 import { UserRole } from '../types';
 import { canManageContent, canManageInterns } from '../services/permissions';
 
-export type NavTab = 'dashboard' | 'interns' | 'mentors' | 'projects' | 'daily_reports' | 'roadmaps' | 'knowledge' | 'settings';
+export type NavTab = 'dashboard' | 'interns' | 'mentors' | 'projects' | 'daily_reports' | 'roadmaps' | 'knowledge' | 'settings' | 'mock_exam';
 
 interface SidebarProps {
   activeTab: NavTab;
@@ -96,6 +97,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       id: 'knowledge' as NavTab,
       label: 'Thư viện Tài liệu Gimasys',
       icon: FolderGit2,
+      badge: null
+    },
+    {
+      id: 'mock_exam' as NavTab,
+      label: 'Anthropic Mock Exam',
+      icon: GraduationCap,
       badge: null
     },
     {

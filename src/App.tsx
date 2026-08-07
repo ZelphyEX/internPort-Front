@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { UserRole, Intern, Project, TaskItem, DailyReport, TaskStatus, AuthUser, DocumentResource, Group } from './types';
+import { GraduationCap } from 'lucide-react';
 import {
   INITIAL_INTERNS,
   INITIAL_PROJECTS,
@@ -22,6 +23,7 @@ import { DailyReportsView } from './components/DailyReportsView';
 import { RoadmapView } from './components/RoadmapView';
 import { KnowledgeBaseView } from './components/KnowledgeBaseView';
 import { SettingsView } from './components/SettingsView';
+import { MockExamView } from './components/MockExamView';
 
 import { InternDetailModal } from './components/InternDetailModal';
 import { AddInternModal } from './components/AddInternModal';
@@ -837,6 +839,10 @@ export default function App() {
               onUpdateProfile={handleUpdateProfile}
               onChangePassword={handleChangePassword}
             />
+          )}
+
+          {!isGroupScreenOpen && activeTab === 'mock_exam' && (
+            <MockExamView currentUser={currentUser} />
           )}
           </ErrorBoundary>
         </main>

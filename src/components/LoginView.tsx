@@ -52,25 +52,54 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   // Vào màn này khi: (a) vừa đăng ký làm Mentor, hoặc (b) Mentor chưa duyệt thử đăng nhập.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
+  const isValidEmailDomain = (emailStr: string): boolean => {
+    const emailLower = emailStr.trim().toLowerCase();
+    if (
+      emailLower === 'admin@example.com' ||
+      emailLower === 'mentor@example.com' ||
+      emailLower === 'intern@example.com'
+    ) {
+      return true;
+    }
+    return emailLower.endsWith('@gimasys.com') || emailLower.endsWith('@edu.gimasys.com');
+  };
+
+  const resolveRoleFromEmail = (emailStr: string, defaultRole: ApiRegisterRole): UserRole => {
+    const emailLower = emailStr.trim().toLowerCase();
+    if (emailLower === 'admin@example.com') return 'ADMIN';
+    if (emailLower === 'mentor@example.com') return 'MENTOR';
+    if (emailLower === 'intern@example.com') return 'INTERN';
+    if (emailLower.endsWith('@gimasys.com')) return 'MENTOR';
+    if (emailLower.endsWith('@edu.gimasys.com')) return 'INTERN';
+    return defaultRole as UserRole;
+  };
+
   const handleLoginSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoginError('');
     if (!loginEmail) return;
 
+    const emailToAuth = loginEmail.includes('@') ? loginEmail.trim() : `${loginEmail.trim()}@gimasys.com`;
+
+    if (!isValidEmailDomain(emailToAuth)) {
+      setLoginError('Chỉ chấp nhận email thuộc tên miền @gimasys.com hoặc @edu.gimasys.com.');
+      return;
+    }
+
     // Online-first: thử đăng nhập qua backend thật (đặc tả POST /auth/login).
     // Thành công -> tự lưu token, map ApiUser sang AuthUser của FE.
     try {
       const res = await authApi.login({
-        email: loginEmail.trim(),
+        email: emailToAuth,
         password: loginPassword,
       });
       // API /auth/login không trả "email" trong object user -> dùng lại email vừa nhập.
-      onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || loginEmail.trim() }));
+      onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || emailToAuth }));
       return;
     } catch (err) {
       // Tài khoản Mentor chưa được Admin duyệt -> đưa sang màn chờ duyệt.
       if (isPendingApprovalError(err)) {
-        setPendingEmail(loginEmail.trim());
+        setPendingEmail(emailToAuth);
         return;
       }
       if (err instanceof ApiError) {
@@ -83,7 +112,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
     // --- Chế độ demo (offline): đối chiếu tài khoản mẫu + mật khẩu đã lưu cục bộ ---
     // Nếu tài khoản này đã từng đổi mật khẩu trong phần Cài đặt, đối chiếu lại mật khẩu đã lưu
-    const savedPassword = localStorage.getItem(`gimasys_pwd_${loginEmail.trim().toLowerCase()}`);
+    const savedPassword = localStorage.getItem(`gimasys_pwd_${emailToAuth.toLowerCase()}`);
     if (savedPassword && savedPassword !== loginPassword) {
       setLoginError('Sai mật khẩu. Vui lòng thử lại.');
       return;
@@ -91,7 +120,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
     // Check if matches one of demo users or create custom session
     const matched = DEMO_AUTH_USERS.find(
-      u => u.email.toLowerCase() === loginEmail.trim().toLowerCase()
+      u => u.email.toLowerCase() === emailToAuth.toLowerCase()
     );
 
     if (matched) {
@@ -100,14 +129,15 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     }
 
     // Default custom login fallback
+    const resolvedRole = resolveRoleFromEmail(emailToAuth, 'INTERN');
     const customUser: AuthUser = {
       id: `USR-${Date.now()}`,
-      name: loginEmail.split('@')[0].toUpperCase(),
-      email: loginEmail.includes('@') ? loginEmail : `${loginEmail}@gimasys.vn`,
-      role: 'INTERN',
-      roleTitle: 'Thực tập sinh Gimasys',
+      name: emailToAuth.split('@')[0].toUpperCase(),
+      email: emailToAuth,
+      role: resolvedRole,
+      roleTitle: resolvedRole === 'ADMIN' ? 'Quản trị viên Gimasys' : resolvedRole === 'MENTOR' ? 'Mentor Gimasys' : 'Thực tập sinh Gimasys',
       avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-      internId: 'INT-001'
+      internId: resolvedRole === 'INTERN' ? 'INT-001' : undefined
     };
     onLogin(customUser);
   };
@@ -126,21 +156,25 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       return;
     }
 
-    const finalEmail = regEmail.includes('@') ? regEmail.trim() : `${regEmail.trim()}@gimasys.vn`;
+    const finalEmail = regEmail.includes('@') ? regEmail.trim() : `${regEmail.trim()}@gimasys.com`;
+
+    if (!isValidEmailDomain(finalEmail)) {
+      setRegError('Chỉ chấp nhận email thuộc tên miền @gimasys.com hoặc @edu.gimasys.com.');
+      return;
+    }
+
+    const resolvedRole = resolveRoleFromEmail(finalEmail, regRole);
 
     // Online-first:
-    //   role = INTERN -> tài khoản dùng được ngay, đăng nhập luôn và vào portal.
-    //   role = MENTOR -> backend tạo ở trạng thái PENDING, chưa đăng nhập được;
-    //                    chuyển sang màn "chờ Quản trị viên duyệt".
     try {
       const created = await authApi.register({
         full_name: regName.trim(),
         email: finalEmail,
         password: regPassword,
-        role: regRole,
+        role: resolvedRole as ApiRegisterRole,
       });
 
-      if (regRole === 'MENTOR') {
+      if (resolvedRole === 'MENTOR') {
         setPendingEmail(finalEmail);
         return;
       }
@@ -162,9 +196,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
       // Lỗi mạng / chưa có backend -> rơi xuống chế độ demo cục bộ bên dưới.
     }
 
-    // Chế độ demo (mất mạng): tài khoản Mentor vẫn phải qua bước duyệt, nên không
-    // cho vào thẳng portal — hiển thị màn chờ duyệt cho đúng luồng thật.
-    if (regRole === 'MENTOR') {
+    // Chế độ demo (mất mạng):
+    if (resolvedRole === 'MENTOR') {
       setPendingEmail(finalEmail);
       return;
     }
@@ -174,17 +207,17 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     const newUser: AuthUser = {
       id: `USR-${Date.now()}`,
       name: regName.trim(),
-      email: regEmail.includes('@') ? regEmail.trim() : `${regEmail.trim()}@gimasys.vn`,
-      role: regRole as UserRole,
+      email: finalEmail,
+      role: resolvedRole,
       department: regDepartment,
-      roleTitle: `Thực tập sinh ${regDepartment}`,
+      roleTitle: resolvedRole === 'ADMIN' ? 'Quản trị viên Gimasys' : `Thực tập sinh ${regDepartment}`,
       avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300`,
-      internId: regRole === 'INTERN' ? newId : undefined
+      internId: resolvedRole === 'INTERN' ? newId : undefined
     };
 
     let newInternRecord: Intern | undefined = undefined;
 
-    if (regRole === 'INTERN') {
+    if (resolvedRole === 'INTERN') {
       newInternRecord = {
         id: newId,
         name: regName.trim(),
@@ -194,7 +227,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         department: regDepartment,
         roleTitle: `Thực tập sinh ${regDepartment}`,
         mentor: 'Trần Tuấn Anh (Senior Architect)',
-        mentorEmail: 'anh.tran@gimasys.vn',
+        mentorEmail: 'anh.tran@gimasys.com',
         startDate: new Date().toISOString().split('T')[0],
         endDate: '2025-06-30',
         status: 'Active',
@@ -329,7 +362,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     required
                     value={loginEmail}
                     onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="vd: an.nguyen@gimasys.vn hoặc minhanh@edu.gimasys.com"
+                    placeholder="vd: an.nguyen@gimasys.com hoặc minhanh@edu.gimasys.com"
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                   />
                 </div>
@@ -436,7 +469,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                       required
                       value={regEmail}
                       onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="vd: an.nguyen@gimasys.vn"
+                      placeholder="vd: an.nguyen@gimasys.com"
                       className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
                     />
                   </div>

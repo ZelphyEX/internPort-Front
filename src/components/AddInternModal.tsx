@@ -46,7 +46,24 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
       return;
     }
 
-    const finalEmail = email.includes('@') ? email.trim() : `${email.trim()}@gimasys.vn`;
+    const finalEmail = email.includes('@') ? email.trim() : `${email.trim()}@gimasys.com`;
+
+    const isValidEmailDomain = (emailStr: string): boolean => {
+      const emailLower = emailStr.trim().toLowerCase();
+      if (
+        emailLower === 'admin@example.com' ||
+        emailLower === 'mentor@example.com' ||
+        emailLower === 'intern@example.com'
+      ) {
+        return true;
+      }
+      return emailLower.endsWith('@gimasys.com') || emailLower.endsWith('@edu.gimasys.com');
+    };
+
+    if (!isValidEmailDomain(finalEmail)) {
+      setError('Chỉ chấp nhận email thuộc tên miền @gimasys.com hoặc @edu.gimasys.com.');
+      return;
+    }
 
     if (tokenStore.isAuthenticated()) {
       setSaving(true);
@@ -92,7 +109,7 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
       department,
       roleTitle: roleTitle || `Thực tập sinh ${department}`,
       mentor,
-      mentorEmail: 'mentor@gimasys.vn',
+      mentorEmail: 'mentor@gimasys.com',
       startDate: new Date().toISOString().split('T')[0],
       endDate: '',
       status: 'Onboarding' as InternStatus,
@@ -142,7 +159,7 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
                 required
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="nam.hoang@gimasys.vn"
+                placeholder="nam.hoang@gimasys.com"
                 className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
               />
             </div>
