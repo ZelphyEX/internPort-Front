@@ -189,8 +189,12 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         role: resolvedRole as ApiRegisterRole,
       });
 
-      // Directly log the user in (no email verification)
-      onLogin(apiUserToAuthUser(created));
+      // If registration requires admin approval, inform the user
+      if (created.status && created.status === 'PENDING') {
+        setRegError('Tài khoản của bạn đang chờ duyệt bởi quản trị viên. Vui lòng đợi.');
+      } else {
+        onLogin(apiUserToAuthUser(created));
+      }
       return;
     } catch (err) {
       if (err instanceof ApiError) {
