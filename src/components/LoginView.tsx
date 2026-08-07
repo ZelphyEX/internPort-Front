@@ -189,17 +189,8 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         role: resolvedRole as ApiRegisterRole,
       });
 
-      if (created.status === 'PENDING') {
-        // Show verify email modal
-        setVerifyEmailAddr(finalEmail);
-        setVerifyPassword(regPassword);
-        setVerifyCode('');
-        setVerifyError('');
-        setShowVerifyStep(true);
-      } else {
-        // Account active – log user in directly
-        onLogin(apiUserToAuthUser(created));
-      }
+      // Directly log the user in (no email verification)
+      onLogin(apiUserToAuthUser(created));
       return;
     } catch (err) {
       if (err instanceof ApiError) {
