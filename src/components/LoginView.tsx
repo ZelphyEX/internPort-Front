@@ -469,15 +469,26 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                   />
                 </div>
-                {/* Google Sign-In Button (Placeholder Client ID) */}
                 <GoogleLogin
-                  onSuccess={credentialResponse => {
-                    console.log('Google login success', credentialResponse);
-                    alert('Google login successful (placeholder).');
+                  onSuccess={async (credentialResponse) => {
+                    if (credentialResponse.credential) {
+                      setLoginError('');
+                      try {
+                        const res = await authApi.loginWithGoogle({
+                          credential: credentialResponse.credential,
+                        });
+                        onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email }));
+                      } catch (err) {
+                        if (err instanceof ApiError) {
+                          setLoginError(err.detail || 'Đăng nhập Google thất bại.');
+                        } else {
+                          setLoginError('Lỗi kết nối tới máy chủ.');
+                        }
+                      }
+                    }
                   }}
                   onError={() => {
-                    console.error('Google login error');
-                    alert('Google login failed (placeholder).');
+                    setLoginError('Đăng nhập bằng tài khoản Google thất bại.');
                   }}
                   width="100%"
                   theme="filled_black"
