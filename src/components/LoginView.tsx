@@ -19,6 +19,7 @@ import {
   School,
   Code
 } from 'lucide-react';
+import { GoogleLogin } from '@react-oauth/google';
 import { AuthUser, UserRole, Department, Intern } from '../types';
 import { DEMO_AUTH_USERS } from '../data/mockData';
 // Đăng nhập/đăng ký qua REST API theo đặc tả (tự lưu token). Xem src/services/api.ts.
@@ -468,6 +469,20 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     className="w-full pl-9 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
                   />
                 </div>
+                {/* Google Sign-In Button (Placeholder Client ID) */}
+                <GoogleLogin
+                  onSuccess={credentialResponse => {
+                    console.log('Google login success', credentialResponse);
+                    alert('Google login successful (placeholder).');
+                  }}
+                  onError={() => {
+                    console.error('Google login error');
+                    alert('Google login failed (placeholder).');
+                  }}
+                  width="100%"
+                  theme="filled_black"
+                  shape="pill"
+                />
               </div>
 
               {loginError && (
