@@ -53,14 +53,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   // Vào màn này khi: (a) vừa đăng ký làm Mentor, hoặc (b) Mentor chưa duyệt thử đăng nhập.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
 
-  // Email verification step fields
-  const [showVerifyStep, setShowVerifyStep] = useState<boolean>(false);
-  const [verifyEmailAddr, setVerifyEmailAddr] = useState<string>('');
-  const [verifyPassword, setVerifyPassword] = useState<string>('');
-  const [verifyCode, setVerifyCode] = useState<string>('');
-  const [mockSentCode, setMockSentCode] = useState<string>('');
-  const [verifyError, setVerifyError] = useState<string>('');
-
   const isValidEmailDomain = (emailStr: string): boolean => {
     const emailLower = emailStr.trim().toLowerCase();
     if (
@@ -100,7 +92,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         console.error('Error initializing Google One Tap:', err);
       }
     }
-  }, [googleClientId, activeMode, showVerifyStep]);
+  }, [googleClientId, activeMode]);
 
   const handleGoogleLoginSuccess = async (response: any) => {
     setLoginError('');
@@ -246,14 +238,10 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         role: resolvedRole as ApiRegisterRole,
       });
 
-      // Show verify email modal
-      setVerifyEmailAddr(finalEmail);
-      setVerifyPassword(regPassword);
-      setMockSentCode(created.mock_verification_code || '');
-      setVerifyCode('');
-      setVerifyError('');
-      setShowVerifyStep(true);
-      return;
+      if (resolvedRole === 'MENTOR') {
+        setPendingEmail(finalEmail);
+        return;
+      }
 
       // Đăng ký xong, đăng nhập ngay để có access/refresh token.
       try {
@@ -327,41 +315,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     onLogin(newUser, newInternRecord);
   };
 
-  const handleQuickDemoClick = (demoUser: AuthUser) => {
-    onLogin(demoUser);
-  };
 
-  const handleVerifySubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setVerifyError('');
-
-    if (verifyCode.length !== 6) {
-      setVerifyError('Vui lòng nhập mã xác nhận gồm 6 chữ số.');
-      return;
-    }
-
-    try {
-      await authApi.verifyEmail({ email: verifyEmailAddr, code: verifyCode });
-      
-      // Auto login after verification
-      try {
-        const res = await authApi.login({ email: verifyEmailAddr, password: verifyPassword });
-        onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || verifyEmailAddr }));
-      } catch {
-        alert('Xác thực thành công! Hãy đăng nhập lại bằng tài khoản của bạn.');
-        setShowVerifyStep(false);
-        setActiveMode('login');
-        setLoginEmail(verifyEmailAddr);
-        setLoginError('');
-      }
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setVerifyError(err.detail || 'Mã xác nhận không đúng.');
-      } else {
-        setVerifyError('Lỗi kết nối. Vui lòng thử lại.');
-      }
-    }
-  };
 
   // Tài khoản Mentor chờ duyệt: không vào portal được, hiện màn giải thích.
   if (pendingEmail) {
@@ -431,64 +385,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         {/* Form Box */}
         <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-xl w-full backdrop-blur-xl space-y-6">
           
-          {showVerifyStep ? (
-            <form onSubmit={handleVerifySubmit} className="space-y-4 text-xs">
-              <div className="text-center space-y-2">
-                <div className="w-12 h-12 bg-blue-900/40 text-blue-400 rounded-full flex items-center justify-center mx-auto border border-blue-500/30">
-                  <Mail className="w-6 h-6 animate-bounce" />
-                </div>
-                <h3 className="text-base font-extrabold text-white">Xác thực tài khoản của bạn</h3>
-                <p className="text-slate-400 font-medium">
-                  Hệ thống đã gửi một mã xác thực (mock) đến địa chỉ email <strong className="text-blue-400">{verifyEmailAddr}</strong>.
-                </p>
-              </div>
-
-              {mockSentCode && (
-                <div className="bg-blue-950/50 border border-blue-800/60 rounded-2xl p-4 text-[11px] leading-relaxed text-blue-300 font-medium space-y-1">
-                  <span className="font-extrabold text-blue-400 uppercase tracking-wider block">Mã xác nhận (MOCK EMAIL):</span>
-                  <p>
-                    Để tiện thử nghiệm, vui lòng sử dụng mã xác nhận: <strong className="text-white bg-blue-600 px-2 py-0.5 rounded text-xs select-all font-mono font-bold tracking-wider">{mockSentCode}</strong>
-                  </p>
-                </div>
-              )}
-
-              <div>
-                <label className="font-bold text-slate-300 block mb-1">Mã xác nhận gồm 6 chữ số *</label>
-                <input
-                  type="text"
-                  required
-                  maxLength={6}
-                  value={verifyCode}
-                  onChange={(e) => setVerifyCode(e.target.value.replace(/\D/g, ''))}
-                  placeholder="123456"
-                  className="w-full text-center tracking-widest text-lg font-bold py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-mono"
-                />
-              </div>
-
-              {verifyError && (
-                <p className="text-[11px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 rounded-lg px-3 py-2">
-                  {verifyError}
-                </p>
-              )}
-
-              <div className="pt-2 flex gap-3">
-                <button
-                  type="button"
-                  onClick={() => setShowVerifyStep(false)}
-                  className="px-4 py-3 bg-slate-700 hover:bg-slate-600 text-white font-bold rounded-xl transition-all cursor-pointer"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="flex-1 py-3 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
-                >
-                  Xác nhận kích hoạt
-                </button>
-              </div>
-            </form>
-          ) : (
-            <>
               {/* Mode Switcher Tabs */}
               <div className="flex items-center p-1 bg-slate-900/80 rounded-2xl border border-slate-700/60">
                 <button
@@ -605,7 +501,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                     <button
                       key={usr.id}
                       type="button"
-                      onClick={() => handleQuickDemoClick(usr)}
+                      onClick={() => onLogin(usr)}
                       className="px-2.5 py-1.5 rounded-lg bg-slate-900/70 border border-slate-700 hover:border-blue-400 text-[11px] text-slate-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
                     >
                       <span className="font-bold">{usr.name}</span>
@@ -724,8 +620,6 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
             </form>
           )}
-        </>
-      )}
 
           {/* Footnote */}
           <div className="pt-4 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-400">

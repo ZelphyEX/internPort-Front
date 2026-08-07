@@ -227,7 +227,6 @@ export interface ApiUser {
   role: ApiRole;
   status?: ApiUserStatus;
   avatar_url?: string | null;
-  mock_verification_code?: string | null;
   // Hồ sơ Intern — chỉ có ý nghĩa khi role === 'INTERN', đều optional/nullable.
   department?: ApiDepartment | null;
   mentor_id?: number | null;
@@ -517,14 +516,6 @@ export const authApi = {
     role?: ApiRegisterRole;
   }) {
     return request<ApiUser>('/auth/register', { method: 'POST', body: payload, auth: false });
-  },
-
-  verifyEmail(payload: { email: string; code: string }) {
-    return request<{ detail: string }>('/auth/verify-email', {
-      method: 'POST',
-      body: payload,
-      auth: false,
-    });
   },
 
   /** POST /auth/login — Đăng nhập. Công khai. Tự lưu token khi thành công. */
