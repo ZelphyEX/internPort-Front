@@ -538,6 +538,16 @@ export const authApi = {
     return data;
   },
 
+  async loginWithGoogle(payload: { credential: string }): Promise<LoginResponse> {
+    const data = await request<LoginResponse>('/auth/google', {
+      method: 'POST',
+      body: payload,
+      auth: false,
+    });
+    tokenStore.set(data.access_token, data.refresh_token);
+    return data;
+  },
+
   /** POST /auth/logout — Thu hồi refresh token hiện tại, xóa token cục bộ. */
   async logout(): Promise<void> {
     const refresh_token = tokenStore.getRefresh();
