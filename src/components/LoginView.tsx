@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-declare const google: any;
+
 import { 
   Building2, 
   ShieldCheck, 
@@ -82,39 +82,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
     return defaultRole as UserRole;
   };
 
-  const googleClientId = import.meta.env.VITE_GOOGLE_CLIENT_ID || '';
 
-  useEffect(() => {
-    if (typeof google !== 'undefined') {
-      try {
-        google.accounts.id.initialize({
-          client_id: googleClientId || 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
-          callback: handleGoogleLoginSuccess,
-        });
-        google.accounts.id.renderButton(
-          document.getElementById('google-sso-container'),
-          { theme: 'outline', size: 'large', width: '100%' }
-        );
-      } catch (err) {
-        console.error('Error initializing Google One Tap:', err);
-      }
-    }
-  }, [googleClientId, activeMode, showVerifyStep]);
 
-  const handleGoogleLoginSuccess = async (response: any) => {
-    setLoginError('');
-    try {
-      const credential = response.credential;
-      const res = await authApi.loginWithGoogle({ credential });
-      onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email }));
-    } catch (err) {
-      if (err instanceof ApiError) {
-        setLoginError(err.detail || 'Đăng nhập Google thất bại.');
-      } else {
-        setLoginError('Không thể kết nối đến máy chủ.');
-      }
-    }
-  };
+
+
+
 
 
   const handleLoginSubmit = async (e: React.FormEvent) => {
@@ -513,7 +485,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                   <ArrowRight className="w-4 h-4" />
                 </button>
 
-                <div id="google-sso-container" className="shrink-0 flex items-center"></div>
+
               </div>
 
               {/* Demo Accounts Quick Link bar */}
