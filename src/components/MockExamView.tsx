@@ -15,7 +15,10 @@ import {
   ChevronRight,
   Eye,
   Info,
-  Sliders
+  Sliders,
+  Pause,
+  Play,
+  Save
 } from 'lucide-react';
 import { AuthUser } from '../types';
 
@@ -57,6 +60,16 @@ interface Exam {
   description: string;
   duration: number; // minutes
   questions: Question[];
+}
+
+interface SavedSession {
+  examId: string;
+  mode: 'practice' | 'exam';
+  currentQuestionIndex: number;
+  selectedAnswers: Record<number, string[]>;
+  checkedQuestions: Record<number, boolean>;
+  timeLeft: number;
+  date: string;
 }
 
 const EXAMS_DATA: Exam[] = [
@@ -130,7 +143,7 @@ const EXAMS_DATA: Exam[] = [
     id: 'ccap-p-3',
     title: 'Claude Certified Architect - Practice Exam 3',
     code: 'CCAP-P',
-    description: 'Bộ câu hỏi thi thử số 3 cho chứng chỉ CCAP-P. Tập trung vào an toàn AI, hạn chế tấn công prompt injection, và giám sát tính nhất quán của hệ thống.',
+    description: 'Bộ câu hỏi thi thử số 3 cho chứng chỉ CCAP-P. Tập trung vào an toàn AI, hạn chế tấn công prompt injection, và giám sát tính nhất quan của hệ thống.',
     duration: 120,
     questions: cpe3.questions as Question[]
   },
@@ -174,29 +187,45 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   const [mode, setMode] = useState<'practice' | 'exam'>('practice');
   const [showInstantExplanation, setShowInstantExplanation] = useState<boolean>(false);
   const [checkedQuestions, setCheckedQuestions] = useState<Record<number, boolean>>({});
+  
+  // Paused states
+  const [isPaused, setIsPaused] = useState<boolean>(false);
+  const [savedSessions, setSavedSessions] = useState<Record<string, SavedSession>>({});
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load scores on mount
+  // Load scores and saved sessions on mount
   useEffect(() => {
     if (currentUser) {
-      const storageKey = `gimasys_exam_scores_${currentUser.email}`;
-      const saved = localStorage.getItem(storageKey);
-      if (saved) {
+      const scoreKey = `gimasys_exam_scores_${currentUser.email}`;
+      const savedScore = localStorage.getItem(scoreKey);
+      if (savedScore) {
         try {
-          setBestScores(JSON.parse(saved));
+          setBestScores(JSON.parse(savedScore));
         } catch {
           setBestScores({});
         }
       } else {
         setBestScores({});
       }
+
+      const saveKey = `gimasys_exam_saved_${currentUser.email}`;
+      const savedSession = localStorage.getItem(saveKey);
+      if (savedSession) {
+        try {
+          setSavedSessions(JSON.parse(savedSession));
+        } catch {
+          setSavedSessions({});
+        }
+      } else {
+        setSavedSessions({});
+      }
     }
   }, [currentUser]);
 
   // Timer countdown
   useEffect(() => {
-    if (examState === 'quiz' && mode === 'exam' && timeLeft > 0) {
+    if (examState === 'quiz' && mode === 'exam' && timeLeft > 0 && !isPaused) {
       timerRef.current = setInterval(() => {
         setTimeLeft((prev) => {
           if (prev <= 1) {
@@ -212,7 +241,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     return () => {
       if (timerRef.current) clearInterval(timerRef.current);
     };
-  }, [examState, mode, timeLeft]);
+  }, [examState, mode, timeLeft, isPaused]);
 
   const handleStartExam = (exam: Exam) => {
     setCurrentExam(exam);
@@ -221,7 +250,55 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     setCheckedQuestions({});
     setShowInstantExplanation(false);
     setTimeLeft(exam.duration * 60);
+    setIsPaused(false);
     setExamState('quiz');
+  };
+
+  const handleResumeExam = (exam: Exam, session: SavedSession) => {
+    setCurrentExam(exam);
+    setMode(session.mode);
+    setCurrentQuestionIndex(session.currentQuestionIndex);
+    setSelectedAnswers(session.selectedAnswers);
+    setCheckedQuestions(session.checkedQuestions);
+    setTimeLeft(session.timeLeft);
+    setIsPaused(false);
+    setShowInstantExplanation(false);
+    setExamState('quiz');
+  };
+
+  const handleSaveAndExit = () => {
+    if (!currentExam || !currentUser) return;
+
+    const session: SavedSession = {
+      examId: currentExam.id,
+      mode,
+      currentQuestionIndex,
+      selectedAnswers,
+      checkedQuestions,
+      timeLeft,
+      date: new Date().toISOString()
+    };
+
+    const saveKey = `gimasys_exam_saved_${currentUser.email}`;
+    const newSessions = {
+      ...savedSessions,
+      [currentExam.id]: session
+    };
+
+    setSavedSessions(newSessions);
+    localStorage.setItem(saveKey, JSON.stringify(newSessions));
+
+    setExamState('select');
+    setCurrentExam(null);
+  };
+
+  const clearSavedSession = (examId: string) => {
+    if (!currentUser) return;
+    const saveKey = `gimasys_exam_saved_${currentUser.email}`;
+    const newSessions = { ...savedSessions };
+    delete newSessions[examId];
+    setSavedSessions(newSessions);
+    localStorage.setItem(saveKey, JSON.stringify(newSessions));
   };
 
   const handleSelectOption = (questionId: number, optionKey: string, multiSelect: boolean) => {
@@ -277,15 +354,18 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
 
     // Only update best score in Exam Mode
     if (mode === 'exam') {
-      const storageKey = `gimasys_exam_scores_${currentUser.email}`;
+      const scoreKey = `gimasys_exam_scores_${currentUser.email}`;
       const newBestScores = {
         ...bestScores,
         [currentExam.id]: Math.max(bestScores[currentExam.id] || 0, score)
       };
       
       setBestScores(newBestScores);
-      localStorage.setItem(storageKey, JSON.stringify(newBestScores));
+      localStorage.setItem(scoreKey, JSON.stringify(newBestScores));
     }
+
+    // Clear saved session on exam completion
+    clearSavedSession(currentExam.id);
 
     setExamState('result');
   };
@@ -319,7 +399,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               <span>Anthropic Certification Hub</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Hệ thống Thi thử & Luyện tập Anthropic</h1>
-            <p className="text-blue-100 text-xs md:text-sm leading-relaxed max-w-2xl">
+            <p className="text-blue-100 text-xs md:text-sm leading-relaxed max-w-2xl font-medium">
               Kho đề thi thử chính thức gồm 12 đề luyện tập (mỗi đề 60 câu hỏi tình huống) bao quát toàn bộ chương trình chứng chỉ Associate và Architect của Anthropic.
             </p>
 
@@ -358,6 +438,8 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               {EXAMS_DATA.filter(e => e.code === 'CCAO-F').map((exam) => {
                 const bestScore = bestScores[exam.id];
                 const isPassed = bestScore >= 720;
+                const savedSession = savedSessions[exam.id];
+
                 return (
                   <div 
                     key={exam.id} 
@@ -387,6 +469,16 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                           <span>{exam.questions.length} câu</span>
                         </div>
                       </div>
+
+                      {/* Saved session tag */}
+                      {savedSession && (
+                        <div className="bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[10px] px-3 py-1.5 rounded-xl border border-amber-100 dark:border-amber-800/30 flex items-center gap-1.5 font-bold">
+                          <Info className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <span className="truncate">
+                            Lưu dở: Câu {savedSession.currentQuestionIndex + 1}/{exam.questions.length} ({savedSession.mode === 'exam' ? `còn ${formatTime(savedSession.timeLeft)}` : 'luyện tập'})
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="border-t border-slate-100 dark:border-slate-700/60 mt-4 pt-3.5 flex items-center justify-between gap-4">
@@ -408,13 +500,36 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                         )}
                       </div>
 
-                      <button 
-                        onClick={() => handleStartExam(exam)}
-                        className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
-                      >
-                        <span>{bestScore !== undefined ? 'Thi lại' : 'Làm đề'}</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
+                      {savedSession ? (
+                        <div className="flex gap-1.5">
+                          <button 
+                            onClick={() => handleResumeExam(exam, savedSession)}
+                            className="px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white font-extrabold text-[10px] rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
+                            title="Tiếp tục làm bài từ tiến độ cũ"
+                          >
+                            <span>Làm tiếp</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm('Tiến độ làm bài cũ của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?')) {
+                                handleStartExam(exam);
+                              }
+                            }}
+                            className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer"
+                          >
+                            Thi lại
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handleStartExam(exam)}
+                          className="px-3 py-1.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <span>{bestScore !== undefined ? 'Thi lại' : 'Làm đề'}</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -431,6 +546,8 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               {EXAMS_DATA.filter(e => e.code === 'CCAP-P').map((exam) => {
                 const bestScore = bestScores[exam.id];
                 const isPassed = bestScore >= 720;
+                const savedSession = savedSessions[exam.id];
+
                 return (
                   <div 
                     key={exam.id} 
@@ -460,6 +577,16 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                           <span>{exam.questions.length} câu</span>
                         </div>
                       </div>
+
+                      {/* Saved session tag */}
+                      {savedSession && (
+                        <div className="bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[10px] px-3 py-1.5 rounded-xl border border-amber-100 dark:border-amber-800/30 flex items-center gap-1.5 font-bold">
+                          <Info className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <span className="truncate">
+                            Lưu dở: Câu {savedSession.currentQuestionIndex + 1}/{exam.questions.length} ({savedSession.mode === 'exam' ? `còn ${formatTime(savedSession.timeLeft)}` : 'luyện tập'})
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div className="border-t border-slate-100 dark:border-slate-700/60 mt-4 pt-3.5 flex items-center justify-between gap-4">
@@ -468,7 +595,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                           <div className="space-y-0.5">
                             <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-bold">Best Exam Score</span>
                             <div className="flex items-center gap-1.5">
-                              <span className={`font-black text-xs ${isPassed ? 'text-green-600 dark:text-green-400' : 'text-amber-500'}`}>
+                              <span className={`font-black text-xs ${isPassed ? 'text-indigo-600 dark:text-indigo-450 font-black' : 'text-amber-500'}`}>
                                 {bestScore}
                               </span>
                               <span className={`text-[8px] px-1 py-0.2 rounded font-bold ${isPassed ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'}`}>
@@ -481,13 +608,36 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                         )}
                       </div>
 
-                      <button 
-                        onClick={() => handleStartExam(exam)}
-                        className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
-                      >
-                        <span>{bestScore !== undefined ? 'Thi lại' : 'Làm đề'}</span>
-                        <ChevronRight className="w-3 h-3" />
-                      </button>
+                      {savedSession ? (
+                        <div className="flex gap-1.5">
+                          <button 
+                            onClick={() => handleResumeExam(exam, savedSession)}
+                            className="px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white font-extrabold text-[10px] rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
+                            title="Tiếp tục làm bài từ tiến độ cũ"
+                          >
+                            <span>Làm tiếp</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm('Tiến độ làm bài cũ của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?')) {
+                                handleStartExam(exam);
+                              }
+                            }}
+                            className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer"
+                          >
+                            Thi lại
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handleStartExam(exam)}
+                          className="px-3 py-1.5 bg-indigo-600 hover:bg-indigo-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <span>{bestScore !== undefined ? 'Thi lại' : 'Làm đề'}</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
@@ -509,36 +659,76 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     const isAnswerChecked = mode === 'practice' && checkedQuestions[currentQuestion.number];
 
     return (
-      <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
+      <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12 relative">
+        
+        {/* Timed test pause overlay */}
+        {isPaused && (
+          <div className="absolute inset-0 bg-slate-900/95 dark:bg-slate-950/98 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-6 text-center z-50 space-y-4 min-h-[400px]">
+            <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center border border-blue-500/30">
+              <Pause className="w-8 h-8 animate-pulse" />
+            </div>
+            <h3 className="text-xl font-extrabold text-white">Bài thi đang tạm dừng</h3>
+            <p className="text-slate-400 text-xs sm:text-sm max-w-sm">
+              Nội dung câu hỏi và thời gian làm bài đã được ẩn đi. Vui lòng bấm tiếp tục để làm bài tiếp.
+            </p>
+            <button
+              onClick={() => setIsPaused(false)}
+              className="px-6 py-2.5 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              <Play className="w-4 h-4" />
+              <span>Tiếp tục làm bài</span>
+            </button>
+          </div>
+        )}
+
         {/* Status Bar */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-xs flex items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <button 
               onClick={() => {
-                if (window.confirm('Bạn có chắc muốn thoát? Kết quả thi hiện tại sẽ không được lưu.')) {
+                if (window.confirm('Bạn có chắc muốn thoát? Kết quả thi hiện tại sẽ bị hủy nếu không lưu.')) {
                   handleBackToSelect();
                 }
               }}
               className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-lg cursor-pointer"
+              title="Thoát không lưu"
             >
               <ArrowLeft className="w-4 h-4" />
             </button>
-            <div className="space-y-0.5">
-              <span className="text-[10px] text-slate-400 dark:text-slate-500 block font-bold uppercase tracking-wider">{currentExam.code} • Chế độ {mode === 'practice' ? 'Luyện tập' : 'Thi thật'}</span>
-              <h3 className="font-extrabold text-sm text-slate-800 dark:text-slate-200 truncate max-w-[200px] sm:max-w-xs">{currentExam.title}</h3>
-            </div>
+
+            {/* Save & Exit Button */}
+            <button
+              onClick={handleSaveAndExit}
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1"
+              title="Lưu tiến độ làm bài để làm lại sau"
+            >
+              <Save className="w-3.5 h-3.5 text-blue-500" />
+              <span className="hidden sm:inline">Lưu & Thoát</span>
+            </button>
           </div>
 
-          {mode === 'exam' ? (
-            <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-sm ${timeLeft < 300 ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 animate-pulse' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'}`}>
-              <Clock className="w-4 h-4" />
-              <span>{formatTime(timeLeft)}</span>
-            </div>
-          ) : (
-            <span className="text-xs px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-extrabold border border-blue-100 dark:border-blue-800/40">
-              Không giới hạn giờ
-            </span>
-          )}
+          <div className="flex items-center gap-2">
+            {mode === 'exam' ? (
+              <div className="flex items-center gap-2">
+                <div className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border font-bold text-sm ${timeLeft < 300 ? 'bg-red-50 dark:bg-red-950/20 border-red-200 dark:border-red-900 text-red-600 dark:text-red-400 animate-pulse' : 'bg-slate-50 dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300'}`}>
+                  <Clock className="w-4 h-4" />
+                  <span>{formatTime(timeLeft)}</span>
+                </div>
+                <button
+                  onClick={() => setIsPaused(true)}
+                  className="px-3 py-1.5 bg-slate-100 hover:bg-slate-200 dark:bg-slate-700 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1"
+                  title="Tạm dừng thời gian thi và ẩn đề bài"
+                >
+                  <Pause className="w-3.5 h-3.5" />
+                  <span>Tạm dừng</span>
+                </button>
+              </div>
+            ) : (
+              <span className="text-xs px-2.5 py-1 rounded-xl bg-blue-50 dark:bg-blue-900/20 text-blue-600 dark:text-blue-300 font-extrabold border border-blue-100 dark:border-blue-800/40">
+                Luyện tập (Không đếm giờ)
+              </span>
+            )}
+          </div>
         </div>
 
         {/* Quiz Body */}
@@ -731,7 +921,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
           <div className="flex items-center justify-center gap-3 pt-2">
             <button
               onClick={handleRetakeExam}
-              className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer animate-fadeIn"
+              className="px-4 py-2 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs rounded-xl flex items-center gap-1.5 cursor-pointer"
             >
               <RotateCcw className="w-4 h-4" />
               <span>Làm lại</span>
