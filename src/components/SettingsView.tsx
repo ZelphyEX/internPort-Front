@@ -31,6 +31,7 @@ interface SettingsViewProps {
   currentUser: AuthUser;
   onUpdateProfile?: (updates: { name?: string; avatar?: string }) => void;
   onChangePassword?: (oldPassword: string, newPassword: string) => void;
+  onDeleteAccount?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -38,7 +39,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   onRoleChange,
   currentUser,
   onUpdateProfile,
-  onChangePassword
+  onChangePassword,
+  onDeleteAccount
 }) => {
   const { theme, setTheme } = useTheme();
 
@@ -48,6 +50,19 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const realRole = currentUser.role;
   const isRealAdmin = realRole === 'ADMIN';
   const isPreviewingOtherRole = currentRole !== realRole;
+
+  const handleDeleteAccountClick = () => {
+    if (realRole === 'ADMIN') {
+      alert('Tài khoản Quản trị viên không thể tự xóa để tránh mất quyền quản lý hệ thống.');
+      return;
+    }
+    const confirmDelete = window.confirm(
+      "CẢNH BÁO NGUY HIỂM: Tài khoản của bạn sẽ bị xóa vĩnh viễn và bạn sẽ bị đăng xuất lập tức. Toàn bộ dữ liệu của bạn sẽ bị xóa bỏ.\n\nHành động này không thể hoàn tác. Bạn có chắc chắn muốn tiếp tục?"
+    );
+    if (confirmDelete) {
+      onDeleteAccount?.();
+    }
+  };
 
   // --- Hồ Sơ Cá Nhân: Tên & Ảnh đại diện ---
   const [profileName, setProfileName] = useState<string>(currentUser.name);
@@ -585,6 +600,37 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
           </div>
         </div>
       </div>
+
+      {/* SECTION 5: Danger Zone */}
+      {realRole !== 'ADMIN' && (
+        <div className="bg-red-50/50 dark:bg-red-950/20 rounded-2xl p-6 border border-red-200 dark:border-red-900/60 shadow-2xs space-y-6">
+          <div className="flex items-center gap-3 pb-4 border-b border-red-100 dark:border-red-950/40">
+            <div className="p-2.5 bg-red-100 dark:bg-red-900/40 text-red-700 dark:text-red-400 rounded-xl">
+              <AlertCircle className="w-5 h-5 animate-pulse" />
+            </div>
+            <div>
+              <h3 className="text-base font-extrabold text-red-800 dark:text-red-300">5. Khu vực nguy hiểm (Danger Zone)</h3>
+              <p className="text-xs text-red-600 dark:text-red-400">Thực hiện các thao tác phá hủy hoặc xóa vĩnh viễn thông tin cá nhân của bạn.</p>
+            </div>
+          </div>
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+            <div className="space-y-1">
+              <span className="text-xs font-bold text-slate-800 dark:text-slate-200 block">Xóa tài khoản của bạn</span>
+              <p className="text-[11px] text-slate-500 dark:text-slate-400">
+                Tài khoản này sẽ bị xóa khỏi hệ thống. Bạn sẽ không thể đăng nhập hoặc xem lộ trình/báo cáo nữa.
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={handleDeleteAccountClick}
+              className="px-4 py-2.5 bg-red-600 hover:bg-red-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all cursor-pointer text-center"
+            >
+              Xóa tài khoản vĩnh viễn
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );

@@ -227,6 +227,26 @@ export default function App() {
     localStorage.setItem(`gimasys_pwd_${currentUser.email.toLowerCase()}`, newPassword);
   };
 
+  const handleDeleteAccount = async () => {
+    if (!currentUser) return;
+    if (tokenStore.isAuthenticated()) {
+      try {
+        await authApi.deleteAccount();
+        alert('Tài khoản của bạn đã được xóa thành công.');
+      } catch (err) {
+        if (err instanceof ApiError) {
+          alert(err.detail || 'Xóa tài khoản thất bại.');
+          return;
+        }
+      }
+    } else {
+      localStorage.removeItem(`gimasys_pwd_${currentUser.email.toLowerCase()}`);
+      alert('Tài khoản của bạn đã được xóa cục bộ.');
+    }
+    setCurrentUser(null);
+    localStorage.removeItem('gimasys_current_user');
+  };
+
   // Persistent States
   const [interns, setInterns] = useState<Intern[]>(() => {
     const saved = localStorage.getItem('gimasys_interns');
@@ -838,6 +858,7 @@ export default function App() {
               currentUser={currentUser}
               onUpdateProfile={handleUpdateProfile}
               onChangePassword={handleChangePassword}
+              onDeleteAccount={handleDeleteAccount}
             />
           )}
 

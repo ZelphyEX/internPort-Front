@@ -560,6 +560,10 @@ export const authApi = {
     return request<ApiUser>('/auth/me', { method: 'PATCH', body: payload });
   },
 
+  deleteAccount() {
+    return request<void>('/auth/me', { method: 'DELETE' });
+  },
+
   /** POST /auth/change-password — Đổi mật khẩu. 400 nếu mật khẩu cũ sai. */
   changePassword(payload: { old_password: string; new_password: string }) {
     return request<void>('/auth/change-password', { method: 'POST', body: payload });
