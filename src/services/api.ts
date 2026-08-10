@@ -194,10 +194,10 @@ async function tryRefresh(): Promise<boolean> {
 // ============================================================================
 
 export type ApiRole = 'ADMIN' | 'MENTOR' | 'INTERN';
-/** PENDING = Mentor tự đăng ký, đang chờ Admin duyệt (chưa đăng nhập được). */
+/** PENDING = Mentor mới đăng ký, đang chờ Admin duyệt (chưa đăng nhập được). */
 export type ApiUserStatus = 'ACTIVE' | 'LOCKED' | 'PENDING';
-/** Vai trò được phép tự đăng ký — không có ADMIN. */
-export type ApiRegisterRole = 'INTERN' | 'MENTOR';
+/** Vai trò có thể chuyển qua lại bằng yêu cầu chuyển vai trò — không có ADMIN. */
+export type ApiSwitchableRole = 'INTERN' | 'MENTOR';
 
 /**
  * Backend trả 403 kèm detail bắt đầu bằng chuỗi này khi tài khoản Mentor chưa
@@ -248,6 +248,62 @@ export interface LoginResponse {
   refresh_token: string;
   token_type: string;
   user: ApiUser;
+}
+
+// ---- Đăng nhập bằng Google (đường vào duy nhất) ---------------------------
+
+/** Hồ sơ Google trả về, dùng để điền sẵn form đăng ký khi chưa có tài khoản. */
+export interface ApiGoogleProfile {
+  email: string;
+  full_name: string;
+  avatar_url?: string | null;
+  /** Vai trò sẽ được cấp, suy ra từ tên miền email (FE không chọn được). */
+  assigned_role: ApiRole;
+  /** true = tài khoản tạo ra phải chờ Admin duyệt (tên miền của Mentor). */
+  needs_admin_approval: boolean;
+}
+
+/**
+ * Kết quả `POST /auth/google` (và `POST /auth/google/complete`).
+ *  - `AUTHENTICATED`      -> `tokens` có giá trị, đã đăng nhập.
+ *  - `NEEDS_REGISTRATION` -> chưa có tài khoản: dùng `profile` + `signup_ticket`
+ *                            để hiện form nhập hồ sơ.
+ */
+export interface ApiGoogleAuthResult {
+  status: 'AUTHENTICATED' | 'NEEDS_REGISTRATION';
+  tokens?: LoginResponse | null;
+  profile?: ApiGoogleProfile | null;
+  signup_ticket?: string | null;
+}
+
+/** Hồ sơ người dùng phải điền khi tạo tài khoản mới (email lấy từ signup_ticket). */
+export interface GoogleSignupPayload {
+  signup_ticket: string;
+  full_name: string;
+  phone: string;
+  department: ApiDepartment;
+  /** Bắt buộc với Thực tập sinh, không cần với Mentor. */
+  university?: string;
+  major?: string;
+  github_url?: string;
+}
+
+// ---- Yêu cầu chuyển vai trò ----------------------------------------------
+
+export type ApiRoleRequestStatus = 'PENDING' | 'APPROVED' | 'REJECTED' | 'CANCELLED';
+
+export interface ApiRoleRequest {
+  id: number;
+  user_id: number;
+  user_name?: string | null;
+  user_email?: string | null;
+  from_role: ApiRole;
+  to_role: ApiRole;
+  status: ApiRoleRequestStatus;
+  created_at: string;
+  decided_at?: string | null;
+  /** true = vai trò đã đổi ngay (Mentor tự hạ xuống Thực tập sinh). */
+  applied: boolean;
 }
 
 export interface ApiTag {
@@ -505,20 +561,12 @@ export interface ApiDailyReport {
 
 export const authApi = {
   /**
-   * POST /auth/register — Đăng ký. Công khai.
-   * `role: 'INTERN'` (mặc định) dùng được ngay; `role: 'MENTOR'` tạo ở trạng thái
-   * PENDING và phải chờ Admin duyệt mới đăng nhập được.
+   * POST /auth/login — Đăng nhập bằng mật khẩu. **Chỉ dùng cho tài khoản ADMIN.**
+   *
+   * Backend trả 403 nếu tài khoản không phải ADMIN: Intern/Mentor bắt buộc đi qua
+   * Google, nên đường mật khẩu không thể dùng để đi vòng qua xác thực Google.
+   * Tự lưu token khi thành công.
    */
-  register(payload: {
-    full_name: string;
-    email: string;
-    password: string;
-    role?: ApiRegisterRole;
-  }) {
-    return request<ApiUser>('/auth/register', { method: 'POST', body: payload, auth: false });
-  },
-
-  /** POST /auth/login — Đăng nhập. Công khai. Tự lưu token khi thành công. */
   async login(payload: { email: string; password: string }): Promise<LoginResponse> {
     const data = await request<LoginResponse>('/auth/login', {
       method: 'POST',
@@ -529,13 +577,42 @@ export const authApi = {
     return data;
   },
 
-  async loginWithGoogle(payload: { credential: string }): Promise<LoginResponse> {
-    const data = await request<LoginResponse>('/auth/google', {
+  /**
+   * POST /auth/google — Bước 1: đăng nhập bằng Google. Công khai.
+   *
+   * Đây là đường vào DUY NHẤT của người dùng (không còn form đăng ký/đăng nhập
+   * bằng mật khẩu). Tự lưu token nếu tài khoản đã tồn tại; nếu chưa thì trả
+   * `NEEDS_REGISTRATION` kèm `signup_ticket` để gọi tiếp `completeGoogleSignup`.
+   *
+   * 403 nếu email ngoài tên miền Gimasys, tài khoản bị khoá, hoặc Mentor chưa
+   * được duyệt (detail chứa `PENDING_APPROVAL`).
+   */
+  async loginWithGoogle(payload: { credential: string }): Promise<ApiGoogleAuthResult> {
+    const data = await request<ApiGoogleAuthResult>('/auth/google', {
       method: 'POST',
       body: payload,
       auth: false,
     });
-    tokenStore.set(data.access_token, data.refresh_token);
+    if (data.status === 'AUTHENTICATED' && data.tokens) {
+      tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+    }
+    return data;
+  },
+
+  /**
+   * POST /auth/google/complete — Bước 2: tạo tài khoản từ hồ sơ vừa nhập.
+   * Vai trò do tên miền email quyết định (server tự suy ra, FE không gửi lên).
+   * Tài khoản Mentor tạo ra ở trạng thái chờ duyệt nên response KHÔNG có token.
+   */
+  async completeGoogleSignup(payload: GoogleSignupPayload): Promise<ApiGoogleAuthResult> {
+    const data = await request<ApiGoogleAuthResult>('/auth/google/complete', {
+      method: 'POST',
+      body: payload,
+      auth: false,
+    });
+    if (data.status === 'AUTHENTICATED' && data.tokens) {
+      tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+    }
     return data;
   },
 
@@ -647,6 +724,51 @@ export const usersApi = {
    */
   remove(id: number) {
     return request<void>(`/users/${id}`, { method: 'DELETE' });
+  },
+};
+
+// ============================================================================
+// 3b. Yêu cầu chuyển vai trò (Thực tập sinh <-> Mentor)
+// ============================================================================
+
+export const roleRequestsApi = {
+  /** GET /role-requests/me — Yêu cầu đang chờ duyệt của mình, `null` nếu không có. */
+  me() {
+    return request<ApiRoleRequest | null>('/role-requests/me');
+  },
+
+  /**
+   * POST /role-requests — Gửi yêu cầu chuyển vai trò.
+   *  - `MENTOR`: tạo yêu cầu **chờ Admin duyệt** (`applied: false`).
+   *  - `INTERN`: là hạ quyền nên **áp dụng ngay** (`applied: true`) — sau khi gọi
+   *    phải tải lại phiên (`authApi.me()`) để giao diện khớp vai trò mới.
+   * 409 nếu đang có yêu cầu chờ duyệt.
+   */
+  create(toRole: ApiSwitchableRole) {
+    return request<ApiRoleRequest>('/role-requests', {
+      method: 'POST',
+      body: { to_role: toRole },
+    });
+  },
+
+  /** DELETE /role-requests/me — Tự rút yêu cầu khi chưa được duyệt. 404 nếu không có. */
+  cancelMine() {
+    return request<void>('/role-requests/me', { method: 'DELETE' });
+  },
+
+  /** GET /role-requests — Hàng đợi yêu cầu, ai gửi trước xếp trước. Quyền: ADMIN. */
+  list(params?: { page?: number; size?: number; status?: ApiRoleRequestStatus }) {
+    return request<Paginated<ApiRoleRequest>>('/role-requests', { query: params });
+  },
+
+  /** PATCH /role-requests/{id}/approve — Duyệt, đổi vai trò người gửi. Quyền: ADMIN. */
+  approve(id: number) {
+    return request<ApiRoleRequest>(`/role-requests/${id}/approve`, { method: 'PATCH' });
+  },
+
+  /** PATCH /role-requests/{id}/reject — Từ chối, vai trò giữ nguyên. Quyền: ADMIN. */
+  reject(id: number) {
+    return request<ApiRoleRequest>(`/role-requests/${id}/reject`, { method: 'PATCH' });
   },
 };
 

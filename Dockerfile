@@ -19,11 +19,25 @@ ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 ARG VITE_GOOGLE_CLIENT_ID
 ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
 
+# Không bắt buộc: email điền sẵn ở ô "Đăng nhập Quản trị viên". Bỏ trống thì dùng
+# mặc định admin@gimasys.com. Phải khớp BOOTSTRAP_ADMIN_EMAIL của backend.
+ARG VITE_ADMIN_LOGIN_EMAIL
+ENV VITE_ADMIN_LOGIN_EMAIL=$VITE_ADMIN_LOGIN_EMAIL
+
 # Chặn build "im lặng lỗi": thiếu build-arg thì api.ts rơi về fallback same-origin
 # "/api/v1", tức client gọi vào chính server này và nhận index.html thay vì JSON.
 RUN test -n "$VITE_API_BASE_URL" || { \
       echo "ERROR: build-arg VITE_API_BASE_URL is empty."; \
       echo "       Build with: docker build --build-arg VITE_API_BASE_URL=https://<backend-host>/api/v1 ."; \
+      exit 1; \
+    }
+
+# Đăng nhập bằng Google giờ là đường vào DUY NHẤT: thiếu client id thì trang đăng
+# nhập không có nút nào bấm được, tức là toàn bộ hệ thống không dùng được.
+RUN test -n "$VITE_GOOGLE_CLIENT_ID" || { \
+      echo "ERROR: build-arg VITE_GOOGLE_CLIENT_ID is empty."; \
+      echo "       Google Sign-In is the only way to log in, so the app would be unusable."; \
+      echo "       Build with: docker build --build-arg VITE_GOOGLE_CLIENT_ID=<oauth-client-id>.apps.googleusercontent.com ."; \
       exit 1; \
     }
 

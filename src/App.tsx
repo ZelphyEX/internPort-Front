@@ -38,6 +38,7 @@ import {
   tokenStore,
   authApi,
   usersApi,
+  roleRequestsApi,
   groupsApi,
   documentsApi,
   projectsApi,
@@ -91,7 +92,9 @@ export default function App() {
   // (đổi role thành ADMIN để mở các màn quản trị). Backend vẫn chặn bằng 403 nên
   // không lộ dữ liệu thật, nhưng UI sẽ hiển thị nhầm dữ liệu demo như thể là thật.
   // Mỗi lần mở app, nếu còn phiên đăng nhập thật thì đồng bộ lại từ GET /auth/me.
-  useEffect(() => {
+  // Đồng bộ lại phiên từ server. Gọi khi mở app, và gọi lại sau khi vai trò thật
+  // vừa đổi (Mentor tự hạ xuống Thực tập sinh trong Cài đặt) để giao diện khớp ngay.
+  const refreshSession = React.useCallback(() => {
     if (!tokenStore.isAuthenticated()) return;
     authApi
       .me()
@@ -103,6 +106,8 @@ export default function App() {
       })
       .catch(() => {/* lỗi mạng: giữ phiên cục bộ; token hỏng đã có handler 401 ở trên */});
   }, []);
+
+  useEffect(refreshSession, [refreshSession]);
 
   useEffect(() => {
     localStorage.setItem('gimasys_groups', JSON.stringify(groups));
@@ -256,7 +261,35 @@ export default function App() {
   // Mentor thật lấy từ `GET /users?role=MENTOR` (quyền MENTOR trở lên). Không lưu
   // localStorage vì đây chỉ là dữ liệu tra cứu cho các dropdown chọn mentor.
   const [mentors, setMentors] = useState<AuthUser[]>([]);
+  // Hai loại việc chờ Admin xử lý ở tab "Mentor": tài khoản Mentor mới chờ duyệt,
+  // và yêu cầu chuyển vai trò của Thực tập sinh. Badge ở thanh bên hiện tổng hai số.
   const [pendingMentorCount, setPendingMentorCount] = useState(0);
+  const [pendingRoleRequestCount, setPendingRoleRequestCount] = useState(0);
+
+  // Chỉ cần con số nên gọi size=1 và đọc `total` — không tải cả danh sách.
+  const reloadRoleRequestCount = React.useCallback(() => {
+    if (!tokenStore.isAuthenticated()) return;
+    roleRequestsApi
+      .list({ size: 1, status: 'PENDING' })
+      .then((res) => setPendingRoleRequestCount(res.total))
+      .catch(() => {/* không phải Admin (403) hoặc offline: bỏ qua badge */});
+  }, []);
+
+  const reloadPendingMentorCount = React.useCallback(() => {
+    if (!tokenStore.isAuthenticated()) return;
+    usersApi
+      .list({ size: 100, role: 'MENTOR' })
+      .then((res) =>
+        setPendingMentorCount(res.items.filter((u) => u.status === 'PENDING').length)
+      )
+      .catch(() => {/* offline: giữ số đang hiển thị */});
+  }, []);
+
+  // Gọi sau khi Admin duyệt/từ chối ở tab Mentor để badge khớp lại ngay.
+  const reloadAdminQueues = React.useCallback(() => {
+    reloadPendingMentorCount();
+    reloadRoleRequestCount();
+  }, [reloadPendingMentorCount, reloadRoleRequestCount]);
 
   // Tham chiếu tới interns mới nhất để tra cứu department khi map Daily Report,
   // không đưa vào dependency của useEffect tải dữ liệu (tránh gọi lại API liên tục).
@@ -350,6 +383,12 @@ export default function App() {
           setPendingMentorCount(res.items.filter((u) => u.status === 'PENDING').length);
         })
         .catch(() => {/* offline: allMentors sẽ rơi về danh sách demo */});
+    }
+
+    // Hàng đợi yêu cầu chuyển vai trò — chỉ ADMIN được xem (`GET /role-requests`),
+    // và phải dùng vai trò THẬT: Admin đang xem thử giao diện Intern vẫn cần badge.
+    if (currentUser.role === 'ADMIN') {
+      reloadRoleRequestCount();
     }
 
     // Projects/Tasks/Daily Reports: mở cho mọi role đã đăng nhập — INTERN tự động
@@ -753,7 +792,9 @@ export default function App() {
           onOpenGroupScreen={currentRole !== 'INTERN' ? () => setIsGroupScreenOpen(true) : undefined}
           isGroupScreenActive={isGroupScreenOpen}
           pendingReviewsCount={pendingReportsCount}
-          pendingMentorCount={pendingMentorCount}
+          // Tổng việc chờ Admin xử lý ở tab Mentor: tài khoản chờ duyệt + yêu cầu
+          // chuyển vai trò.
+          pendingMentorCount={pendingMentorCount + pendingRoleRequestCount}
         />
 
         {/* Central View Content.
@@ -803,7 +844,7 @@ export default function App() {
           )}
 
           {!isGroupScreenOpen && activeTab === 'mentors' && currentRole === 'ADMIN' && (
-            <MentorsView currentRole={currentRole} />
+            <MentorsView currentRole={currentRole} onQueueChanged={reloadAdminQueues} />
           )}
 
           {!isGroupScreenOpen && activeTab === 'projects' && (
@@ -859,6 +900,7 @@ export default function App() {
               onUpdateProfile={handleUpdateProfile}
               onChangePassword={handleChangePassword}
               onDeleteAccount={handleDeleteAccount}
+              onSessionRefresh={refreshSession}
             />
           )}
 

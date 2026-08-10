@@ -19,11 +19,13 @@ import {
   Camera,
   Lock,
   AlertCircle,
+  ArrowLeftRight,
   Sun,
   Moon
 } from 'lucide-react';
 import { UserRole, AuthUser } from '../types';
 import { useTheme } from '../context/ThemeContext';
+import { RoleSwitchCard } from './RoleSwitchCard';
 
 interface SettingsViewProps {
   currentRole: UserRole;
@@ -32,6 +34,8 @@ interface SettingsViewProps {
   onUpdateProfile?: (updates: { name?: string; avatar?: string }) => void;
   onChangePassword?: (oldPassword: string, newPassword: string) => void;
   onDeleteAccount?: () => void;
+  /** Tải lại phiên từ `GET /auth/me` — dùng sau khi vai trò thật vừa đổi. */
+  onSessionRefresh?: () => void;
 }
 
 export const SettingsView: React.FC<SettingsViewProps> = ({
@@ -40,7 +44,8 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   currentUser,
   onUpdateProfile,
   onChangePassword,
-  onDeleteAccount
+  onDeleteAccount,
+  onSessionRefresh
 }) => {
   const { theme, setTheme } = useTheme();
 
@@ -520,6 +525,17 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               })}
             </div>
           )}
+        </div>
+
+        {/* Yêu cầu chuyển vai trò Thực tập sinh <-> Mentor.
+            Dùng `realRole` (vai trò thật từ server), không dùng `currentRole` —
+            Admin đang xem thử giao diện Intern không được biến thành xin lên Mentor. */}
+        <div className="space-y-2 border-t border-slate-100 dark:border-slate-800 pt-5">
+          <label className="text-xs font-extrabold text-slate-800 dark:text-slate-200 flex items-center gap-1.5">
+            <ArrowLeftRight className="w-4 h-4 text-blue-600" />
+            <span>Đổi Vai Trò Tài Khoản:</span>
+          </label>
+          <RoleSwitchCard realRole={realRole} onRoleApplied={() => onSessionRefresh?.()} />
         </div>
 
       </div>

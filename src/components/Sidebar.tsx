@@ -30,7 +30,10 @@ interface SidebarProps {
   /** true khi màn "Quản Lý Nhóm" đang mở — để tô sáng mục này như các tab khác. */
   isGroupScreenActive?: boolean;
   pendingReviewsCount: number;
-  /** Số Mentor đang chờ Admin duyệt — hiện thành badge ở tab "Quản lý Mentor". */
+  /**
+   * Số việc đang chờ Admin xử lý ở tab "Quản lý Mentor" = tài khoản Mentor chờ
+   * duyệt + yêu cầu chuyển vai trò. Hiện thành badge.
+   */
   pendingMentorCount?: number;
 }
 
@@ -68,7 +71,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
       icon: Users,
       badge: null
     }] : []),
-    // Duyệt yêu cầu mở tài khoản Mentor là việc riêng của Quản trị viên.
+    // Duyệt tài khoản Mentor mới và duyệt yêu cầu chuyển vai trò là việc riêng
+    // của Quản trị viên.
     ...(currentRole === 'ADMIN' ? [{
       id: 'mentors' as NavTab,
       label: 'Quản lý Mentor',

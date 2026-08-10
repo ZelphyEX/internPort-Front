@@ -16,6 +16,14 @@ on:
 #   VITE_API_BASE_URL      Base URL of the FastAPI backend, e.g. https://<backend>/api/v1.
 #                          Not secret, but baked into the client bundle at BUILD time (Vite),
 #                          so it's passed as a docker build-arg, not just a runtime env var.
+#   VITE_GOOGLE_CLIENT_ID  GCP OAuth 2.0 Web client id, e.g. <id>.apps.googleusercontent.com.
+#                          Also baked in at BUILD time. Google Sign-In is the ONLY way to log
+#                          in, so a missing value means nobody can enter the portal. The
+#                          backend needs the SAME client id in its own GOOGLE_CLIENT_ID env,
+#                          otherwise it rejects every ID token this frontend produces.
+#   VITE_ADMIN_LOGIN_EMAIL (optional) email prefilled in the "Đăng nhập Quản trị viên" box.
+#                          Defaults to admin@gimasys.com. Keep it equal to the backend's
+#                          BOOTSTRAP_ADMIN_EMAIL.
 #
 # Secrets (Secrets tab):
 #   WIF_PROVIDER           full Workload Identity provider resource name:
@@ -104,6 +112,7 @@ jobs:
           docker build \
             --build-arg VITE_API_BASE_URL="${{ vars.VITE_API_BASE_URL }}" \
             --build-arg VITE_GOOGLE_CLIENT_ID="${{ vars.VITE_GOOGLE_CLIENT_ID }}" \
+            --build-arg VITE_ADMIN_LOGIN_EMAIL="${{ vars.VITE_ADMIN_LOGIN_EMAIL }}" \
             -t "$IMAGE:${{ github.sha }}" \
             -t "$IMAGE:latest" \
             .

@@ -1,269 +1,154 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 
-import { 
-  Building2, 
-  ShieldCheck, 
-  User, 
-  Lock, 
-  Mail, 
-  ArrowRight, 
-  CheckCircle2, 
-  Sparkles, 
-  Briefcase, 
-  GraduationCap, 
-  UserCheck, 
-  KeyRound,
+import {
+  Building2,
+  ShieldCheck,
+  Sparkles,
   Globe,
-  UserPlus,
-  LogIn,
-  School,
-  Code
+  Loader2,
+  AlertCircle,
+  AtSign,
+  GraduationCap,
+  Briefcase,
+  KeyRound,
+  Lock,
+  Mail,
+  ChevronDown,
+  X,
 } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
-import { AuthUser, UserRole, Department, Intern } from '../types';
-import { DEMO_AUTH_USERS } from '../data/mockData';
-// Đăng nhập/đăng ký qua REST API theo đặc tả (tự lưu token). Xem src/services/api.ts.
-import { authApi, ApiError, ApiRegisterRole, isPendingApprovalError } from '../services/api';
+import { AuthUser } from '../types';
+// Đăng nhập/đăng ký chỉ qua Google (tự lưu token). Xem src/services/api.ts.
+import {
+  authApi,
+  ApiError,
+  ApiGoogleProfile,
+  isPendingApprovalError,
+} from '../services/api';
 import { apiUserToAuthUser } from '../services/mappers';
 import { PendingApprovalView } from './PendingApprovalView';
+import { GoogleSignupView } from './GoogleSignupView';
+
+/**
+ * Màn đăng nhập — CHỈ có một cách vào: "Đăng nhập bằng Google".
+ *
+ * Không còn form email/mật khẩu, không còn form đăng ký, không còn tài khoản mẫu:
+ *   * email phải do Google xác thực nên không ai đăng ký hộ người khác được;
+ *   * backend chỉ nhận tên miền @gimasys.com và @edu.gimasys.com (chốt chặn thật,
+ *     vì OAuth Consent Screen đang là "External" nên Google không tự chặn);
+ *   * chưa có tài khoản -> chuyển sang màn nhập hồ sơ (GoogleSignupView), tên
+ *     hiển thị được lấy sẵn từ tài khoản Google.
+ */
 
 interface LoginViewProps {
-  onLogin: (user: AuthUser, newIntern?: Intern) => void;
+  onLogin: (user: AuthUser) => void;
 }
 
+/**
+ * Google Client ID phải có lúc BUILD (Vite thay thế tĩnh `import.meta.env.*`).
+ * Thiếu nó thì nút Google không hoạt động, mà giờ đó là đường vào duy nhất — nên
+ * báo rõ đây là lỗi cấu hình thay vì để người dùng thấy "đăng nhập thất bại".
+ * Phải viết liền mạch `import.meta.env.VITE_GOOGLE_CLIENT_ID`, không optional-chain,
+ * nếu không bundle production sẽ không được inline giá trị.
+ */
+const GOOGLE_CLIENT_ID = (import.meta.env.VITE_GOOGLE_CLIENT_ID as string | undefined) || '';
+const IS_GOOGLE_CONFIGURED = GOOGLE_CLIENT_ID.trim().length > 0;
+
+/**
+ * Email tài khoản Quản trị viên hệ thống — điền sẵn ở ô đăng nhập admin cho khỏi
+ * phải nhớ. Phải khớp `BOOTSTRAP_ADMIN_EMAIL` của backend; đổi được bằng
+ * `VITE_ADMIN_LOGIN_EMAIL` lúc build, hoặc sửa tay ngay trên form.
+ */
+const DEFAULT_ADMIN_EMAIL =
+  (import.meta.env.VITE_ADMIN_LOGIN_EMAIL as string | undefined) || 'admin@gimasys.com';
+
+/** Đọc email trong Google ID token — CHỈ để hiển thị (server mới là nơi xác thực). */
+const emailFromGoogleCredential = (credential: string): string => {
+  try {
+    const raw = credential.split('.')[1];
+    if (!raw) return '';
+    const b64 = raw.replace(/-/g, '+').replace(/_/g, '/');
+    const payload = JSON.parse(atob(b64 + '='.repeat((4 - (b64.length % 4)) % 4)));
+    return typeof payload?.email === 'string' ? payload.email : '';
+  } catch {
+    return '';
+  }
+};
+
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
-  const [activeMode, setActiveMode] = useState<'login' | 'register'>('login');
-
-  // Sign In Form States
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-
-  // Register Form States
-  const [regName, setRegName] = useState('');
-  const [regEmail, setRegEmail] = useState('');
-  const [regPassword, setRegPassword] = useState('');
-  const [regConfirmPassword, setRegConfirmPassword] = useState('');
-  // Chỉ cho tự đăng ký INTERN hoặc MENTOR — không ai tự đăng ký làm ADMIN.
-  const [regRole, setRegRole] = useState<ApiRegisterRole>('INTERN');
-  const [regDepartment] = useState<Department>('Java Back-End');
-  const [regError, setRegError] = useState('');
-
-  const [loginError, setLoginError] = useState('');
+  const [error, setError] = useState('');
+  const [isBusy, setIsBusy] = useState(false);
 
   // Khác null = đang hiển thị màn "tài khoản Mentor chờ Admin duyệt".
-  // Vào màn này khi: (a) vừa đăng ký làm Mentor, hoặc (b) Mentor chưa duyệt thử đăng nhập.
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
+  // Khác null = Google xác thực xong nhưng chưa có tài khoản -> hiện form hồ sơ.
+  const [signup, setSignup] = useState<
+    { profile: ApiGoogleProfile; ticket: string } | null
+  >(null);
 
+  // Ô đăng nhập Quản trị viên (thu gọn, mở ra khi bấm). Backend chỉ cho ADMIN dùng
+  // đường mật khẩu này — Intern/Mentor gọi vào sẽ nhận 403.
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [adminEmail, setAdminEmail] = useState(DEFAULT_ADMIN_EMAIL);
+  const [adminPassword, setAdminPassword] = useState('');
+  const [adminError, setAdminError] = useState('');
+  const [isAdminBusy, setIsAdminBusy] = useState(false);
 
-
-  const isValidEmailDomain = (emailStr: string): boolean => {
-    const emailLower = emailStr.trim().toLowerCase();
-    if (
-      emailLower === 'admin@example.com' ||
-      emailLower === 'mentor@example.com' ||
-      emailLower === 'intern@example.com'
-    ) {
-      return true;
-    }
-    return emailLower.endsWith('@gimasys.com') || emailLower.endsWith('@edu.gimasys.com');
-  };
-
-  const resolveRoleFromEmail = (emailStr: string, defaultRole: ApiRegisterRole): UserRole => {
-    const emailLower = emailStr.trim().toLowerCase();
-    if (emailLower === 'admin@example.com') return 'ADMIN';
-    if (emailLower === 'mentor@example.com') return 'MENTOR';
-    if (emailLower === 'intern@example.com') return 'INTERN';
-    if (emailLower.endsWith('@gimasys.com')) return 'MENTOR';
-    if (emailLower.endsWith('@edu.gimasys.com')) return 'INTERN';
-    return defaultRole as UserRole;
-  };
-
-
-
-
-
-
-
-
-  const handleLoginSubmit = async (e: React.FormEvent) => {
+  const handleAdminSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    setLoginError('');
-    if (!loginEmail) return;
-
-    const emailToAuth = loginEmail.includes('@') ? loginEmail.trim() : `${loginEmail.trim()}@gimasys.com`;
-
-    if (!isValidEmailDomain(emailToAuth)) {
-      setLoginError('Chỉ chấp nhận email thuộc tên miền @gimasys.com hoặc @edu.gimasys.com.');
+    setAdminError('');
+    if (!adminEmail.trim() || !adminPassword) {
+      setAdminError('Vui lòng nhập email và mật khẩu Quản trị viên.');
       return;
     }
-
-    // Online-first: thử đăng nhập qua backend thật (đặc tả POST /auth/login).
-    // Thành công -> tự lưu token, map ApiUser sang AuthUser của FE.
+    setIsAdminBusy(true);
     try {
       const res = await authApi.login({
-        email: emailToAuth,
-        password: loginPassword,
+        email: adminEmail.trim(),
+        password: adminPassword,
       });
-      // API /auth/login không trả "email" trong object user -> dùng lại email vừa nhập.
-      onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || emailToAuth }));
-      return;
+      onLogin(apiUserToAuthUser(res.user));
     } catch (err) {
-      // Tài khoản Mentor chưa được Admin duyệt -> đưa sang màn chờ duyệt.
-      if (isPendingApprovalError(err)) {
-        setPendingEmail(emailToAuth);
-        return;
-      }
-      if (err instanceof ApiError) {
-        // Backend phản hồi (sai email/mật khẩu, tài khoản bị khóa...) -> báo lỗi, không fallback.
-        setLoginError(err.detail || 'Đăng nhập thất bại. Vui lòng thử lại.');
-        return;
-      }
-      // Lỗi mạng / chưa có backend -> rơi xuống chế độ demo cục bộ bên dưới.
+      setAdminError(
+        err instanceof ApiError
+          ? err.detail || 'Đăng nhập thất bại.'
+          : 'Không kết nối được máy chủ. Kiểm tra kết nối mạng rồi thử lại.'
+      );
+    } finally {
+      setIsAdminBusy(false);
     }
-
-    // --- Chế độ demo (offline): đối chiếu tài khoản mẫu + mật khẩu đã lưu cục bộ ---
-    // Nếu tài khoản này đã từng đổi mật khẩu trong phần Cài đặt, đối chiếu lại mật khẩu đã lưu
-    const savedPassword = localStorage.getItem(`gimasys_pwd_${emailToAuth.toLowerCase()}`);
-    if (savedPassword && savedPassword !== loginPassword) {
-      setLoginError('Sai mật khẩu. Vui lòng thử lại.');
-      return;
-    }
-
-    // Check if matches one of demo users or create custom session
-    const matched = DEMO_AUTH_USERS.find(
-      u => u.email.toLowerCase() === emailToAuth.toLowerCase()
-    );
-
-    if (matched) {
-      onLogin(matched);
-      return;
-    }
-
-    // Default custom login fallback
-    const resolvedRole = resolveRoleFromEmail(emailToAuth, 'INTERN');
-    const customUser: AuthUser = {
-      id: `USR-${Date.now()}`,
-      name: emailToAuth.split('@')[0].toUpperCase(),
-      email: emailToAuth,
-      role: resolvedRole,
-      roleTitle: resolvedRole === 'ADMIN' ? 'Quản trị viên Gimasys' : resolvedRole === 'MENTOR' ? 'Mentor Gimasys' : 'Thực tập sinh Gimasys',
-      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300',
-      internId: resolvedRole === 'INTERN' ? 'INT-001' : undefined
-    };
-    onLogin(customUser);
   };
 
-  const handleRegisterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setRegError('');
-
-    if (!regName.trim() || !regEmail.trim()) {
-      setRegError('Vui lòng nhập đầy đủ Họ tên và Email.');
-      return;
-    }
-
-    if (regPassword && regPassword !== regConfirmPassword) {
-      setRegError('Mật khẩu xác nhận không trùng khớp.');
-      return;
-    }
-
-    const finalEmail = regEmail.includes('@') ? regEmail.trim() : `${regEmail.trim()}@gimasys.com`;
-
-    if (!isValidEmailDomain(finalEmail)) {
-      setRegError('Chỉ chấp nhận email thuộc tên miền @gimasys.com hoặc @edu.gimasys.com.');
-      return;
-    }
-
-    const resolvedRole = resolveRoleFromEmail(finalEmail, regRole);
-
-    // Online-first:
+  const handleGoogleCredential = async (credential: string) => {
+    setError('');
+    setIsBusy(true);
     try {
-      const created = await authApi.register({
-        full_name: regName.trim(),
-        email: finalEmail,
-        password: regPassword,
-        role: resolvedRole as ApiRegisterRole,
-      });
+      const res = await authApi.loginWithGoogle({ credential });
 
-      if (created.status === 'PENDING') {
-        setPendingEmail(finalEmail);
+      if (res.status === 'AUTHENTICATED' && res.tokens) {
+        onLogin(apiUserToAuthUser(res.tokens.user));
         return;
       }
-
-      // Đăng ký xong, đăng nhập ngay để có access/refresh token.
-      try {
-        const res = await authApi.login({ email: finalEmail, password: regPassword });
-        onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email || finalEmail }));
-      } catch {
-        onLogin(apiUserToAuthUser(created));
+      if (res.status === 'NEEDS_REGISTRATION' && res.profile && res.signup_ticket) {
+        setSignup({ profile: res.profile, ticket: res.signup_ticket });
+        return;
       }
-      return;
+      setError('Máy chủ trả về phản hồi không hợp lệ. Vui lòng thử lại.');
     } catch (err) {
-      if (err instanceof ApiError) {
-        setRegError(err.detail || 'Đăng ký thất bại. Vui lòng thử lại.');
+      // Mentor chưa được Admin duyệt -> đưa sang màn chờ duyệt.
+      if (isPendingApprovalError(err)) {
+        setPendingEmail(emailFromGoogleCredential(credential) || 'tài khoản của bạn');
         return;
       }
-      // Lỗi mạng / chưa có backend -> rơi xuống chế độ demo cục bộ bên dưới.
+      setError(
+        err instanceof ApiError
+          ? err.detail || 'Đăng nhập thất bại. Vui lòng thử lại.'
+          : 'Không kết nối được máy chủ. Kiểm tra kết nối mạng rồi thử lại.'
+      );
+    } finally {
+      setIsBusy(false);
     }
-
-    // Chế độ demo (mất mạng):
-    if (resolvedRole === 'MENTOR') {
-      setPendingEmail(finalEmail);
-      return;
-    }
-
-    const newId = `INT-${Math.floor(100 + Math.random() * 900)}`;
-
-    const newUser: AuthUser = {
-      id: `USR-${Date.now()}`,
-      name: regName.trim(),
-      email: finalEmail,
-      role: resolvedRole,
-      department: regDepartment,
-      roleTitle: resolvedRole === 'ADMIN' ? 'Quản trị viên Gimasys' : `Thực tập sinh ${regDepartment}`,
-      avatar: `https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?auto=format&fit=crop&q=80&w=300`,
-      internId: resolvedRole === 'INTERN' ? newId : undefined
-    };
-
-    let newInternRecord: Intern | undefined = undefined;
-
-    if (resolvedRole === 'INTERN') {
-      newInternRecord = {
-        id: newId,
-        name: regName.trim(),
-        email: newUser.email,
-        phone: '0988 123 456',
-        avatar: newUser.avatar,
-        department: regDepartment,
-        roleTitle: `Thực tập sinh ${regDepartment}`,
-        mentor: 'Trần Tuấn Anh (Senior Architect)',
-        mentorEmail: 'anh.tran@gimasys.com',
-        startDate: new Date().toISOString().split('T')[0],
-        endDate: '2025-06-30',
-        status: 'Active',
-        project: 'Chương trình Đào tạo Thực tập sinh & Onboarding Gimasys',
-        projectId: 'PRJ-00',
-        score: 8.5,
-        attendanceRate: 100,
-        githubUrl: `https://github.com/${regName.toLowerCase().replace(/\s+/g, '')}`,
-        university: 'Đại học Công nghệ',
-        major: 'Công nghệ Thông tin',
-        bio: 'Thực tập sinh mới gia nhập Gimasys. Đang theo học lộ trình đào tạo Onboarding.',
-        completedTasksCount: 1,
-        totalTasksCount: 10,
-        skills: [
-          { name: regDepartment, level: 75, category: 'Main Track' },
-          { name: 'Git Workflow & Code Review', level: 80, category: 'Tools' }
-        ]
-      };
-    }
-
-    onLogin(newUser, newInternRecord);
   };
-
-
-
-
 
   // Tài khoản Mentor chờ duyệt: không vào portal được, hiện màn giải thích.
   if (pendingEmail) {
@@ -272,9 +157,26 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         email={pendingEmail}
         onBackToLogin={() => {
           setPendingEmail(null);
-          setActiveMode('login');
-          setLoginEmail(pendingEmail);
-          setLoginError('');
+          setError('');
+        }}
+      />
+    );
+  }
+
+  // Google xác thực xong nhưng chưa có tài khoản: bắt điền hồ sơ trước khi tạo.
+  if (signup) {
+    return (
+      <GoogleSignupView
+        profile={signup.profile}
+        signupTicket={signup.ticket}
+        onRegistered={onLogin}
+        onPendingApproval={(email) => {
+          setSignup(null);
+          setPendingEmail(email);
+        }}
+        onCancel={() => {
+          setSignup(null);
+          setError('');
         }}
       />
     );
@@ -282,7 +184,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-100 flex flex-col justify-between selection:bg-blue-600 selection:text-white relative overflow-hidden">
-      
+
       {/* Background Decorative Elements */}
       <div className="absolute top-0 left-1/4 w-96 h-96 bg-blue-600/10 rounded-full blur-3xl pointer-events-none"></div>
       <div className="absolute bottom-0 right-1/4 w-96 h-96 bg-indigo-600/10 rounded-full blur-3xl pointer-events-none"></div>
@@ -312,259 +214,218 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         </div>
       </header>
 
-      {/* Main Form Center */}
+      {/* Main */}
       <main className="flex-1 max-w-4xl w-full mx-auto px-4 py-8 flex flex-col justify-center items-center z-10">
-        
+
         <div className="text-center max-w-xl mb-6 space-y-2">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-blue-900/40 border border-blue-700/50 text-blue-300 text-xs font-bold mb-1">
             <Sparkles className="w-3.5 h-3.5 text-amber-400" />
             <span>Portal Quản lý Thực tập sinh Gimasys v2.5</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            {activeMode === 'login' ? 'Đăng nhập Tài khoản Portal' : 'Đăng ký Tài khoản Mới'}
+            Đăng nhập Portal Gimasys
           </h1>
           <p className="text-xs sm:text-sm text-slate-400">
-            {activeMode === 'login' 
-              ? 'Nhập email và mật khẩu công ty để truy cập hệ thống công việc & báo cáo.' 
-              : 'Tạo tài khoản mới dành cho Thực tập sinh, Mentor hoặc Quản trị viên.'}
+            Hệ thống dùng tài khoản Google nội bộ. Đăng nhập lần đầu sẽ tự tạo tài khoản
+            cho bạn — không cần đặt mật khẩu riêng.
           </p>
         </div>
 
-        {/* Form Box */}
-        <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-xl w-full backdrop-blur-xl space-y-6">
-          
-              {/* Mode Switcher Tabs */}
-              <div className="flex items-center p-1 bg-slate-900/80 rounded-2xl border border-slate-700/60">
-                <button
-                  onClick={() => setActiveMode('login')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                    activeMode === 'login'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <LogIn className="w-4 h-4" />
-                  <span>Đăng nhập (Sign In)</span>
-                </button>
+        {/* Khung đăng nhập */}
+        <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-md w-full backdrop-blur-xl space-y-6">
 
-                <button
-                  onClick={() => setActiveMode('register')}
-                  className={`flex-1 py-2.5 rounded-xl text-xs font-bold transition-all cursor-pointer flex items-center justify-center gap-2 ${
-                    activeMode === 'register'
-                      ? 'bg-blue-600 text-white shadow-md'
-                      : 'text-slate-400 hover:text-slate-200'
-                  }`}
-                >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Đăng ký Tài khoản (Sign Up)</span>
-                </button>
-              </div>
-
-              {/* TAB 1: SIGN IN FORM */}
-              {activeMode === 'login' && (
-                <form onSubmit={handleLoginSubmit} className="space-y-4 text-xs">
-              <div>
-                <label className="font-bold text-slate-300 block mb-1">Email Công ty / Gimasys Account *</label>
-                <div className="relative">
-                  <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="email"
-                    required
-                    value={loginEmail}
-                    onChange={(e) => setLoginEmail(e.target.value)}
-                    placeholder="vd: an.nguyen@gimasys.com hoặc minhanh@edu.gimasys.com"
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="font-bold text-slate-300 block mb-1">Mật khẩu *</label>
-                <div className="relative">
-                  <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                  <input
-                    type="password"
-                    required
-                    value={loginPassword}
-                    onChange={(e) => setLoginPassword(e.target.value)}
-                    placeholder="••••••••"
-                    className="w-full pl-9 pr-4 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500 font-medium"
-                  />
-                </div>
-              </div>
-
-              {loginError && (
-                <p className="text-[11px] font-bold text-red-400 bg-red-950/40 border border-red-800/60 rounded-lg px-3 py-2">
-                  {loginError}
+          {/* Nút Google — cách duy nhất để vào hệ thống */}
+          <div className="space-y-3">
+            <div className="flex justify-center min-h-[44px] items-center">
+              {!IS_GOOGLE_CONFIGURED ? (
+                <p className="text-[11px] font-bold text-amber-300 bg-amber-950/30 border border-amber-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                  <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+                  <span>
+                    Bản build này thiếu <code className="font-mono">VITE_GOOGLE_CLIENT_ID</code> nên
+                    không hiện được nút đăng nhập Google. Vui lòng liên hệ bộ phận kỹ thuật để
+                    build lại với biến môi trường này.
+                  </span>
                 </p>
+              ) : isBusy ? (
+                <div className="flex items-center gap-2 text-xs font-bold text-slate-300">
+                  <Loader2 className="w-4 h-4 animate-spin text-blue-400" />
+                  <span>Đang xác thực với Google...</span>
+                </div>
+              ) : (
+                <GoogleLogin
+                  onSuccess={(credentialResponse) => {
+                    if (credentialResponse.credential) {
+                      void handleGoogleCredential(credentialResponse.credential);
+                    } else {
+                      setError('Google không trả về thông tin xác thực. Vui lòng thử lại.');
+                    }
+                  }}
+                  onError={() => {
+                    setError('Đăng nhập bằng tài khoản Google thất bại. Vui lòng thử lại.');
+                  }}
+                  theme="filled_blue"
+                  shape="pill"
+                  size="large"
+                  width="320"
+                  text="continue_with"
+                />
               )}
+            </div>
 
-              <div className="pt-2 flex flex-col sm:flex-row gap-3 items-stretch sm:items-center">
-                <button
-                  type="submit"
-                  className="flex-1 py-3 px-4 bg-blue-600 hover:bg-blue-500 text-white font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer h-[40px]"
-                >
-                  <span>Đăng nhập hệ thống</span>
-                  <ArrowRight className="w-4 h-4" />
-                </button>
+            {error && (
+              <p className="text-[11px] font-bold text-red-300 bg-red-950/40 border border-red-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+                <span>{error}</span>
+              </p>
+            )}
+          </div>
 
-                <div className="flex-1 flex justify-center sm:justify-start min-h-[40px] items-center">
-                  <GoogleLogin
-                    onSuccess={async (credentialResponse) => {
-                      if (credentialResponse.credential) {
-                        setLoginError('');
-                        try {
-                          const res = await authApi.loginWithGoogle({
-                            credential: credentialResponse.credential,
-                          });
-                          onLogin(apiUserToAuthUser({ ...res.user, email: res.user.email }));
-                        } catch (err) {
-                          if (err instanceof ApiError) {
-                            setLoginError(err.detail || 'Đăng nhập Google thất bại.');
-                          } else {
-                            setLoginError('Lỗi kết nối tới máy chủ.');
-                          }
-                        }
-                      }
-                    }}
-                    onError={() => {
-                      setLoginError('Đăng nhập bằng tài khoản Google thất bại.');
-                    }}
-                    theme="filled_black"
-                    shape="pill"
-                  />
+          {/* Tên miền được phép + vai trò tương ứng */}
+          <div className="border-t border-slate-700/60 pt-5 space-y-3">
+            <p className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <AtSign className="w-3.5 h-3.5 text-blue-400" />
+              <span>Email được phép truy cập</span>
+            </p>
+
+            <div className="space-y-2">
+              <div className="flex items-start gap-2.5 px-3 py-2.5 bg-slate-900/70 border border-slate-700 rounded-xl">
+                <GraduationCap className="w-4 h-4 text-emerald-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-200">@edu.gimasys.com</p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Thực tập sinh — dùng được portal ngay sau khi điền hồ sơ.
+                  </p>
                 </div>
               </div>
 
-              {/* Demo Accounts Quick Link bar */}
-              <div className="pt-4 border-t border-slate-700/60 space-y-2">
-                <span className="text-[11px] font-bold text-slate-400 block">
-                  Đăng nhập nhanh bằng tài khoản mẫu để dùng thử:
+              <div className="flex items-start gap-2.5 px-3 py-2.5 bg-slate-900/70 border border-slate-700 rounded-xl">
+                <Briefcase className="w-4 h-4 text-blue-400 shrink-0 mt-0.5" />
+                <div className="min-w-0">
+                  <p className="text-xs font-bold text-slate-200">@gimasys.com</p>
+                  <p className="text-[11px] text-slate-400 leading-relaxed">
+                    Mentor — tài khoản cần Quản trị viên duyệt trước khi vào được.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <p className="text-[11px] text-slate-500 leading-relaxed">
+              Gmail cá nhân hoặc email ngoài hai tên miền trên sẽ bị từ chối. Vai trò được
+              cấp theo tên miền email; sau khi vào portal bạn có thể gửi yêu cầu chuyển vai
+              trò trong mục <strong className="text-slate-400">Cài đặt</strong>.
+            </p>
+          </div>
+
+          {/* Đăng nhập Quản trị viên — đường vào bằng mật khẩu, không qua Google.
+              Cần thiết vì Mentor mới phải có Admin duyệt: nếu Admin cũng phải chờ
+              duyệt thì hệ thống kẹt vòng tròn ngay từ đầu. */}
+          <div className="border-t border-slate-700/60 pt-5">
+            {!isAdminOpen ? (
+              <button
+                type="button"
+                onClick={() => {
+                  setIsAdminOpen(true);
+                  setAdminError('');
+                }}
+                className="w-full flex items-center justify-between gap-3 px-3.5 py-3 rounded-xl bg-slate-900/70 hover:bg-slate-900 border border-slate-700 hover:border-amber-500/60 transition-colors cursor-pointer group"
+              >
+                <span className="flex items-center gap-2.5 min-w-0">
+                  <span className="w-8 h-8 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center shrink-0">
+                    <KeyRound className="w-4 h-4 text-amber-400" />
+                  </span>
+                  <span className="text-left min-w-0">
+                    <span className="block text-xs font-extrabold text-slate-200">
+                      Đăng nhập Quản trị viên
+                    </span>
+                    <span className="block text-[11px] text-slate-500 truncate">
+                      {DEFAULT_ADMIN_EMAIL} • dùng mật khẩu
+                    </span>
+                  </span>
                 </span>
-                <div className="flex flex-wrap gap-2">
-                  {DEMO_AUTH_USERS.map((usr) => (
-                    <button
-                      key={usr.id}
-                      type="button"
-                      onClick={() => onLogin(usr)}
-                      className="px-2.5 py-1.5 rounded-lg bg-slate-900/70 border border-slate-700 hover:border-blue-400 text-[11px] text-slate-300 hover:text-white transition-all flex items-center gap-1.5 cursor-pointer"
-                    >
-                      <span className="font-bold">{usr.name}</span>
-                      <span className="text-[9px] px-1.5 py-0.2 rounded bg-blue-500/20 text-blue-300 font-mono">
-                        {usr.role}
-                      </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </form>
-          )}
-
-          {/* TAB 2: SIGN UP / REGISTER FORM */}
-          {activeMode === 'register' && (
-            <form onSubmit={handleRegisterSubmit} className="space-y-4 text-xs">
-              
-              {regError && (
-                <div className="p-3 bg-red-500/20 border border-red-500/50 rounded-xl text-red-300 font-medium text-xs">
-                  {regError}
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-300 block mb-1">Họ và Tên *</label>
-                  <div className="relative">
-                    <User className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="text"
-                      required
-                      value={regName}
-                      onChange={(e) => setRegName(e.target.value)}
-                      placeholder="VD: Nguyễn Văn An"
-                      className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
+                <ChevronDown className="w-4 h-4 text-slate-500 group-hover:text-amber-400 shrink-0" />
+              </button>
+            ) : (
+              <form onSubmit={handleAdminSubmit} className="space-y-3">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-[11px] font-extrabold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+                    <KeyRound className="w-3.5 h-3.5 text-amber-400" />
+                    <span>Đăng nhập Quản trị viên</span>
+                  </p>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      setIsAdminOpen(false);
+                      setAdminPassword('');
+                      setAdminError('');
+                    }}
+                    className="p-1.5 rounded-lg text-slate-500 hover:text-slate-300 hover:bg-slate-700/60 cursor-pointer"
+                  >
+                    <X className="w-4 h-4" />
+                  </button>
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-300 block mb-1">Email Công ty / Sinh viên *</label>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    Tài khoản Quản trị viên
+                  </label>
                   <div className="relative">
                     <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="email"
-                      required
-                      value={regEmail}
-                      onChange={(e) => setRegEmail(e.target.value)}
-                      placeholder="vd: an.nguyen@gimasys.com"
-                      className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    />
-                  </div>
-                </div>
-              </div>
-
-              {/* Không có lựa chọn ADMIN: tài khoản Quản trị viên do hệ thống cấp,
-                  không ai tự đăng ký được (backend cũng chặn ở POST /auth/register). */}
-              <div>
-                <label className="font-bold text-slate-300 block mb-1">Vai trò đăng ký *</label>
-                <select
-                  value={regRole}
-                  onChange={(e) => setRegRole(e.target.value as ApiRegisterRole)}
-                  className="w-full px-3 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-white font-bold focus:outline-none focus:ring-2 focus:ring-blue-500 cursor-pointer"
-                >
-                  <option value="INTERN">🎓 Thực tập sinh (INTERN)</option>
-                  <option value="MENTOR">👨‍🏫 Mentor Hướng dẫn (MENTOR)</option>
-                </select>
-                <p className="text-[11px] text-slate-400 mt-1.5 leading-relaxed">
-                  {regRole === 'INTERN'
-                    ? 'Đăng ký xong bạn vào portal được ngay.'
-                    : 'Tài khoản Mentor cần Quản trị viên duyệt trước khi đăng nhập được.'}
-                </p>
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                <div>
-                  <label className="font-bold text-slate-300 block mb-1">Mật khẩu *</label>
-                  <div className="relative">
-                    <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
-                    <input
-                      type="password"
-                      required
-                      value={regPassword}
-                      onChange={(e) => setRegPassword(e.target.value)}
-                      placeholder="••••••••"
-                      className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      value={adminEmail}
+                      onChange={(e) => setAdminEmail(e.target.value)}
+                      autoComplete="username"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white text-xs font-medium focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
                 </div>
 
                 <div>
-                  <label className="font-bold text-slate-300 block mb-1">Xác nhận mật khẩu *</label>
+                  <label className="text-[11px] font-bold text-slate-400 block mb-1">
+                    Mật khẩu *
+                  </label>
                   <div className="relative">
                     <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
                     <input
                       type="password"
                       required
-                      value={regConfirmPassword}
-                      onChange={(e) => setRegConfirmPassword(e.target.value)}
+                      autoFocus
+                      value={adminPassword}
+                      onChange={(e) => setAdminPassword(e.target.value)}
+                      autoComplete="current-password"
                       placeholder="••••••••"
-                      className="w-full pl-9 pr-4 py-2 bg-slate-900/80 border border-slate-700 rounded-xl text-white focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      className="w-full pl-9 pr-3 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white text-xs font-medium placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-amber-500"
                     />
                   </div>
                 </div>
-              </div>
 
-              <div className="pt-2">
+                {adminError && (
+                  <p className="text-[11px] font-bold text-red-300 bg-red-950/40 border border-red-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
+                    <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+                    <span>{adminError}</span>
+                  </p>
+                )}
+
                 <button
                   type="submit"
-                  className="w-full py-3 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold rounded-xl transition-all shadow-md flex items-center justify-center gap-2 cursor-pointer text-sm"
+                  disabled={isAdminBusy}
+                  className="w-full py-2.5 rounded-xl bg-amber-600 hover:bg-amber-500 disabled:opacity-60 text-white font-extrabold text-xs flex items-center justify-center gap-2 transition-colors cursor-pointer"
                 >
-                  <UserPlus className="w-4 h-4" />
-                  <span>Đăng ký & Bắt đầu Trải nghiệm Portal</span>
+                  {isAdminBusy ? (
+                    <Loader2 className="w-4 h-4 animate-spin" />
+                  ) : (
+                    <ShieldCheck className="w-4 h-4" />
+                  )}
+                  <span>{isAdminBusy ? 'Đang đăng nhập...' : 'Đăng nhập'}</span>
                 </button>
-              </div>
 
-            </form>
-          )}
+                <p className="text-[11px] text-slate-500 leading-relaxed">
+                  Chỉ tài khoản Quản trị viên dùng được ô này. Thực tập sinh và Mentor
+                  phải đăng nhập bằng Google.
+                </p>
+              </form>
+            )}
+          </div>
 
           {/* Footnote */}
           <div className="pt-4 border-t border-slate-700/80 flex items-center justify-between text-[11px] text-slate-400">
@@ -576,6 +437,11 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
           </div>
 
         </div>
+
+        <p className="text-center text-[11px] text-slate-500 flex items-center justify-center gap-1.5 mt-5">
+          <Building2 className="w-3.5 h-3.5" />
+          <span>Không đăng nhập được? Liên hệ bộ phận Đào tạo của Gimasys.</span>
+        </p>
 
       </main>
 

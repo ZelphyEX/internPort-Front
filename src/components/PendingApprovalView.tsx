@@ -60,7 +60,7 @@ export const PendingApprovalView: React.FC<PendingApprovalViewProps> = ({
             </p>
             <ol className="text-[11px] text-slate-400 space-y-1.5 list-decimal list-inside leading-relaxed">
               <li>Quản trị viên thấy yêu cầu của bạn ở tab <strong className="text-slate-300">Mentor</strong>.</li>
-              <li>Sau khi được duyệt, bạn đăng nhập lại bằng chính email và mật khẩu vừa tạo.</li>
+              <li>Sau khi được duyệt, bạn bấm <strong className="text-slate-300">Đăng nhập bằng Google</strong> lại với chính email này.</li>
               <li>Khi đó bạn có đầy đủ quyền của Mentor: quản lý thực tập sinh, lộ trình, dự án.</li>
             </ol>
           </div>
