@@ -65,6 +65,7 @@ jobs:
           [ -z "${{ vars.WIF_SERVICE_ACCOUNT }}" ] && missing+=("vars.WIF_SERVICE_ACCOUNT")
           [ -z "${{ secrets.WIF_PROVIDER }}" ] && missing+=("secrets.WIF_PROVIDER")
           [ -z "$API_BASE" ] && missing+=("vars.VITE_API_BASE_URL")
+          [ -z "${{ vars.VITE_GOOGLE_CLIENT_ID }}" ] && missing+=("vars.VITE_GOOGLE_CLIENT_ID")
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "::error::Missing required GitHub secrets/variables: ${missing[*]}. Set them in Settings > Secrets and variables > Actions. NOTE: VITE_API_BASE_URL must be in the *Variables* tab (it is read via vars.*, not secrets.*)."
             exit 1
@@ -102,6 +103,7 @@ jobs:
         run: |
           docker build \
             --build-arg VITE_API_BASE_URL="${{ vars.VITE_API_BASE_URL }}" \
+            --build-arg VITE_GOOGLE_CLIENT_ID="${{ vars.VITE_GOOGLE_CLIENT_ID }}" \
             -t "$IMAGE:${{ github.sha }}" \
             -t "$IMAGE:latest" \
             .

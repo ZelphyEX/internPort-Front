@@ -16,6 +16,9 @@ RUN npm ci
 ARG VITE_API_BASE_URL
 ENV VITE_API_BASE_URL=$VITE_API_BASE_URL
 
+ARG VITE_GOOGLE_CLIENT_ID
+ENV VITE_GOOGLE_CLIENT_ID=$VITE_GOOGLE_CLIENT_ID
+
 # Chặn build "im lặng lỗi": thiếu build-arg thì api.ts rơi về fallback same-origin
 # "/api/v1", tức client gọi vào chính server này và nhận index.html thay vì JSON.
 RUN test -n "$VITE_API_BASE_URL" || { \
