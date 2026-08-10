@@ -22,21 +22,29 @@ import {
 } from 'lucide-react';
 import { AuthUser } from '../types';
 
-// Import CCAO-F (Associate Foundations)
-import cfe1 from '../data/CF.tests/ccaf-foundation/exam_cfe1.json';
-import cfe2 from '../data/CF.tests/ccaf-foundation/exam_cfe2.json';
-import cfe3 from '../data/CF.tests/ccaf-foundation/exam_cfe3.json';
-import cfe4 from '../data/CF.tests/ccaf-foundation/exam_cfe4.json';
-import cfe5 from '../data/CF.tests/ccaf-foundation/exam_cfe5.json';
-import cfe6 from '../data/CF.tests/ccaf-foundation/exam_cfe6.json';
+// Import Claude Developer (dev)
+import dev1 from '../data/CF.tests/exams/exam_dev_1.json';
+import dev2 from '../data/CF.tests/exams/exam_dev_2.json';
+import dev3 from '../data/CF.tests/exams/exam_dev_3.json';
+import dev4 from '../data/CF.tests/exams/exam_dev_4.json';
+import dev5 from '../data/CF.tests/exams/exam_dev_5.json';
+import dev6 from '../data/CF.tests/exams/exam_dev_6.json';
 
-// Import CCAP-P (Architect Professional)
-import cpe1 from '../data/CF.tests/ccap-professiona/exam_cpe1.json';
-import cpe2 from '../data/CF.tests/ccap-professiona/exam_cpe2.json';
-import cpe3 from '../data/CF.tests/ccap-professiona/exam_cpe3.json';
-import cpe4 from '../data/CF.tests/ccap-professiona/exam_cpe4.json';
-import cpe5 from '../data/CF.tests/ccap-professiona/exam_cpe5.json';
-import cpe6 from '../data/CF.tests/ccap-professiona/exam_cpe6.json';
+// Import Claude Foundation (foundation)
+import fd1 from '../data/CF.tests/exams/exam_foundation_1.json';
+import fd2 from '../data/CF.tests/exams/exam_foundation_2.json';
+import fd3 from '../data/CF.tests/exams/exam_foundation_3.json';
+import fd4 from '../data/CF.tests/exams/exam_foundation_4.json';
+import fd5 from '../data/CF.tests/exams/exam_foundation_5.json';
+import fd6 from '../data/CF.tests/exams/exam_foundation_6.json';
+
+// Import Claude Architect Professional (pro)
+import pro1 from '../data/CF.tests/exams/exam_pro_1.json';
+import pro2 from '../data/CF.tests/exams/exam_pro_2.json';
+import pro3 from '../data/CF.tests/exams/exam_pro_3.json';
+import pro4 from '../data/CF.tests/exams/exam_pro_4.json';
+import pro5 from '../data/CF.tests/exams/exam_pro_5.json';
+import pro6 from '../data/CF.tests/exams/exam_pro_6.json';
 
 interface Choice {
   key: string;
@@ -73,103 +81,154 @@ interface SavedSession {
 }
 
 const EXAMS_DATA: Exam[] = [
-  // CCAO-F
+  // Claude Developer
   {
-    id: 'ccao-f-1',
-    title: 'Claude Certified Associate - Practice Exam 1',
-    code: 'CCAO-F',
-    description: 'Bộ câu hỏi thi thử số 1 hỗ trợ ôn luyện chứng chỉ CCAO-F (Claude Certified Associate - Foundations). Tập trung vào cấu trúc hệ thống, SDK, thiết kế Prompt và các đặc điểm mô hình.',
+    id: 'claude-dev-1',
+    title: 'Claude Developer — Practice Exam 1',
+    code: 'Claude Developer',
+    description: 'Bộ câu hỏi thi thử số 1 ôn luyện chứng chỉ Claude Developer. Đánh giá kỹ năng lập trình với Claude API, sử dụng SDK, tối ưu hóa prompt trong code và xây dựng ứng dụng.',
     duration: 120,
-    questions: cfe1.questions as Question[]
+    questions: dev1.questions as Question[]
   },
   {
-    id: 'ccao-f-2',
-    title: 'Claude Certified Associate - Practice Exam 2',
-    code: 'CCAO-F',
-    description: 'Bộ câu hỏi thi thử số 2 hỗ trợ ôn luyện chứng chỉ CCAO-F (Claude Certified Associate - Foundations). Đánh giá các quy tắc prompt, multi-agent orchestration, và định dạng JSON.',
+    id: 'claude-dev-2',
+    title: 'Claude Developer — Practice Exam 2',
+    code: 'Claude Developer',
+    description: 'Bộ câu hỏi thi thử số 2 ôn luyện chứng chỉ Claude Developer. Tập trung vào các kỹ thuật gọi tool (Tool Calling), quản lý lỗi API và xử lý bất đồng bộ.',
     duration: 120,
-    questions: cfe2.questions as Question[]
+    questions: dev2.questions as Question[]
   },
   {
-    id: 'ccao-f-3',
-    title: 'Claude Certified Associate - Practice Exam 3',
-    code: 'CCAO-F',
-    description: 'Bộ câu hỏi thi thử số 3 hỗ trợ ôn luyện chứng chỉ CCAO-F (Claude Certified Associate - Foundations). Tập trung sâu vào cơ chế Tokenizer, Context Window, and tool calling configurations.',
+    id: 'claude-dev-3',
+    title: 'Claude Developer — Practice Exam 3',
+    code: 'Claude Developer',
+    description: 'Bộ câu hỏi thi thử số 3 ôn luyện chứng chỉ Claude Developer. Đánh giá thiết kế giải pháp AI, tối ưu hóa Token, xử lý context window dài và kiểm soát chi phí.',
     duration: 120,
-    questions: cfe3.questions as Question[]
+    questions: dev3.questions as Question[]
   },
   {
-    id: 'ccao-f-4',
-    title: 'Claude Certified Associate - Practice Exam 4',
-    code: 'CCAO-F',
-    description: 'Bộ câu hỏi thi thử số 4 hỗ trợ ôn luyện chứng chỉ CCAO-F (Claude Certified Associate - Foundations). Gồm các tình huống thực tế về Model Context Protocol (MCP) và bảo mật doanh nghiệp.',
+    id: 'claude-dev-4',
+    title: 'Claude Developer — Practice Exam 4',
+    code: 'Claude Developer',
+    description: 'Bộ câu hỏi thi thử số 4 ôn luyện chứng chỉ Claude Developer. Bao gồm thiết lập và tích hợp Model Context Protocol (MCP) và các chuẩn bảo mật truyền nhận dữ liệu.',
     duration: 120,
-    questions: cfe4.questions as Question[]
+    questions: dev4.questions as Question[]
   },
   {
-    id: 'ccao-f-5',
-    title: 'Claude Certified Associate - Practice Exam 5',
-    code: 'CCAO-F',
-    description: 'Bộ câu hỏi thi thử số 5 hỗ trợ ôn luyện chứng chỉ CCAO-F (Claude Certified Associate - Foundations). Trắc nghiệm mô phỏng chi tiết các case study thiết kế Prompt và định dạng API.',
+    id: 'claude-dev-5',
+    title: 'Claude Developer — Practice Exam 5',
+    code: 'Claude Developer',
+    description: 'Bộ câu hỏi thi thử số 5 ôn luyện chứng chỉ Claude Developer. Kiểm tra các tình huống thực tế về orchestration, chaining và kết hợp nhiều LLM.',
     duration: 120,
-    questions: cfe5.questions as Question[]
+    questions: dev5.questions as Question[]
   },
   {
-    id: 'ccao-f-6',
-    title: 'Claude Certified Associate - Practice Exam 6',
-    code: 'CCAO-F',
-    description: 'Bộ câu hỏi thi thử số 6 hỗ trợ ôn luyện chứng chỉ CCAO-F (Claude Certified Associate - Foundations). Kiểm tra kiến thức tổng hợp, so sánh mô hình Opus, Sonnet và Haiku.',
+    id: 'claude-dev-6',
+    title: 'Claude Developer — Practice Exam 6',
+    code: 'Claude Developer',
+    description: 'Bộ câu hỏi thi thử số 6 ôn luyện chứng chỉ Claude Developer. Tổng hợp nâng cao, sẵn sàng cho kỳ thi chính thức của Anthropic dành cho nhà phát triển.',
     duration: 120,
-    questions: cfe6.questions as Question[]
+    questions: dev6.questions as Question[]
   },
-  // CCAP-P
+
+  // Claude Foundation
   {
-    id: 'ccap-p-1',
-    title: 'Claude Certified Architect - Practice Exam 1',
-    code: 'CCAP-P',
+    id: 'claude-foundation-1',
+    title: 'Claude Foundation — Practice Exam 1',
+    code: 'Claude Foundation',
+    description: 'Bộ câu hỏi thi thử số 1 chứng chỉ Claude Certified Associate - Foundations. Tập trung vào cấu trúc hệ thống, SDK cơ bản, thiết kế Prompt và các đặc điểm mô hình.',
+    duration: 120,
+    questions: fd1.questions as Question[]
+  },
+  {
+    id: 'claude-foundation-2',
+    title: 'Claude Foundation — Practice Exam 2',
+    code: 'Claude Foundation',
+    description: 'Bộ câu hỏi thi thử số 2 chứng chỉ Claude Certified Associate - Foundations. Đánh giá các quy tắc prompt cơ bản, cấu trúc context window, và định dạng JSON.',
+    duration: 120,
+    questions: fd2.questions as Question[]
+  },
+  {
+    id: 'claude-foundation-3',
+    title: 'Claude Foundation — Practice Exam 3',
+    code: 'Claude Foundation',
+    description: 'Bộ câu hỏi thi thử số 3 chứng chỉ Claude Certified Associate - Foundations. Tập trung sâu vào cơ chế Tokenizer, Prompt Engineering, và cấu hình cuộc hội thoại.',
+    duration: 120,
+    questions: fd3.questions as Question[]
+  },
+  {
+    id: 'claude-foundation-4',
+    title: 'Claude Foundation — Practice Exam 4',
+    code: 'Claude Foundation',
+    description: 'Bộ câu hỏi thi thử số 4 chứng chỉ Claude Certified Associate - Foundations. Gồm các câu hỏi thực tế về Model Context Protocol (MCP) và bảo mật cơ bản cho doanh nghiệp.',
+    duration: 120,
+    questions: fd4.questions as Question[]
+  },
+  {
+    id: 'claude-foundation-5',
+    title: 'Claude Foundation — Practice Exam 5',
+    code: 'Claude Foundation',
+    description: 'Bộ câu hỏi thi thử số 5 chứng chỉ Claude Certified Associate - Foundations. Trắc nghiệm mô phỏng chi tiết các case study thiết kế Prompt và định dạng API.',
+    duration: 120,
+    questions: fd5.questions as Question[]
+  },
+  {
+    id: 'claude-foundation-6',
+    title: 'Claude Foundation — Practice Exam 6',
+    code: 'Claude Foundation',
+    description: 'Bộ câu hỏi thi thử số 6 chứng chỉ Claude Certified Associate - Foundations. Kiểm tra kiến thức tổng hợp, so sánh mô hình Opus, Sonnet và Haiku.',
+    duration: 120,
+    questions: fd6.questions as Question[]
+  },
+
+  // Claude Certified Architect - Professional
+  {
+    id: 'claude-pro-1',
+    title: 'Claude Certified Architect – Professional — Practice Exam 1',
+    code: 'Claude Professional',
     description: 'Bộ câu hỏi ôn luyện chứng chỉ chuyên gia CCAP-P (Claude Certified Architect - Professional). Gồm các bài toán thiết kế kiến trúc AI cấp doanh nghiệp nâng cao, bảo mật dữ liệu, và tích hợp quy mô lớn.',
     duration: 120,
-    questions: cpe1.questions as Question[]
+    questions: pro1.questions as Question[]
   },
   {
-    id: 'ccap-p-2',
-    title: 'Claude Certified Architect - Practice Exam 2',
-    code: 'CCAP-P',
+    id: 'claude-pro-2',
+    title: 'Claude Certified Architect – Professional — Practice Exam 2',
+    code: 'Claude Professional',
     description: 'Bộ câu hỏi thi thử số 2 cho chứng chỉ CCAP-P. Đánh giá khả năng tối ưu hóa chi phí API, thiết lập caching thông minh, và xử lý Rate Limit trên quy mô lớn.',
     duration: 120,
-    questions: cpe2.questions as Question[]
+    questions: pro2.questions as Question[]
   },
   {
-    id: 'ccap-p-3',
-    title: 'Claude Certified Architect - Practice Exam 3',
-    code: 'CCAP-P',
-    description: 'Bộ câu hỏi thi thử số 3 cho chứng chỉ CCAP-P. Tập trung vào an toàn AI, hạn chế tấn công prompt injection, và giám sát tính nhất quan của hệ thống.',
+    id: 'claude-pro-3',
+    title: 'Claude Certified Architect – Professional — Practice Exam 3',
+    code: 'Claude Professional',
+    description: 'Bộ câu hỏi thi thử số 3 cho chứng chỉ CCAP-P. Tập trung vào an toàn AI, hạn chế tấn công prompt injection, và giám sát tính nhất quán của hệ thống.',
     duration: 120,
-    questions: cpe3.questions as Question[]
+    questions: pro3.questions as Question[]
   },
   {
-    id: 'ccap-p-4',
-    title: 'Claude Certified Architect - Practice Exam 4',
-    code: 'CCAP-P',
+    id: 'claude-pro-4',
+    title: 'Claude Certified Architect – Professional — Practice Exam 4',
+    code: 'Claude Professional',
     description: 'Bộ câu hỏi thi thử số 4 cho chứng chỉ CCAP-P. Chứa các câu hỏi tình huống thực tiễn thiết kế hệ thống multi-agent phức tạp và luồng kiểm soát chất lượng.',
     duration: 120,
-    questions: cpe4.questions as Question[]
+    questions: pro4.questions as Question[]
   },
   {
-    id: 'ccap-p-5',
-    title: 'Claude Certified Architect - Practice Exam 5',
-    code: 'CCAP-P',
+    id: 'claude-pro-5',
+    title: 'Claude Certified Architect – Professional — Practice Exam 5',
+    code: 'Claude Professional',
     description: 'Bộ câu hỏi thi thử số 5 cho chứng chỉ CCAP-P. Ôn tập kỹ thuật Fine-tuning, RAG kết hợp, và sử dụng công nghệ thị giác máy tính trong sản xuất.',
     duration: 120,
-    questions: cpe5.questions as Question[]
+    questions: pro5.questions as Question[]
   },
   {
-    id: 'ccap-p-6',
-    title: 'Claude Certified Architect - Practice Exam 6',
-    code: 'CCAP-P',
+    id: 'claude-pro-6',
+    title: 'Claude Certified Architect – Professional — Practice Exam 6',
+    code: 'Claude Professional',
     description: 'Bộ câu hỏi thi thử số 6 cho chứng chỉ CCAP-P. Kiến thức tổng quát cuối cùng, đảm bảo sự sẵn sàng tốt nhất cho kỳ thi chính thức của Anthropic.',
     duration: 120,
-    questions: cpe6.questions as Question[]
+    questions: pro6.questions as Question[]
   }
 ];
 
@@ -428,14 +487,14 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
         </div>
 
         {/* Exams List Grid */}
-        <div className="space-y-6">
-          {/* CCAO-F Section */}
+        <div className="space-y-8">
+          {/* Claude Foundation Section */}
           <div className="space-y-3">
             <h2 className="text-base font-black text-slate-800 dark:text-slate-200 border-l-4 border-blue-600 pl-3 uppercase tracking-wider">
-              Claude Certified Associate – Foundations (CCAO-F)
+              Claude Certified Associate – Foundations (Claude Foundation)
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {EXAMS_DATA.filter(e => e.code === 'CCAO-F').map((exam) => {
+              {EXAMS_DATA.filter(e => e.code === 'Claude Foundation').map((exam) => {
                 const bestScore = bestScores[exam.id];
                 const isPassed = bestScore >= 720;
                 const savedSession = savedSessions[exam.id];
@@ -537,13 +596,121 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             </div>
           </div>
 
-          {/* CCAP-P Section */}
+          {/* Claude Developer Section */}
           <div className="space-y-3 pt-4">
-            <h2 className="text-base font-black text-slate-800 dark:text-slate-200 border-l-4 border-indigo-600 pl-3 uppercase tracking-wider">
-              Claude Certified Architect – Professional (CCAP-P)
+            <h2 className="text-base font-black text-slate-800 dark:text-slate-200 border-l-4 border-emerald-600 pl-3 uppercase tracking-wider">
+              Claude Certified Associate – Developer (Claude Developer)
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {EXAMS_DATA.filter(e => e.code === 'CCAP-P').map((exam) => {
+              {EXAMS_DATA.filter(e => e.code === 'Claude Developer').map((exam) => {
+                const bestScore = bestScores[exam.id];
+                const isPassed = bestScore >= 720;
+                const savedSession = savedSessions[exam.id];
+
+                return (
+                  <div 
+                    key={exam.id} 
+                    className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 flex flex-col justify-between shadow-xs transition-all hover:shadow-md hover:border-emerald-500/30"
+                  >
+                    <div className="space-y-3">
+                      <div className="flex items-start justify-between gap-3">
+                        <span className="text-[9px] font-mono px-2 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/40 text-emerald-600 dark:text-emerald-300 font-bold border border-emerald-100 dark:border-emerald-900/30">
+                          {exam.code}
+                        </span>
+                        <BookOpen className="w-4 h-4 text-emerald-500" />
+                      </div>
+                      <h3 className="font-extrabold text-sm text-slate-900 dark:text-slate-100 pt-1 leading-snug">
+                        {exam.title}
+                      </h3>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed line-clamp-3">
+                        {exam.description}
+                      </p>
+
+                      <div className="flex items-center gap-3 text-[10px] font-semibold text-slate-400 dark:text-slate-500 pt-1">
+                        <div className="flex items-center gap-1">
+                          <Clock className="w-3.5 h-3.5" />
+                          <span>{exam.duration}m</span>
+                        </div>
+                        <div className="flex items-center gap-1">
+                          <HelpCircle className="w-3.5 h-3.5" />
+                          <span>{exam.questions.length} câu</span>
+                        </div>
+                      </div>
+
+                      {/* Saved session tag */}
+                      {savedSession && (
+                        <div className="bg-amber-50 dark:bg-amber-950/20 text-amber-700 dark:text-amber-300 text-[10px] px-3 py-1.5 rounded-xl border border-amber-100 dark:border-amber-800/30 flex items-center gap-1.5 font-bold">
+                          <Info className="w-3.5 h-3.5 shrink-0 text-amber-600 dark:text-amber-400" />
+                          <span className="truncate">
+                            Lưu dở: Câu {savedSession.currentQuestionIndex + 1}/{exam.questions.length} ({savedSession.mode === 'exam' ? `còn ${formatTime(savedSession.timeLeft)}` : 'luyện tập'})
+                          </span>
+                        </div>
+                      )}
+                    </div>
+
+                    <div className="border-t border-slate-100 dark:border-slate-700/60 mt-4 pt-3.5 flex items-center justify-between gap-4">
+                      <div>
+                        {bestScore !== undefined ? (
+                          <div className="space-y-0.5">
+                            <span className="text-[9px] text-slate-400 dark:text-slate-500 block font-bold">Best Exam Score</span>
+                            <div className="flex items-center gap-1.5">
+                              <span className={`font-black text-xs ${isPassed ? 'text-emerald-600 dark:text-emerald-450 font-black' : 'text-amber-500'}`}>
+                                {bestScore}
+                              </span>
+                              <span className={`text-[8px] px-1 py-0.2 rounded font-bold ${isPassed ? 'bg-green-100 dark:bg-green-900/30 text-green-700 dark:text-green-300' : 'bg-amber-100 dark:bg-amber-900/30 text-amber-700 dark:text-amber-300'}`}>
+                                {isPassed ? 'PASS' : 'FAIL'}
+                              </span>
+                            </div>
+                          </div>
+                        ) : (
+                          <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">Chưa thi</span>
+                        )}
+                      </div>
+
+                      {savedSession ? (
+                        <div className="flex gap-1.5">
+                          <button 
+                            onClick={() => handleResumeExam(exam, savedSession)}
+                            className="px-2.5 py-1.5 bg-green-600 hover:bg-green-500 text-white font-extrabold text-[10px] rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
+                            title="Tiếp tục làm bài từ tiến độ cũ"
+                          >
+                            <span>Làm tiếp</span>
+                            <ChevronRight className="w-3.5 h-3.5" />
+                          </button>
+                          <button 
+                            onClick={() => {
+                              if (window.confirm('Tiến độ làm bài cũ của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?')) {
+                                handleStartExam(exam);
+                              }
+                            }}
+                            className="px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-[10px] rounded-xl transition-all cursor-pointer"
+                          >
+                            Thi lại
+                          </button>
+                        </div>
+                      ) : (
+                        <button 
+                          onClick={() => handleStartExam(exam)}
+                          className="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white font-extrabold text-xs rounded-xl shadow-xs transition-all flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <span>{bestScore !== undefined ? 'Thi lại' : 'Làm đề'}</span>
+                          <ChevronRight className="w-3 h-3" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Claude Certified Architect - Professional Section */}
+          <div className="space-y-3 pt-4">
+            <h2 className="text-base font-black text-slate-800 dark:text-slate-200 border-l-4 border-indigo-600 pl-3 uppercase tracking-wider">
+              Claude Certified Architect – Professional (Claude Professional)
+            </h2>
+            <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {EXAMS_DATA.filter(e => e.code === 'Claude Professional').map((exam) => {
                 const bestScore = bestScores[exam.id];
                 const isPassed = bestScore >= 720;
                 const savedSession = savedSessions[exam.id];

@@ -1,0 +1,202 @@
+{
+  "exams": [
+    {
+      "file": "exam_dev_1.json",
+      "title": "Claude Developer — Practice Exam 1",
+      "track": "dev",
+      "trackLabel": "Claude Developer",
+      "examCode": "D1",
+      "questionCount": 53,
+      "singleCount": 45,
+      "multiSelectCount": 8,
+      "inferredCount": 2
+    },
+    {
+      "file": "exam_dev_2.json",
+      "title": "Claude Developer — Practice Exam 2",
+      "track": "dev",
+      "trackLabel": "Claude Developer",
+      "examCode": "D2",
+      "questionCount": 53,
+      "singleCount": 45,
+      "multiSelectCount": 8,
+      "inferredCount": 2
+    },
+    {
+      "file": "exam_dev_3.json",
+      "title": "Claude Developer — Practice Exam 3",
+      "track": "dev",
+      "trackLabel": "Claude Developer",
+      "examCode": "D3",
+      "questionCount": 53,
+      "singleCount": 45,
+      "multiSelectCount": 8,
+      "inferredCount": 2
+    },
+    {
+      "file": "exam_dev_4.json",
+      "title": "Claude Developer — Practice Exam 4",
+      "track": "dev",
+      "trackLabel": "Claude Developer",
+      "examCode": "D4",
+      "questionCount": 53,
+      "singleCount": 45,
+      "multiSelectCount": 8,
+      "inferredCount": 4
+    },
+    {
+      "file": "exam_dev_5.json",
+      "title": "Claude Developer — Practice Exam 5",
+      "track": "dev",
+      "trackLabel": "Claude Developer",
+      "examCode": "D5",
+      "questionCount": 53,
+      "singleCount": 45,
+      "multiSelectCount": 8,
+      "inferredCount": 2
+    },
+    {
+      "file": "exam_dev_6.json",
+      "title": "Claude Developer — Practice Exam 6",
+      "track": "dev",
+      "trackLabel": "Claude Developer",
+      "examCode": "D6",
+      "questionCount": 53,
+      "singleCount": 45,
+      "multiSelectCount": 8,
+      "inferredCount": 1
+    },
+    {
+      "file": "exam_foundation_1.json",
+      "title": "Claude Foundation — Practice Exam 1",
+      "track": "foundation",
+      "trackLabel": "Claude Foundation",
+      "examCode": "F1",
+      "questionCount": 60,
+      "singleCount": 60,
+      "multiSelectCount": 0,
+      "inferredCount": 2
+    },
+    {
+      "file": "exam_foundation_2.json",
+      "title": "Claude Foundation — Practice Exam 2",
+      "track": "foundation",
+      "trackLabel": "Claude Foundation",
+      "examCode": "F2",
+      "questionCount": 60,
+      "singleCount": 60,
+      "multiSelectCount": 0,
+      "inferredCount": 3
+    },
+    {
+      "file": "exam_foundation_3.json",
+      "title": "Claude Foundation — Practice Exam 3",
+      "track": "foundation",
+      "trackLabel": "Claude Foundation",
+      "examCode": "F3",
+      "questionCount": 60,
+      "singleCount": 60,
+      "multiSelectCount": 0,
+      "inferredCount": 1
+    },
+    {
+      "file": "exam_foundation_4.json",
+      "title": "Claude Foundation — Practice Exam 4",
+      "track": "foundation",
+      "trackLabel": "Claude Foundation",
+      "examCode": "F4",
+      "questionCount": 60,
+      "singleCount": 60,
+      "multiSelectCount": 0,
+      "inferredCount": 1
+    },
+    {
+      "file": "exam_foundation_5.json",
+      "title": "Claude Foundation — Practice Exam 5",
+      "track": "foundation",
+      "trackLabel": "Claude Foundation",
+      "examCode": "F5",
+      "questionCount": 60,
+      "singleCount": 60,
+      "multiSelectCount": 0,
+      "inferredCount": 3
+    },
+    {
+      "file": "exam_foundation_6.json",
+      "title": "Claude Foundation — Practice Exam 6",
+      "track": "foundation",
+      "trackLabel": "Claude Foundation",
+      "examCode": "F6",
+      "questionCount": 60,
+      "singleCount": 60,
+      "multiSelectCount": 0,
+      "inferredCount": 1
+    },
+    {
+      "file": "exam_pro_1.json",
+      "title": "Claude Certified Architect – Professional — Practice Exam 1",
+      "track": "pro",
+      "trackLabel": "Claude Certified Architect – Professional",
+      "examCode": "P1",
+      "questionCount": 63,
+      "singleCount": 29,
+      "multiSelectCount": 34,
+      "inferredCount": 3
+    },
+    {
+      "file": "exam_pro_2.json",
+      "title": "Claude Certified Architect – Professional — Practice Exam 2",
+      "track": "pro",
+      "trackLabel": "Claude Certified Architect – Professional",
+      "examCode": "P2",
+      "questionCount": 63,
+      "singleCount": 37,
+      "multiSelectCount": 26,
+      "inferredCount": 1
+    },
+    {
+      "file": "exam_pro_3.json",
+      "title": "Claude Certified Architect – Professional — Practice Exam 3",
+      "track": "pro",
+      "trackLabel": "Claude Certified Architect – Professional",
+      "examCode": "P3",
+      "questionCount": 63,
+      "singleCount": 28,
+      "multiSelectCount": 35,
+      "inferredCount": 2
+    },
+    {
+      "file": "exam_pro_4.json",
+      "title": "Claude Certified Architect – Professional — Practice Exam 4",
+      "track": "pro",
+      "trackLabel": "Claude Certified Architect – Professional",
+      "examCode": "P4",
+      "questionCount": 63,
+      "singleCount": 33,
+      "multiSelectCount": 30,
+      "inferredCount": 3
+    },
+    {
+      "file": "exam_pro_5.json",
+      "title": "Claude Certified Architect – Professional — Practice Exam 5",
+      "track": "pro",
+      "trackLabel": "Claude Certified Architect – Professional",
+      "examCode": "P5",
+      "questionCount": 63,
+      "singleCount": 28,
+      "multiSelectCount": 35,
+      "inferredCount": 3
+    },
+    {
+      "file": "exam_pro_6.json",
+      "title": "Claude Certified Architect – Professional — Practice Exam 6",
+      "track": "pro",
+      "trackLabel": "Claude Certified Architect – Professional",
+      "examCode": "P6",
+      "questionCount": 63,
+      "singleCount": 34,
+      "multiSelectCount": 29,
+      "inferredCount": 1
+    }
+  ]
+}

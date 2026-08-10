@@ -1,0 +1,1883 @@
+{
+  "title": "Claude Developer — Practice Exam 5",
+  "track": "dev",
+  "trackLabel": "Claude Developer",
+  "examCode": "D5",
+  "sourceFile": "D5_dom_traverse_full_output.json",
+  "questionCount": 53,
+  "singleCount": 45,
+  "multiSelectCount": 8,
+  "inferredCount": 2,
+  "timeLimitMinutes": 120,
+  "passMark": 0.8,
+  "generatedAt": "2026-08-07T15:22:37+00:00",
+  "questions": [
+    {
+      "question": "Oxcombe Finance renders Claude output in two places: a human-facing chat panel and a downstream pricing service that parses structured replies. Engineers enabled token-by-token delivery everywhere, and the pricing service now intermittently ingests half-formed records. How should output delivery be designed?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Send the pricing service deltas but hold the chat panel until completion"
+        },
+        {
+          "key": "B",
+          "text": "Buffer both consumer paths until each response completes so neither sees partial output"
+        },
+        {
+          "key": "C",
+          "text": "Stream the chat panel and give the pricing service only complete validated responses"
+        },
+        {
+          "key": "D",
+          "text": "Stream both consumers and have the pricing service repair malformed records heuristically"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Token streaming suits human readers who benefit from immediate feedback, while machine consumers need complete responses validated before ingestion, so the split design serves each consumer correctly. Buffering the chat panel sacrifices the responsiveness streaming exists to provide. Sending deltas to the parser while delaying humans inverts the needs of both consumers. Heuristic repair of half-formed records builds fragility on top of the wrong delivery mode. Reference: https://platform.claude.com/docs/en/build-with-claude/streaming",
+      "selectCount": 1,
+      "number": 1
+    },
+    {
+      "question": "Twenty minutes after submitting a 30,000 request Message Batches job, an engineer at Ivelston Retail discovers the prompt template had the wrong placeholder and most results will be garbage. The batch is still processing. What is the best immediate action?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Allow the batch to run since interruption is not supported after submission"
+        },
+        {
+          "key": "B",
+          "text": "Delete the workspace API key so the remaining requests fail authentication checks"
+        },
+        {
+          "key": "C",
+          "text": "Cancel the batch and collect results for requests that already finished processing"
+        },
+        {
+          "key": "D",
+          "text": "Submit a second corrected batch so the results overwrite the first ones"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Batches support cancellation while processing, and requests that completed before cancellation still return results, so canceling limits waste and preserves any salvageable output. Waiting for completion burns spend on tens of thousands of known-bad generations. Revoking the key disrupts every other workload sharing it and is not a cancellation mechanism. A second batch adds corrected results but does nothing to stop the flawed run from consuming quota. Reference: https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+      "selectCount": 1,
+      "number": 2
+    },
+    {
+      "question": "Brindlewood Health's appointment assistant sends every reply straight to a text-to-speech engine. The prompt instructs Claude to avoid bullet lists, emojis, and ellipses, and compliance is good on ordinary replies, yet when callers ask for comparisons or step-by-step directions the formatting rules get broken. The team wants the rules honored even on request types they did not anticipate. Which prompt revision does Anthropic recommend?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Add a worked example of a correctly formatted comparison reply to the prompt"
+        },
+        {
+          "key": "B",
+          "text": "Explain in the prompt that replies are read aloud, so visual formatting garbles the audio"
+        },
+        {
+          "key": "C",
+          "text": "Append the formatting rules again at the end of each user message before sending"
+        },
+        {
+          "key": "D",
+          "text": "List the reply types the assistant supports and give a formatting rule for each"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Claude generalizes instructions better when it knows the reason behind them: telling it that replies are spoken aloud lets it infer that any visual formatting harms playback, covering comparisons, directions, and request types nobody listed. Repeating the rules at the end of each user message changes placement without adding the intent needed to generalize. Enumerating reply types with a rule for each keeps the team in a whack-a-mole loop as new types appear. A worked comparison example helps that one shape but leaves other unanticipated requests uncovered. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "selectCount": 1,
+      "number": 3
+    },
+    {
+      "question": "Kestrel & Pine is building an API-based code remediation service that lets Claude inspect source files and apply targeted string replacements in repositories checked out on the company's own servers. An engineer begins designing a custom file-editing tool schema from scratch, and a reviewer suggests a faster path. Which approach should the team adopt?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Use the computer use tools to drive a code editor through screenshots"
+        },
+        {
+          "key": "B",
+          "text": "Enable the code execution tool so edits run in Anthropic's managed sandbox"
+        },
+        {
+          "key": "C",
+          "text": "Adopt Anthropic's text editor tool and execute its commands on their servers"
+        },
+        {
+          "key": "D",
+          "text": "Define a generic shell tool and have Claude apply edits through commands"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The text editor tool is an Anthropic-defined, client-executed tool whose viewing and string-replacement commands the model has been trained to use accurately, so the team skips schema design and implements only the execution side against their own checkouts. The code execution tool runs in an Anthropic-managed sandbox, which cannot touch repositories on the company's servers. Computer use targets graphical interfaces and is heavyweight for programmatic file edits, and a generic shell tool gives up the trained editing interface while widening the blast radius of mistakes. Reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/text-editor-tool",
+      "selectCount": 1,
+      "number": 4
+    },
+    {
+      "question": "Quarrendon Robotics maintains eleven service repositories. Each one's CLAUDE.md carries an identical 200 line block of coding standards pasted by hand, and the copies have drifted apart after months of independent edits. How should the shared standards be managed?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Shorten each copy until the shared block is small enough to stay identical"
+        },
+        {
+          "key": "B",
+          "text": "Reference one canonical standards file from each CLAUDE.md using its import syntax"
+        },
+        {
+          "key": "C",
+          "text": "Ask each service team to reconcile their copy against a wiki page quarterly"
+        },
+        {
+          "key": "D",
+          "text": "Paste the standards into every settings.json since Claude Code merges those automatically"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "CLAUDE.md supports an import syntax that pulls in additional files, so each repository can reference one canonical standards document and edits propagate from a single source. Shrinking the block reduces the drift surface without eliminating manual copying. settings.json holds configuration such as permissions rather than coding guidance for the model. Quarterly manual reconciliation is the failure mode already observed, placed on a schedule. Reference: https://code.claude.com/docs/en/memory",
+      "selectCount": 1,
+      "number": 5
+    },
+    {
+      "question": "Product leadership at Aldermoor Publishing sets one business requirement for a manuscript feedback assistant: the cost of any single reply must never exceed a fixed per-request budget, regardless of what a user asks. Which technical requirement should the developer derive from this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Select the model with the smallest context window to bound token consumption"
+        },
+        {
+          "key": "B",
+          "text": "Set max_tokens on each request to enforce a hard ceiling on output size"
+        },
+        {
+          "key": "C",
+          "text": "Route requests through the Message Batches API to earn the batch discount"
+        },
+        {
+          "key": "D",
+          "text": "Instruct the model in the system prompt to keep replies brief"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "max_tokens sets a hard upper bound on generated tokens, which is the unbounded component of per-request cost, so it converts the budget rule into an enforceable request parameter. Batch processing discounts each request but places no ceiling on how large any single reply can grow. A brevity instruction shapes typical behavior yet cannot guarantee a limit on any given response. Context window size constrains total conversation capacity rather than capping the cost of an individual reply. Reference: https://platform.claude.com/docs/en/api/messages",
+      "selectCount": 1,
+      "number": 6
+    },
+    {
+      "question": "Calverro Freight generates customs declarations with Claude, and each declaration ends with the marker ///END///. The model emits the marker reliably but often continues with paragraphs of unsolicited explanation, inflating token costs and occasionally confusing the downstream parser. The team wants generation to halt at the marker every time. Which request change most reliably accomplishes this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Add a system prompt rule stating that the reply ends at the marker"
+        },
+        {
+          "key": "B",
+          "text": "Stream the response and close the connection as soon as the marker arrives"
+        },
+        {
+          "key": "C",
+          "text": "Include the marker in stop_sequences so the API halts generation when it appears"
+        },
+        {
+          "key": "D",
+          "text": "Lower the max_tokens parameter until responses usually end shortly after the marker appears"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The stop_sequences parameter tells the API to end generation the moment a specified string is produced, and the response reports a matching stop_reason, so the cutoff is enforced server-side on every request. Lowering max_tokens caps overall length but cannot target a marker, so it either truncates declarations or leaves room for extra prose. A system prompt rule is followed probabilistically and long outputs can still drift past it. Closing a stream when the marker arrives depends on client timing, still incurs extra generated tokens, and adds fragile connection handling. Reference: https://platform.claude.com/docs/en/api/handling-stop-reasons",
+      "selectCount": 1,
+      "number": 7
+    },
+    {
+      "question": "Thornquist Health is shipping a clinical-notes summarizer. Evals on the smallest Claude tier miss critical medication interactions, while the largest tier passes every check but blows past both the latency budget and the per-summary cost target. The team believes those are the only two options. What should they evaluate next?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Haiku with a longer system prompt listing every medication interaction to check"
+        },
+        {
+          "key": "B",
+          "text": "Opus with a reduced output ceiling to pull responses under the latency budget"
+        },
+        {
+          "key": "C",
+          "text": "Opus through the Message Batches API to trade turnaround time for a discount"
+        },
+        {
+          "key": "D",
+          "text": "Sonnet, the mid-tier option balancing capability against latency and cost"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The Claude lineup is tiered precisely so teams can trade capability against latency and cost, and Sonnet sits between Haiku and Opus for workloads where the smallest tier misses on quality while the largest overshoots the budget, so it should run against the same eval suite next. Packing an exhaustive interaction list into Haiku's system prompt is brittle and inflates input spend without fixing the reasoning gap the evals exposed. Capping Opus output shortens summaries by truncation, risking dropped clinical content while per-token price stays high. Batch processing lowers Opus cost but pushes turnaround far beyond an interactive latency budget. Reference: https://platform.claude.com/docs/en/about-claude/models/choosing-a-model",
+      "selectCount": 1,
+      "number": 8
+    },
+    {
+      "question": "Nettleford Tutors runs month-long study conversations with students. Sessions now replay hundreds of turns per request, latency and cost climb weekly, and the oldest exchanges rarely matter to the current question. Which two conversation management changes address this? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Raise max_tokens on every request so replies absorb the extra history"
+        },
+        {
+          "key": "B",
+          "text": "Drop stale tool results and low-value turns from the replayed message array"
+        },
+        {
+          "key": "C",
+          "text": "Summarize older exchanges into a compact recap carried in place of raw turns"
+        },
+        {
+          "key": "D",
+          "text": "Move each long conversation to the Message Batches API for discounted replay"
+        }
+      ],
+      "correct": [
+        "B",
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Replacing old exchanges with a compact rolling summary preserves useful context while sharply cutting replayed tokens, and pruning stale tool results and low-value turns removes bulk that no longer informs answers, so each change independently reduces input size. Batch processing discounts cost but replays the same oversized history with added latency. Raising max_tokens expands the reply budget and does nothing about input growth. Reference: https://platform.claude.com/docs/en/build-with-claude/context-windows",
+      "selectCount": 2,
+      "number": 9
+    },
+    {
+      "question": "Kestrelmoor's compliance team queries an internal Claude assistant that fronts a 30,000-token policy manual marked for caching. Usage logs show cache writes on nearly every request and almost no cache reads, yet the manual never changes. Queries arrive roughly every twenty to forty minutes throughout the day. What explains the missing cache hits?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The manual is larger than a single cache entry can store, so writes fail to complete"
+        },
+        {
+          "key": "B",
+          "text": "Cache entries expire after five minutes without reuse, and the query gaps exceed that lifetime"
+        },
+        {
+          "key": "C",
+          "text": "Cache entries are scoped per API key, and each compliance analyst authenticates with their own"
+        },
+        {
+          "key": "D",
+          "text": "Cache reads are served through the Message Batches API rather than synchronous requests"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Prompt cache entries have a five minute default lifetime that resets each time the prefix is reused, so queries spaced twenty minutes or more apart find the entry gone and pay the write premium again. Opting into the one hour cache lifetime or scheduling queries closer together restores the hits. Cached prefixes can span very large documents within the context window, so the manual's size is not the barrier. Caches are scoped to the organization rather than to individual API keys, and cache reads work on ordinary synchronous requests, not only batch traffic. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+      "selectCount": 1,
+      "number": 10
+    },
+    {
+      "question": "Vexley Systems reviews merge requests for accessibility violations with a single Claude call. The same diff reviewed twice yields different findings, and real violations slip through intermittently. The team has latency headroom and wants higher recall without changing models. Which restructuring fits?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Chain three sequential review calls so each pass rechecks the previous pass's findings"
+        },
+        {
+          "key": "B",
+          "text": "Set the sampling temperature to zero so repeated reviews produce identical findings"
+        },
+        {
+          "key": "C",
+          "text": "Route each diff to a specialized prompt chosen by the file types it touches"
+        },
+        {
+          "key": "D",
+          "text": "Run several identical review calls in parallel and aggregate the issues they flag"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Sampling variance means a single review call can miss real violations on any given run, so running the same check several times in parallel and aggregating the flagged issues raises recall. This is the voting variant of the parallelization workflow. Sequential rechecking chains passes that inherit each other's blind spots and adds latency without independent samples. Routing by file type solves prompt mismatch, not intermittent misses. Zero temperature does not guarantee identical outputs and pins the review to one pass whose misses simply repeat. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 1,
+      "number": 11
+    },
+    {
+      "question": "A developer at Orrinbay adds a cache breakpoint to the 700-token system prompt of a high-traffic Claude endpoint. Requests arrive seconds apart, yet the usage block never reports cache writes or cache reads, and billing is unchanged. What is preventing the prompt from being cached?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The endpoint needs an extended-cache beta header before any breakpoint takes effect"
+        },
+        {
+          "key": "B",
+          "text": "Heavy traffic evicts the entry between requests, and the endpoint needs a longer retention window"
+        },
+        {
+          "key": "C",
+          "text": "System prompts sit outside the cacheable prefix, so the marker belongs on a user message"
+        },
+        {
+          "key": "D",
+          "text": "The prompt falls below the minimum length the model caches, so the marker is ignored"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Each Claude model enforces a minimum cacheable prompt length, 1024 tokens on Sonnet and Opus, and a prompt below that threshold is processed at normal rates with the cache marker silently ignored, which is why usage never shows cache activity. Growing the stable prefix past the threshold, for example by folding in reference material, makes the breakpoint take effect. System prompts are fully cacheable, so relocating the marker to a user message would not help. Prompt caching is generally available without a beta header, and an entry reused seconds apart would not expire between requests. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+      "selectCount": 1,
+      "number": 12
+    },
+    {
+      "question": "Corvane Hosting built a Claude-based operations agent whose tools can restart production services and edit load-balancer rules. Leadership wants it live this quarter, but the platform team must first bound the damage a single bad decision by the agent could cause. Which two deployment practices accomplish this? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Expand the system prompt with a fuller catalog of prohibited infrastructure operations"
+        },
+        {
+          "key": "B",
+          "text": "Launch in an observe-only mode that records intended actions until its judgment is validated"
+        },
+        {
+          "key": "C",
+          "text": "Require a human operator to approve each restart or rule change before it executes"
+        },
+        {
+          "key": "D",
+          "text": "Move the agent to the most capable model tier to reduce operational misjudgments"
+        }
+      ],
+      "correct": [
+        "B",
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Requiring human approval inserts an enforced checkpoint in front of every consequential action, and an observe-only launch lets the team validate the agent's decisions against real workloads before it can touch production at all; each practice bounds harm independently of how the model behaves. A more capable model may err less often, yet it supplies no boundary on the occasions it still errs. A longer catalog of prohibited operations remains advice inside the prompt, which a manipulated or mistaken agent can disregard. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 2,
+      "number": 13
+    },
+    {
+      "question": "Draymoor Systems equips a procurement agent with tools that mirror its internal REST API one endpoint at a time. Runs routinely chain list_vendors, get_vendor_detail, and create_purchase_order, drift off course mid-sequence, and later turns misquote the opaque record identifiers the tools return. Which two tool-design changes most directly improve the agent's reliability? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Include human-readable names alongside identifiers in each tool's results"
+        },
+        {
+          "key": "B",
+          "text": "Return the complete raw database record so no field is ever missing"
+        },
+        {
+          "key": "C",
+          "text": "Add a retry wrapper so each endpoint call repeats until it succeeds"
+        },
+        {
+          "key": "D",
+          "text": "Combine the commonly chained operations into a single tool that completes the task"
+        }
+      ],
+      "correct": [
+        "A",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Consolidating operations that are always called in sequence into one purpose-built tool removes the intermediate steps where the agent loses the thread, and returning meaningful context such as names next to identifiers matches how the model reasons about entities, which cuts misreference errors. Retrying failed calls addresses transient faults, not sequencing drift or identifier confusion. Returning full raw records floods the context with irrelevant fields and makes the identifier problem worse. Reference: https://www.anthropic.com/engineering/writing-tools-for-agents",
+      "selectCount": 2,
+      "number": 14
+    },
+    {
+      "question": "Elmsworth Legal's clause extractor must answer with raw JSON, but responses often open with conversational lead-ins like 'Here is the JSON you requested,' which breaks the parser. The team wants to constrain how each response begins at the request level. Which technique does this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Send the schema in a tool result block so prose is suppressed"
+        },
+        {
+          "key": "B",
+          "text": "Add a metadata field that flags the request as machine readable output"
+        },
+        {
+          "key": "C",
+          "text": "Set a stop sequence matching the phrase that precedes the JSON payload"
+        },
+        {
+          "key": "D",
+          "text": "Append a final assistant message containing an opening brace to the request"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Ending the messages array with an assistant turn that contains the opening brace prefills the response, so generation continues from that character and conversational lead-ins never appear. A stop sequence halts generation when matched text is produced and cannot prevent text from appearing first. The metadata field carries an abuse-tracking identifier, not output formatting hints. Tool result blocks return tool execution output to the model rather than shaping reply openings. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prefill-claudes-response",
+      "selectCount": 1,
+      "number": 15
+    },
+    {
+      "question": "Wrenfield Insurance tunes the prompt for its claims-triage assistant by pasting a couple of recent tickets into the workbench after each edit and shipping when the outputs look right. Every few weeks a change that fixed one complaint quietly breaks a case type nobody rechecked. The team wants prompt revisions to stop regressing. Which two practices does Anthropic recommend? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Freeze the prompt after the next fix and route new failure types to human review instead"
+        },
+        {
+          "key": "B",
+          "text": "Build an evaluation set of real production cases and edge cases and score every revision against it"
+        },
+        {
+          "key": "C",
+          "text": "Rewrite the prompt from scratch whenever a regression appears so old failure patterns are cleared out"
+        },
+        {
+          "key": "D",
+          "text": "Automate grading with code checks or rubric-based model grading so revisions are scored consistently"
+        }
+      ],
+      "correct": [
+        "B",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Anthropic recommends eval-driven prompt development: build a test set drawn from real traffic that includes edge cases, then score every candidate revision against it so a fix for one case is caught if it breaks another. Automated grading through code checks or rubric-based model grading makes those scores consistent and cheap enough to run on each revision. Rewriting the prompt from scratch after each regression discards accumulated working behavior and makes it impossible to attribute what changed the results. Freezing the prompt and diverting new failures to humans halts improvement instead of making iteration safe. Reference: https://platform.claude.com/docs/en/test-and-evaluate/develop-tests",
+      "selectCount": 2,
+      "number": 16
+    },
+    {
+      "question": "Duskfield Robotics triages production incidents with five Claude agents that all watch the same incident feed and message one another to divide the work. In practice two agents often pick up the same step while other steps sit unclaimed until a human intervenes. Which architectural change fixes the ownership problem?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Add a lead agent that decomposes each incident and assigns scoped subtasks to workers"
+        },
+        {
+          "key": "B",
+          "text": "Add an auditor agent that scans finished work and flags duplicated or missing steps"
+        },
+        {
+          "key": "C",
+          "text": "Have each agent broadcast a claim message before starting a step it selects"
+        },
+        {
+          "key": "D",
+          "text": "Merge the five agents into a single agent that owns the whole triage flow"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A lead or supervisor agent gives the system one owner of decomposition: it breaks each incident into scoped subtasks, hands each to a worker, and merges the results, so no step is claimed twice or left unassigned. Broadcast claims still let two agents race for the same step and leave gaps nobody selects. Collapsing to a single agent removes coordination failures but gives up parallel triage entirely. An auditor detects duplication after the effort is already spent instead of preventing it. Reference: https://www.anthropic.com/engineering/multi-agent-research-system",
+      "selectCount": 1,
+      "number": 17
+    },
+    {
+      "question": "Meridola Retail's inventory agent chains a dozen model calls and tool invocations to answer stock questions, and about one answer in ten is wrong. The team logs each session's final answer and total latency, and after a week of studying those logs they still cannot say where the bad answers originate. What should they add to their debugging workflow?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Tighten the system prompt with stricter accuracy instructions before gathering more data"
+        },
+        {
+          "key": "B",
+          "text": "Rerun failing questions against a stronger model to see whether the errors disappear"
+        },
+        {
+          "key": "C",
+          "text": "Retry any session whose final answer fails a spot check until a correct one appears"
+        },
+        {
+          "key": "D",
+          "text": "Record full traces of intermediate calls and tool results to isolate the failing step"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "With only final answers and latency in the logs, the team has no visibility into the dozen intermediate steps where a wrong answer is actually born; recording full traces of each step's inputs, outputs, and tool results lets them isolate which step fails and why, the same production-tracing practice Anthropic describes for debugging its own multi-agent systems. Retrying until a spot check passes hides the failure instead of explaining it. Rerunning on a stronger model is a guess made before the failure mode is known. Stricter accuracy instructions rewrite the prompt before any evidence says the prompt is at fault. Reference: https://www.anthropic.com/engineering/multi-agent-research-system",
+      "selectCount": 1,
+      "number": 18
+    },
+    {
+      "question": "Crowhurst Media's support agent harness injects the company's entire 80,000-token product knowledge base ahead of every conversation. Any single ticket touches only a small slice of it, per-run cost stays high, and the agent has begun overlooking instructions positioned near the top of the window. Which change follows Anthropic's context engineering guidance?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Cache the knowledge base prefix so repeated conversations reuse it at lower cost"
+        },
+        {
+          "key": "B",
+          "text": "Give the agent retrieval tools so it loads relevant sections on demand"
+        },
+        {
+          "key": "C",
+          "text": "Compress the knowledge base into a static digest that ships with every conversation"
+        },
+        {
+          "key": "D",
+          "text": "Move the knowledge base into the system prompt so instructions regain priority"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Anthropic's context engineering guidance describes just-in-time retrieval as the key primitive: 'rather than loading all relevant information upfront, agents store what they learn in memory and pull it back on demand,' which 'keeps the active context focused on what's currently relevant.' It also documents context rot, where recall of earlier content 'degrades as the window fills' because it is 'competing with everything else for attention' - precisely the overlooked top-of-window instructions Crowhurst sees. Giving the agent retrieval tools fixes both the per-run cost and the attention dilution. A is wrong because caching lowers cost but leaves all 80,000 tokens in the window, so context rot persists. C is wrong because a static digest still ships every turn and additionally discards detail tickets may need. D is wrong because moving the same bulk into the system prompt does not shrink it and worsens the crowding. Reference: https://platform.claude.com/cookbook/tool-use-context-engineering-context-engineering-tools",
+      "inferredAnswer": true,
+      "answerConfidence": "high",
+      "selectCount": 1,
+      "number": 19
+    },
+    {
+      "question": "Bracken Point Software runs a custom Claude agent harness that repairs failing builds autonomously. Twice last month a run spent hours looping on an unfixable failure and accumulated a large token bill before anyone noticed. The team wants such runs to stop early on their own. Which two harness additions achieve this? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Cap the number of loop iterations so a run ends after a set turn count"
+        },
+        {
+          "key": "B",
+          "text": "Track cumulative token spend per run and abort once it exceeds a budget threshold"
+        },
+        {
+          "key": "C",
+          "text": "Prompt the agent to give up on failures it judges unfixable after several attempts"
+        },
+        {
+          "key": "D",
+          "text": "Lower max_tokens on every request so each model turn returns a shorter response"
+        }
+      ],
+      "correct": [
+        "A",
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Runaway runs need deterministic stopping conditions in the harness itself: an iteration cap ends any loop after a fixed number of turns, and a per-run spend budget aborts work once cost crosses a threshold, so each addition stops the failure on its own. Lowering max_tokens shrinks each turn while the loop itself continues indefinitely. Prompting the agent to give up leaves termination to model judgment, the same nondeterminism that already let runs continue for hours. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 2,
+      "number": 20
+    },
+    {
+      "question": "Yarrowton Analytics runs a Claude-powered research agent whose investigations span hundreds of turns. Long tasks now terminate with errors once the conversation grows past the model's limit, and the team has watched promising investigations die minutes from completion. They need tasks to keep running past that point without losing the thread of earlier findings and decisions. Which technique addresses this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Summarize earlier turns into a compact brief and continue the task from that summary"
+        },
+        {
+          "key": "B",
+          "text": "Move the agent to the largest available context window and keep the conversation intact"
+        },
+        {
+          "key": "C",
+          "text": "Drop the oldest messages from the request whenever the next turn would exceed the limit"
+        },
+        {
+          "key": "D",
+          "text": "Raise the max_tokens value so the model can accept a longer conversation history"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Compaction is the documented answer: it 'extends the effective context length for long-running conversations and tasks by automatically summarizing older context when approaching the context window limit,' after which the API 'drops all content blocks prior to the compaction block, continuing the conversation from the summary.' This lets hundreds-of-turn investigations run past the limit while carrying earlier findings and decisions forward in the summary. B is wrong because a bigger window only postpones the same wall and does not help tasks that are unbounded in length. C is wrong because blindly dropping the oldest messages destroys exactly the earlier findings and decisions the team must not lose. D is wrong because max_tokens caps output length and has no bearing on how much history the request can carry. Reference: https://platform.claude.com/docs/en/build-with-claude/compaction",
+      "inferredAnswer": true,
+      "answerConfidence": "high",
+      "selectCount": 1,
+      "number": 21
+    },
+    {
+      "question": "Thornbury Analytics runs a lead Claude agent that dispatches research subagents in parallel. Each subagent sends its entire working transcript back, raw search dumps included, and after a few waves the lead agent's context is mostly material it never uses while synthesis quality slides. Which change addresses this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Compact the lead agent's conversation after every wave of subagent responses"
+        },
+        {
+          "key": "B",
+          "text": "Move the lead agent to a model tier with a larger context window"
+        },
+        {
+          "key": "C",
+          "text": "Have each subagent return a distilled summary instead of its complete working transcript"
+        },
+        {
+          "key": "D",
+          "text": "Reduce the number of subagents dispatched per wave so less material flows back"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "In orchestrator patterns each subagent should act as an intelligent filter, doing its exploration in its own context and returning only the distilled findings the lead agent needs. Returning full transcripts floods the lead context with raw material, which is exactly the failure described. Compacting after every wave treats the symptom and risks discarding signal along with noise. A larger context window raises the ceiling, but the irrelevant material still dilutes attention and cost keeps climbing. Dispatching fewer subagents shrinks coverage rather than fixing how results are reported. Reference: https://www.anthropic.com/engineering/multi-agent-research-system",
+      "selectCount": 1,
+      "number": 22
+    },
+    {
+      "question": "A data team at Calverock classifies 40,000 short documents with Claude each night, looping through them one at a time with the Python SDK. The run takes eleven hours, rate-limit dashboards show throughput far below the account's limits, and downstream jobs need the results within two hours. Which change meets the deadline?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Upgrade the workload to a larger model tier so each classification finishes faster"
+        },
+        {
+          "key": "B",
+          "text": "Submit the documents through the Message Batches API for discounted asynchronous processing"
+        },
+        {
+          "key": "C",
+          "text": "Compress each document before sending so every request spends fewer tokens in flight"
+        },
+        {
+          "key": "D",
+          "text": "Switch to the SDK's asynchronous client and process documents with bounded concurrency"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The Python SDK ships an asynchronous client, and issuing classifications with bounded concurrency multiplies throughput until rate limits become the constraint, collapsing an eleven hour sequential run into a small fraction of that. The Message Batches API trades cost for a turnaround guaranteed only within twenty four hours, so it cannot promise a two hour deadline. A larger model tier generates each response more slowly and raises cost without touching the one-at-a-time bottleneck. Compressing documents trims tokens per request but leaves the sequential loop, the real problem, in place. Reference: https://platform.claude.com/docs/en/api/client-sdks",
+      "selectCount": 1,
+      "number": 23
+    },
+    {
+      "question": "Mossbridge Media gives Claude a render_chart tool that produces a PNG visualization. The harness base64-encodes the file and returns the encoded string as the tool result's text, but Claude then comments on a wall of characters instead of analyzing the chart. Which change lets Claude read the visualization?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Re-encode the PNG as a JPEG before base64 encoding the output"
+        },
+        {
+          "key": "B",
+          "text": "Return the image as an image content block within the tool result"
+        },
+        {
+          "key": "C",
+          "text": "Raise max_tokens so the encoded string avoids truncation mid-result"
+        },
+        {
+          "key": "D",
+          "text": "Publish the PNG to a URL and place the link in the result text"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A tool_result block's content accepts a list of content blocks, including image blocks with base64 source data, and only an image block routes the data through Claude's vision processing. Base64 data placed in a text field is treated as ordinary characters no matter which image format produced it, so re-encoding as JPEG changes nothing. A bare link in text is not fetched without a separate fetch capability, and max_tokens limits output length rather than how input is interpreted. Reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+      "selectCount": 1,
+      "number": 24
+    },
+    {
+      "question": "Fennmark Publishing uses Claude to read royalty statements and report each author's yearly total. Extracted line items are almost always right, but the totals are wrong on roughly one statement in twenty, and the surrounding prose presents every figure with equal confidence, so reviewers cannot tell which totals to distrust. Which redesign most directly fixes the arithmetic?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Have Claude return the line items and compute totals in application code"
+        },
+        {
+          "key": "B",
+          "text": "Add a prompt instruction telling Claude to recheck each total before including it"
+        },
+        {
+          "key": "C",
+          "text": "Enable extended thinking so the model works through the addition step by step"
+        },
+        {
+          "key": "D",
+          "text": "Provide several multishot examples of statements paired with correctly summed yearly totals"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Claude generates text token by token rather than executing arithmetic, so multi-step sums fail at a steady rate and confident prose around a wrong total is not evidence of correctness; the reliable design keeps Claude on extraction, where it performs well, and moves the addition into deterministic application code. An instruction to recheck totals still leaves the arithmetic to the model. Extended thinking improves multi-step reasoning but cannot guarantee correct sums. Worked examples teach output shape, not reliable computation. Reference: https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/reduce-hallucinations",
+      "selectCount": 1,
+      "number": 25
+    },
+    {
+      "question": "A senior engineer at Larkspur Health points Claude Code at an unfamiliar payments module. They want it to explore the code and present a refactoring approach for sign-off, with the session unable to edit files or run state-changing commands until the engineer approves the proposal. Which way of running the session fits?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Start the session in plan mode and review the presented approach"
+        },
+        {
+          "key": "B",
+          "text": "Add a deny rule for the Edit tool in the project settings"
+        },
+        {
+          "key": "C",
+          "text": "Launch in headless mode and write the proposal to a file"
+        },
+        {
+          "key": "D",
+          "text": "Put an approval-first instruction at the top of the project CLAUDE.md"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Plan mode is a permission mode that restricts the session to read-only analysis and requires the user to approve the plan Claude presents before any changes begin, which is exactly the propose-then-approve gate the engineer wants. Headless mode removes interactivity but still permits edits and offers no approval step. Denying only the Edit tool leaves shell commands free to change state and provides no structured proposal. A CLAUDE.md instruction is advisory and not enforced by the harness. Reference: https://code.claude.com/docs/en/iam",
+      "selectCount": 1,
+      "number": 26
+    },
+    {
+      "question": "Rushmere Capital's security team mandates that certain Claude Code permission rules apply on every engineer's machine and that no engineer can loosen them locally. Today each repository relies on developers keeping their checked-in project settings unedited. Which configuration approach meets the mandate?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Add the rules to each repository's settings.local.json file during developer onboarding"
+        },
+        {
+          "key": "B",
+          "text": "Store the rules in each engineer's user settings and audit them yearly"
+        },
+        {
+          "key": "C",
+          "text": "Publish the rules in CLAUDE.md so sessions read them at every startup"
+        },
+        {
+          "key": "D",
+          "text": "Deploy the rules in a managed settings file that outranks other levels"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A managed settings file is deployed by administrators and sits at the top of the precedence order, so its permission rules apply on every machine and cannot be overridden by project or user files. settings.local.json is personal and freely editable, which is the opposite of enforcement. User settings likewise remain under each engineer's control between audits. CLAUDE.md provides guidance to the model, not enforced permission policy. Reference: https://code.claude.com/docs/en/settings",
+      "selectCount": 1,
+      "number": 27
+    },
+    {
+      "question": "Site engineers at Bramfield Robotics registered a PreToolUse script in Claude Code that flatly rejects any shell command referencing the fleet-control directories. Deploy work now stalls several times a day because routine commands match the patterns, and the team wants matching commands to wait for an engineer's judgment instead of failing outright. How should the hook respond when a pattern matches?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Emit a JSON decision that asks for confirmation so the session pauses for approval"
+        },
+        {
+          "key": "B",
+          "text": "Exit with code 2 and print the matched pattern to explain each refusal"
+        },
+        {
+          "key": "C",
+          "text": "Approve the command but append a warning that the model should reconsider it"
+        },
+        {
+          "key": "D",
+          "text": "Defer the check to a PostToolUse script that a reviewer inspects after execution"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A PreToolUse hook can return structured JSON whose permission decision is set to ask, which surfaces the pending tool call to the user for case-by-case confirmation rather than an automatic block, exactly the escalation the team wants. Exiting with code 2 blocks the call outright, reproducing the stalls the engineers are complaining about. Approving with an appended warning hands the decision back to the model, so nothing is enforced. Moving the check to PostToolUse runs it after the command has executed, when a destructive action can no longer be stopped. Reference: https://code.claude.com/docs/en/hooks",
+      "selectCount": 1,
+      "number": 28
+    },
+    {
+      "question": "Merrowdale Research offers a Claude chat assistant to 4,000 employees through one workspace. One team's script hammers the assistant with automated queries, workspace rate limits trip, and everyone else sees failures during business hours. Which two application-level changes restore fair service? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Distribute traffic across several API keys created in the same workspace"
+        },
+        {
+          "key": "B",
+          "text": "Enforce per-user request quotas inside the application before calls reach the API"
+        },
+        {
+          "key": "C",
+          "text": "Queue incoming requests and smooth bursts to stay under the workspace limit"
+        },
+        {
+          "key": "D",
+          "text": "Retry rejected requests immediately so waiting users reclaim their lost turns"
+        }
+      ],
+      "correct": [
+        "B",
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Per-user quotas stop any single team from monopolizing shared capacity, and a queue that smooths bursts keeps aggregate traffic under the workspace ceiling, so each change independently improves fairness and reliability. Additional API keys in the same workspace draw from the same shared limits and change nothing. Immediate retries without delay add load at exactly the moment the limiter is rejecting traffic. Reference: https://platform.claude.com/docs/en/api/rate-limits",
+      "selectCount": 2,
+      "number": 29
+    },
+    {
+      "question": "Farrowgate Media streams every Claude response. Finance now asks engineering to record output token counts and the reason each generation stopped, but the developer only sees text fragments accumulating across events and cannot find those fields in them. Where do these values arrive in a stream?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "In the message_delta event near the end of the stream"
+        },
+        {
+          "key": "B",
+          "text": "In each content_block_delta event alongside the partial text"
+        },
+        {
+          "key": "C",
+          "text": "In a separate endpoint queried with the response identifier afterward"
+        },
+        {
+          "key": "D",
+          "text": "In the message_start event that opens every streamed response"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The message_delta event arrives near the end of a stream and carries the stop_reason along with cumulative output token usage. The message_start event opens the stream before output exists, so it reports input-side usage only. Content block deltas carry incremental content rather than accounting fields. There is no separate retrieval endpoint for a completed streamed response's counts. Reference: https://platform.claude.com/docs/en/build-with-claude/streaming",
+      "selectCount": 1,
+      "number": 30
+    },
+    {
+      "question": "Juniper Crest's platform lead is standardizing Claude Code across a shared monorepo. Two behaviors are required in every session: any git push must be refused outright, and the npm test command must run without an approval prompt each time. Which two configuration changes accomplish this? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Set defaultMode to bypassPermissions so no command triggers a prompt"
+        },
+        {
+          "key": "B",
+          "text": "Add a permissions allow rule that matches the npm test command"
+        },
+        {
+          "key": "C",
+          "text": "Add a CLAUDE.md instruction telling Claude not to push to remotes"
+        },
+        {
+          "key": "D",
+          "text": "Add a permissions deny rule that matches the git push command"
+        }
+      ],
+      "correct": [
+        "B",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Permission rules in settings.json are enforced by the harness itself: a deny rule matching git push blocks the command regardless of what the model intends, and an allow rule matching npm test pre-approves it so no prompt appears. A CLAUDE.md instruction is guidance the model can overlook rather than an enforced control. Setting defaultMode to bypassPermissions removes prompts for every command, including the push that must stay blocked. Reference: https://code.claude.com/docs/en/iam",
+      "selectCount": 2,
+      "number": 31
+    },
+    {
+      "question": "Penhallow Bank's assistant must greet each customer by name, respect their account tier, and apply today's disclosure text. A prototype gathered these details by asking the customer each session, which testers found tedious and error prone. Where should this per-session context come from?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "From the customer restating their tier whenever the conversation topic changes"
+        },
+        {
+          "key": "B",
+          "text": "From a request metadata block whose fields the model reads before responding"
+        },
+        {
+          "key": "C",
+          "text": "From the backend injecting profile fields into the system prompt each request"
+        },
+        {
+          "key": "D",
+          "text": "From fine-tuning so customer details become part of the model weights"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The backend already holds the customer's profile, and injecting those fields into the system prompt on each request gives the model authoritative per-session context without user effort. Fine-tuning is not how per-customer facts reach Claude, and weights are the wrong home for disclosure text that changes daily. Asking the customer to restate details recreates the tedium the prototype was faulted for. The metadata field is never shown to the model. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/system-prompts",
+      "selectCount": 1,
+      "number": 32
+    },
+    {
+      "question": "Tidewater Grain streams Claude's responses in its freight booking service. Whenever Claude calls the reserve_capacity tool, the handler tries to parse the tool's arguments from each streaming event as it arrives, and nearly every parse attempt fails, although completed requests in the logs show well-formed arguments. How should the handler process the arguments?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Set tool_choice so argument events arrive ahead of the text output"
+        },
+        {
+          "key": "B",
+          "text": "Accumulate the partial JSON fragments and parse once the content block stops"
+        },
+        {
+          "key": "C",
+          "text": "Parse only the final event, which carries the complete argument object"
+        },
+        {
+          "key": "D",
+          "text": "Retry each failed parse after requesting the arguments in a follow-up turn"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "During streaming, tool arguments arrive as a sequence of input_json_delta events, each carrying a fragment of the JSON string, so individual events are rarely parseable on their own. The handler must concatenate the fragments and parse the result when the content block's stop event signals the input is complete. The final delta holds only the last fragment, not the whole object, a follow-up turn cannot recover arguments from the current stream, and tool_choice controls whether tools are called rather than how their input is chunked. Reference: https://platform.claude.com/docs/en/build-with-claude/streaming",
+      "selectCount": 1,
+      "number": 33
+    },
+    {
+      "question": "Vantrell Analytics brings in outside contractors each quarter to build prototypes against the Claude API. To get them started quickly, an engineer granted the contractors the same organization-wide administrator access in the Anthropic Console that the core team holds. A security audit has flagged the grants and requires a correction. Which change satisfies the principle the audit is enforcing?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "A quarterly rotation of every organization API key for the duration of each contract"
+        },
+        {
+          "key": "B",
+          "text": "A written policy requiring contractors to request approval before creating new API keys"
+        },
+        {
+          "key": "C",
+          "text": "A dedicated workspace for prototype work where contractors hold roles scoped to it"
+        },
+        {
+          "key": "D",
+          "text": "A shared contractor account so the audit trail shows one identity for outside work"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Membership in a dedicated workspace with workspace-level roles confines contractors to the keys and resources their prototypes need, replacing organization-wide administrative control with access scoped to the job, which is the least-privilege correction the audit demands. A shared account concentrates privilege in one credential and erases individual accountability rather than restoring it. Rotating keys changes credential values while leaving the excessive administrative grants untouched. A written approval policy relies on voluntary compliance and still leaves administrator rights in place. Reference: https://platform.claude.com/docs/en/api/administration-api",
+      "selectCount": 1,
+      "number": 34
+    },
+    {
+      "question": "Gorsefield Health defines a record_diagnosis tool whose input schema matches its database columns and needs a conforming tool call on every single request. In testing, Claude sometimes answers in prose and never invokes the tool. Which request change guarantees invocation?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Describe the tool as required inside the system prompt in stronger language"
+        },
+        {
+          "key": "B",
+          "text": "Increase max_tokens so the model has room to complete the call"
+        },
+        {
+          "key": "C",
+          "text": "Resend failed requests with temperature zero until a tool call appears"
+        },
+        {
+          "key": "D",
+          "text": "Set tool_choice to name record_diagnosis so every response must call it"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Setting tool_choice to designate record_diagnosis forces every response to invoke that tool, which is the documented way to guarantee schema-conforming output. Stronger system prompt wording raises the likelihood of a call without eliminating prose answers. Output budget is not the failure mode when the model chooses to answer in text. Retrying at temperature zero repeats whatever choice the model already favors and offers no guarantee. Reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use",
+      "selectCount": 1,
+      "number": 35
+    },
+    {
+      "question": "Verrowfield's data team ships an MCP server for its analytics warehouse. Product wants end users to launch predefined, parameterized report workflows themselves from the connected client's command menu, choosing the region and quarter on each run, and the model should not be able to trigger these workflows on its own. Which server capability should the team implement?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Tools that the model invokes when a report seems relevant"
+        },
+        {
+          "key": "B",
+          "text": "Resources that the client application attaches to the context"
+        },
+        {
+          "key": "C",
+          "text": "Prompts that users explicitly select and fill with arguments"
+        },
+        {
+          "key": "D",
+          "text": "Sampling requests that route generation back through the client"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "MCP prompts are user-controlled templates: the client surfaces them in its command menu, the user picks one and supplies arguments like region and quarter, and the filled template enters the conversation only on that explicit action. Tools are model-controlled, so the model could trigger the workflow autonomously, which the requirement rules out. Resources supply data for the application to attach rather than runnable parameterized workflows, and sampling lets the server request completions from the client rather than exposing anything users launch. Reference: https://modelcontextprotocol.io/docs/learn/server-concepts",
+      "selectCount": 1,
+      "number": 36
+    },
+    {
+      "question": "A Silverpine Logistics agent edits deployment configs through a custom file tool whose path parameter is resolved against a working directory the model never sees. Runs regularly write valid content into the wrong directories. What is the most effective fix?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Require a human to approve each destination path before the write executes"
+        },
+        {
+          "key": "B",
+          "text": "Change the tool to accept only absolute paths so ambiguous targets cannot be expressed"
+        },
+        {
+          "key": "C",
+          "text": "Add a system prompt rule instructing the agent to verify every path before writing"
+        },
+        {
+          "key": "D",
+          "text": "Move the workload to a stronger model tier that reasons more carefully about paths"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Anthropic's agent-computer interface guidance is to change tool definitions so mistakes become hard to make, and requiring absolute paths removes the ambiguity that causes misplaced writes. A system prompt rule depends on the model remembering to comply on every single call. A stronger model still cannot see the working directory the relative paths are resolved against. Human approval of each path sacrifices the autonomy of routine edits to compensate for a fixable tool design. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 1,
+      "number": 37
+    },
+    {
+      "question": "Developers at Norwick Data want to speed up ticket triage by wiring a community-published MCP server from a public registry into their shared Claude Code configuration. The security team points out that everything the server exposes, including its tool descriptions and tool results, flows into the model's context in every session, and asks how to address that exposure before the server is enabled. What should the team do?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Audit the server's source and pin a reviewed release rather than tracking its latest version"
+        },
+        {
+          "key": "B",
+          "text": "Add a CLAUDE.md rule telling the agent to ignore suspicious text inside tool results"
+        },
+        {
+          "key": "C",
+          "text": "Restrict the server to read-only tools so injected instructions cannot alter local files"
+        },
+        {
+          "key": "D",
+          "text": "Run Claude Code in plan mode whenever the new server's tools appear in a session"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A third-party MCP server is untrusted code whose tool descriptions and outputs enter model context directly, so reviewing its source and pinning a vetted release addresses the supply-chain and injection risk at its origin instead of after malicious content arrives. Limiting the server to read-only tools narrows write damage, but injected text can still steer the agent into misusing other tools or leaking data. Plan mode governs how the agent proposes its own changes, not which untrusted content it ingests. A guidance-file rule depends on the model noticing and obeying advice, which is exactly what injected instructions are crafted to defeat. Reference: https://code.claude.com/docs/en/mcp",
+      "selectCount": 1,
+      "number": 38
+    },
+    {
+      "question": "Jarrowfield Software runs six Claude features behind one workspace. Finance wants spend attributed to individual features on internal dashboards, and engineering wants it derived from data the application already receives on every call rather than a new external report. What should the team implement?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Record the usage object from each API response tagged with the calling feature"
+        },
+        {
+          "key": "B",
+          "text": "Estimate token counts from character lengths of prompts and completions after each call"
+        },
+        {
+          "key": "C",
+          "text": "Divide the monthly invoice across features according to their share of requests"
+        },
+        {
+          "key": "D",
+          "text": "Create one organization per feature so billing statements arrive already separated"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Every Messages API response includes a usage object with input and output token counts, so tagging those values with the calling feature yields accurate per-feature attribution from data already in hand. Character-based estimates diverge from real token counts and drift across content types. Splitting the invoice by request share ignores the large per-request variation in token volume. Separate organizations fragment administration and billing far beyond what attribution requires. Reference: https://platform.claude.com/docs/en/api/messages",
+      "selectCount": 1,
+      "number": 39
+    },
+    {
+      "question": "At Kilnbrook Devices, anyone can push edits straight to the repository's CLAUDE.md and hook scripts on the main branch. A hasty edit last week silently changed how every engineer's Claude Code session ran tests, and nobody noticed for days. Which practice prevents a repeat?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Require pull request review for changes to these files like application code"
+        },
+        {
+          "key": "B",
+          "text": "Restrict edits to a single owner who applies requested changes each quarter"
+        },
+        {
+          "key": "C",
+          "text": "Move the affected files into each engineer's home directory outside version control"
+        },
+        {
+          "key": "D",
+          "text": "Rename the files so Claude Code stops loading them during session startup"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "CLAUDE.md and hook scripts steer every engineer's sessions, so changes to them deserve the same pull request review gate as application code, which surfaces surprises before they land. Moving the files out of version control hides changes and breaks team sharing. Renaming the files so they stop loading throws away the conventions they exist to provide. A single quarterly owner creates a bottleneck without adding reviewer scrutiny. Reference: https://code.claude.com/docs/en/memory",
+      "selectCount": 1,
+      "number": 40
+    },
+    {
+      "question": "A developer at Dunmere Analytics enables extended thinking on a report generator, keeping the existing max_tokens of 4096 and setting a thinking budget of 8192 tokens. Every request now fails immediately with a 400 validation error. What should the developer change?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Raise max_tokens above the thinking budget since thinking counts toward output"
+        },
+        {
+          "key": "B",
+          "text": "Retry the request with exponential backoff until capacity becomes available"
+        },
+        {
+          "key": "C",
+          "text": "Add the beta header that unlocks extended thinking on the selected model"
+        },
+        {
+          "key": "D",
+          "text": "Move the thinking configuration into the system prompt instead of the request body"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Thinking tokens count toward max_tokens, and the request is rejected when the thinking budget meets or exceeds that limit, so max_tokens must rise above the 8192 budget. Extended thinking is enabled through the standard thinking parameter and needs no unlock header on supported models. The system prompt carries instructions, not thinking configuration. A 400 response signals an invalid request, so retrying with backoff repeats the same failure. Reference: https://platform.claude.com/docs/en/build-with-claude/extended-thinking",
+      "selectCount": 1,
+      "number": 41
+    },
+    {
+      "question": "Coldenware Systems moved its Claude document assistant into the operations phase of its life cycle. Last month a quiet spike in refusals and 429 responses went unnoticed for nine days until customers complained. Which operational practice closes this gap?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Log per-request usage and stop reasons with alerts on unusual shifts"
+        },
+        {
+          "key": "B",
+          "text": "Subscribe the on-call rotation to Anthropic's public status page for incident notices"
+        },
+        {
+          "key": "C",
+          "text": "Review the monthly Console invoice for unexpected changes in aggregate token spend"
+        },
+        {
+          "key": "D",
+          "text": "Sample a handful of production transcripts by hand at the end of each sprint"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Structured per-request logging of usage data, stop reasons, and HTTP error codes gives the team a signal it can alert on within minutes instead of days. The public status page reports Anthropic-side incidents, not application-specific refusal or rate limit patterns. Invoice review surfaces cost anomalies weeks later and says nothing about failures. Manual transcript sampling is too sparse and too slow to catch a spike as it develops. Reference: https://platform.claude.com/docs/en/api/errors",
+      "selectCount": 1,
+      "number": 42
+    },
+    {
+      "question": "A coding agent at Marrowgate Claims produces dependency upgrade patches. The harness verifies each patch by asking a second Claude call to judge whether the change looks correct, yet approved patches still break the build several times a week. The team wants verification that catches these failures before merge. What should the harness rely on?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Deterministic checks that compile the project and run its test suite on each patch"
+        },
+        {
+          "key": "B",
+          "text": "A second judge model that reviews every patch the first judge approves"
+        },
+        {
+          "key": "C",
+          "text": "A self-assessment step where the agent rates its own confidence before submitting"
+        },
+        {
+          "key": "D",
+          "text": "A judge prompt upgraded with a detailed rubric and worked examples of bad patches"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Code patches have ground truth available, so the harness should gate merges on deterministic signals: compiling the project and running the tests catches exactly the breakages slipping through. A richer rubric still leaves approval to a probabilistic judgment of whether code looks right. Stacking a second judge compounds cost while inheriting the same blind spot, since neither judge executes the code. Self-reported confidence is the weakest signal of all because models grade their own work generously. Reference: https://www.anthropic.com/engineering/building-agents-with-the-claude-agent-sdk",
+      "selectCount": 1,
+      "number": 43
+    },
+    {
+      "question": "Bryncastle Insurance plans an assistant that summarizes recorded customer phone calls. The solution architect reviews the input types the Messages API accepts before signing off on the design. Which infrastructure requirement must the plan include?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "A speech-to-text stage that converts each recording into text before the API call"
+        },
+        {
+          "key": "B",
+          "text": "A vision request format that submits call recordings as base64 encoded media blocks"
+        },
+        {
+          "key": "C",
+          "text": "A Files API upload step that streams each audio recording to Claude directly"
+        },
+        {
+          "key": "D",
+          "text": "A batch submission pipeline that processes recordings asynchronously during overnight processing windows"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The Messages API accepts text, image, and document content blocks, so audio recordings must pass through a transcription stage before Claude can summarize them. Uploading audio through the Files API does not give the model the ability to interpret sound. Base64 media blocks cover images rather than recordings. Batch submission changes scheduling and cost, not the input types the model can process. Reference: https://platform.claude.com/docs/en/api/messages",
+      "selectCount": 1,
+      "number": 44
+    },
+    {
+      "question": "A two-line prompt behind Torvale Systems' contract classifier predates the current team, and its outputs skip reasoning and drift in format. The team wants a systematic first pass that restructures the prompt with reasoning guidance, standardized sections, and enriched examples before they invest in manual tuning. Which approach delivers this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Enable extended thinking on every request so the model reasons without any prompt changes"
+        },
+        {
+          "key": "B",
+          "text": "Append a closing instruction telling the model to think carefully and follow the format"
+        },
+        {
+          "key": "C",
+          "text": "Run the prompt through the Console prompt improver and review the restructured draft"
+        },
+        {
+          "key": "D",
+          "text": "Move the classifier to the most capable model tier and keep the prompt unchanged"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The prompt improver in the Console applies Anthropic's documented best practices automatically, restructuring a rough prompt with chain-of-thought guidance, clearly delimited sections, and enriched examples, and returns a draft the team can review and tune. Enabling extended thinking adds inference-time reasoning while leaving the vague instructions in place. Moving to the most capable tier raises cost without clarifying what the prompt asks for. A single appended line about thinking carefully bolts one hint onto a prompt that needs structural work. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/prompt-improver",
+      "selectCount": 1,
+      "number": 45
+    },
+    {
+      "question": "An engineer at Duskfield hits a reproducible server-side failure on one specific Messages request and opens a ticket with Anthropic support. Support replies that they cannot locate the failing call among the org's traffic and asks for one identifying detail from the response. What should the engineer send?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The full prompt text so support can replay the failing request internally"
+        },
+        {
+          "key": "B",
+          "text": "The API key suffix used to authenticate the failing request"
+        },
+        {
+          "key": "C",
+          "text": "The client-generated timestamp recorded when the SDK dispatched the call"
+        },
+        {
+          "key": "D",
+          "text": "The request-id value returned in the response headers for that call"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Every API response carries a request-id header, and quoting that value lets Anthropic pinpoint the exact call in their logs, which is why the error documentation recommends capturing it when reporting issues. Prompt text does not uniquely identify one request among an org's traffic and raises confidentiality concerns. A timestamp from the client reflects the caller's clock rather than anything Anthropic indexes. An API key suffix narrows traffic to a workspace at best, never to a single call. Reference: https://platform.claude.com/docs/en/api/errors",
+      "selectCount": 1,
+      "number": 46
+    },
+    {
+      "question": "Fennwick Systems asks Claude to draft a structured incident report, but only the opening summary section, which always ends at the heading '## Timeline', is shown to users. The model reliably produces the full report, and the app discards everything after that heading, paying for tokens it never uses. Which request change eliminates the waste?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Pass the heading as a stop sequence so generation halts when it appears"
+        },
+        {
+          "key": "B",
+          "text": "Add a closing instruction telling the model to end its turn at the heading"
+        },
+        {
+          "key": "C",
+          "text": "Request the summary alone in a second call after the full report completes"
+        },
+        {
+          "key": "D",
+          "text": "Lower the max_tokens ceiling until most responses end close to the heading"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Supplying the heading in the stop_sequences parameter makes generation halt the moment it would be emitted, the response comes back with a stop_reason of stop_sequence, and the discarded sections are never generated or billed. Lowering max_tokens cuts responses off at an arbitrary token count that rarely lines up with the heading, truncating some summaries and overrunning on others. A prompt instruction to stop can be followed inconsistently, so waste would persist on some requests. A second call for the summary alone adds spend instead of removing it. Reference: https://platform.claude.com/docs/en/api/handling-stop-reasons",
+      "selectCount": 1,
+      "number": 47
+    },
+    {
+      "question": "An Otterbeck Labs engineer builds a local MCP server that the client launches as a subprocess. Everything works in testing until the engineer adds progress messages with print statements for troubleshooting. Now the client immediately reports malformed message errors and drops the connection. What should the engineer change?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Flush the output buffer after every progress message the server writes"
+        },
+        {
+          "key": "B",
+          "text": "Route progress messages to stderr instead of standard output"
+        },
+        {
+          "key": "C",
+          "text": "Escape each progress message as a JSON object before printing it"
+        },
+        {
+          "key": "D",
+          "text": "Raise the client's request timeout so slow responses are tolerated"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A subprocess-launched server communicates over the stdio transport, which reserves standard output exclusively for protocol messages, so any print statement writing there corrupts the stream the client parses. Standard error is the designated channel for logging and diagnostics. Flushing the buffer changes timing but still injects foreign bytes into the protocol stream, escaping the messages as JSON still places non-protocol data where messages are expected, and a longer timeout addresses latency rather than parse failures. Reference: https://modelcontextprotocol.io/docs/concepts/transports",
+      "selectCount": 1,
+      "number": 48
+    },
+    {
+      "question": "During a brief Claude API disruption, Lundvale Publishing's request volume amplified ninefold and tripped rate limits, worsening the outage for their users. Their code wraps every Anthropic Python SDK call in a custom loop that retries three times, and engineers suspect duplicated retry behavior. What should the team change?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Move the custom loop lower to wrap the underlying HTTP transport directly"
+        },
+        {
+          "key": "B",
+          "text": "Remove the custom loop and tune the SDK's built-in retry configuration instead"
+        },
+        {
+          "key": "C",
+          "text": "Configure longer read timeouts so slow responses stop being counted as failures"
+        },
+        {
+          "key": "D",
+          "text": "Add jitter to the custom loop while keeping both retry layers active"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The official SDKs already retry rate limit errors and transient failures with backoff, so an outer loop multiplies every retry, and consolidating on the SDK's retry configuration leaves one tuned layer. Longer read timeouts address slow responses, not duplicated retries. Wrapping the transport directly still leaves two competing retry layers in the stack. Jitter smooths timing but keeps the multiplication in place. Reference: https://platform.claude.com/docs/en/api/client-sdks",
+      "selectCount": 1,
+      "number": 49
+    },
+    {
+      "question": "Marlowton Insurance prompts Claude to review claims with a template that requires an APPROVE or DENY verdict on the first line, followed by a detailed justification. Reviewers notice the written justifications are sound but frequently contradict the verdict above them. Why does this output order cause the problem?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Sampling temperature affects early tokens more strongly, making the opening line less reliable"
+        },
+        {
+          "key": "B",
+          "text": "The model weighs the end of the prompt most heavily, overriding the verdict instruction"
+        },
+        {
+          "key": "C",
+          "text": "The verdict tokens are generated before any reasoning exists, so the analysis cannot inform them"
+        },
+        {
+          "key": "D",
+          "text": "Fixed labels like APPROVE consume extra output budget, leaving less room for the reasoning"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Claude produces output autoregressively, one token at a time, so a verdict emitted on the first line is committed before any justification tokens exist and cannot benefit from that analysis. Requesting the reasoning first and the verdict last lets the conclusion condition on the analysis, which is the core of chain-of-thought prompting. Temperature applies to every sampled token rather than weighing early ones differently. A short label consumes negligible output budget, and how the prompt weights its own instructions does not explain why sound reasoning contradicts an already-written verdict. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/chain-of-thought",
+      "selectCount": 1,
+      "number": 50
+    },
+    {
+      "question": "Fernhollow Research runs a two-phase orchestrator. Phase-one subagents choose data sources and a naming scheme for a study, then terminate. Phase-two subagents, spawned fresh, extend the analysis but routinely contradict those choices, picking different sources and inventing new names. What should the orchestrator do?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Run both phases inside one shared conversation so all context carries over"
+        },
+        {
+          "key": "B",
+          "text": "Give phase-two subagents a tool for querying the phase-one subagents directly"
+        },
+        {
+          "key": "C",
+          "text": "Instruct phase-two subagents to infer the conventions from artifacts already produced"
+        },
+        {
+          "key": "D",
+          "text": "Embed the phase-one decisions and outputs in every phase-two task description"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Subagents start from clean contexts, so anything phase two must honor has to travel explicitly: the orchestrator should write the phase-one source choices and naming scheme into each phase-two task description. Querying the phase-one subagents fails because those agents have already terminated and their contexts are gone. One shared conversation removes the isolation that keeps each phase focused and rapidly bloats the window. Inferring conventions from artifacts is guesswork that reproduces exactly the inconsistencies observed. Reference: https://www.anthropic.com/engineering/multi-agent-research-system",
+      "selectCount": 1,
+      "number": 51
+    },
+    {
+      "question": "Bellamare Publishing generates 30,000-token market reports through a single synchronous Messages call with a very high output ceiling. The SDK now raises an error at request time recommending a different invocation style, and earlier attempts died with network timeouts around the ten-minute mark. What should the integration do?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Stream the response so tokens flow while generating and the connection stays active"
+        },
+        {
+          "key": "B",
+          "text": "Move the workload to a websocket connection so the socket stays alive longer"
+        },
+        {
+          "key": "C",
+          "text": "Raise the client timeout and retry until a complete response arrives intact"
+        },
+        {
+          "key": "D",
+          "text": "Split the report into paragraph-sized calls and stitch the pieces together downstream"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The SDKs raise an error when a non-streaming request sets an output ceiling large enough that generation is likely to outlast the roughly ten minute connection limit, and streaming resolves it by delivering tokens continuously so the connection is never idle until completion. Splitting the report into many small calls changes the deliverable and adds stitching complexity that streaming avoids. The Messages API delivers incremental output over HTTP with server-sent events, not websockets. Raising the client timeout does not stop intermediate network infrastructure from dropping a long-idle connection. Reference: https://platform.claude.com/docs/en/build-with-claude/streaming",
+      "selectCount": 1,
+      "number": 52
+    },
+    {
+      "question": "Ashgrave's customer support chat sends every question to a single mid-tier Claude model and renders the reply only after the full response returns. Users watch a blank panel for up to fifteen seconds, and analytics show most questions are simple order lookups while a minority need multi-step troubleshooting. Which two changes reduce the wait users experience? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Route the simple lookups to a smaller model tier after verifying accuracy with evals"
+        },
+        {
+          "key": "B",
+          "text": "Enable extended thinking so the model settles on answers in fewer output tokens"
+        },
+        {
+          "key": "C",
+          "text": "Raise the output ceiling so responses complete in a single attempt without retries"
+        },
+        {
+          "key": "D",
+          "text": "Stream responses so text renders progressively while generation is still running"
+        }
+      ],
+      "correct": [
+        "A",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Streaming changes when text becomes visible: tokens render as they are generated, so users see an answer forming within the first moments instead of staring at a blank panel until completion. Routing the simple lookups that dominate traffic to a smaller, faster tier shortens full response time for most conversations, and an eval pass confirms accuracy holds before the switch. Extended thinking adds reasoning tokens before the visible answer begins, lengthening the wait rather than shrinking it. A higher output ceiling does not speed up generation, since responses were already completing within the existing limit. Reference: https://platform.claude.com/docs/en/about-claude/models/choosing-a-model",
+      "selectCount": 2,
+      "number": 53
+    }
+  ]
+}

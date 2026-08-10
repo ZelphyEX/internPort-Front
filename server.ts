@@ -3,6 +3,8 @@ import path from "path";
 import dotenv from "dotenv";
 import { GoogleGenAI } from "@google/genai";
 
+import { createProxyMiddleware } from "http-proxy-middleware";
+
 // dotenv.config() mặc định chỉ đọc ".env" — dự án này dùng ".env.local" (xem README),
 // nên phải chỉ định rõ path, không thì GEMINI_API_KEY sẽ luôn "chưa được cấu hình".
 dotenv.config({ path: [".env.local", ".env"] });
@@ -10,6 +12,15 @@ dotenv.config({ path: [".env.local", ".env"] });
 const app = express();
 // Cloud Run tiêm biến môi trường PORT (mặc định 8080). Local dev dùng 3000.
 const PORT = Number(process.env.PORT) || 3000;
+
+// Proxy API requests to backend
+app.use(
+  "/api/v1",
+  createProxyMiddleware({
+    target: "http://localhost:8000",
+    changeOrigin: true,
+  })
+);
 
 app.use(express.json({ limit: "10mb" }));
 

@@ -1,0 +1,1881 @@
+{
+  "title": "Claude Developer — Practice Exam 6",
+  "track": "dev",
+  "trackLabel": "Claude Developer",
+  "examCode": "D6",
+  "sourceFile": "D6_dom_traverse_full_output.json",
+  "questionCount": 53,
+  "singleCount": 45,
+  "multiSelectCount": 8,
+  "inferredCount": 1,
+  "timeLimitMinutes": 120,
+  "passMark": 0.8,
+  "generatedAt": "2026-08-07T15:22:37+00:00",
+  "questions": [
+    {
+      "question": "Wexford Analytics wants Claude to read and create tickets in its authenticated internal tracker from Claude Code, Claude Desktop, and a custom API app. An engineer proposes packaging the workflow as a Skill. Why does that not fit, and what should the team build instead?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Build one custom tool and copy it into each client by hand"
+        },
+        {
+          "key": "B",
+          "text": "Build an MCP server, since a Skill lacks live authenticated access"
+        },
+        {
+          "key": "C",
+          "text": "Build a Skill anyway, since Skills can store the tracker's API keys"
+        },
+        {
+          "key": "D",
+          "text": "Build a Skill per client, since Skills do not move across surfaces"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Live authenticated read and write access to an internal system that several Claude surfaces must share is exactly what an MCP server provides, because it exposes tools that run against the tracker and any MCP-capable client can connect. A Skill packages instructions and files the model follows but cannot perform live authenticated calls or hold service credentials, so it fits neither as-is nor one-per-client. Copying a single custom tool into each client by hand is unmaintainable and does not work across Desktop. Reference: https://modelcontextprotocol.io/docs/learn/server-concepts",
+      "selectCount": 1,
+      "number": 1
+    },
+    {
+      "question": "Brackenfield Reports builds one page that needs eight independent section summaries from Claude. The current code awaits each Messages API call before starting the next, so the page takes about eight times one call. What reduces the wait most?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Issue the eight independent calls concurrently and await them together."
+        },
+        {
+          "key": "B",
+          "text": "Combine all eight sections into one very large single prompt."
+        },
+        {
+          "key": "C",
+          "text": "Move the eight calls to the Batches API for cheaper processing."
+        },
+        {
+          "key": "D",
+          "text": "Cache the first response and reuse it for the other sections."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The calls are independent, so dispatching them concurrently and awaiting the whole set collapses the total wait toward the time of the slowest single call. Merging into one giant prompt trades parallelism for a longer single generation and couples unrelated sections. The Batches API lowers cost but returns asynchronously, which is worse for a page a user is waiting on. Reusing the first response for different sections would return wrong content. Reference: https://platform.claude.com/docs/en/api/client-sdks",
+      "selectCount": 1,
+      "number": 2
+    },
+    {
+      "question": "Photobench Studio sends product photos to Claude as base64 inside an image block. PNG uploads return a 400 error while the same code path works for JPEG files, and the base64 encoding itself is valid. What is the most likely cause?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Base64 image sources are limited to JPEG across the Messages API."
+        },
+        {
+          "key": "B",
+          "text": "The account lacks a beta header that unlocks PNG image input."
+        },
+        {
+          "key": "C",
+          "text": "PNG files exceed the size ceiling that the vision endpoint accepts."
+        },
+        {
+          "key": "D",
+          "text": "The media_type field still declares image/jpeg for the PNG bytes."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "An image block carries a media_type that must match the actual bytes, so sending PNG data still labeled image/jpeg produces a validation error even when the encoding is valid. A shared size ceiling would fail both formats, not just PNG. The Messages API accepts several image formats through base64, not JPEG alone. PNG input is generally available and needs no special beta header. Reference: https://platform.claude.com/docs/en/build-with-claude/vision",
+      "selectCount": 1,
+      "number": 3
+    },
+    {
+      "question": "Verithorn Capital builds a Claude assistant that answers open-ended market questions requiring many independent lines of investigation at once. A single agent exhausts its context window juggling all the threads and answer quality drops. Which architecture best fits this breadth-heavy research?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "A fixed prompt chain that researches each investigation line one after another"
+        },
+        {
+          "key": "B",
+          "text": "A single agent granted a larger maximum token budget for every request"
+        },
+        {
+          "key": "C",
+          "text": "A router that forwards the entire question to one specialized research prompt"
+        },
+        {
+          "key": "D",
+          "text": "A lead agent that assigns each investigation line to its own subagent context"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Open-ended questions with many independent investigation lines overflow one context window, so a lead agent that assigns each line to its own subagent context lets the threads run in parallel with separate windows and preserves quality. A larger token budget still forces one agent to juggle everything in a single window. A fixed prompt chain researches lines sequentially and keeps accumulating them in one context. Routing the whole question to one prompt cannot cover many parallel threads. Reference: https://www.anthropic.com/engineering/multi-agent-research-system",
+      "selectCount": 1,
+      "number": 4
+    },
+    {
+      "question": "Grellmont Software is building a genuinely open-ended Claude agent whose steps vary from run to run, and the team keeps rewriting the same loop, tool dispatch, and state plumbing by hand. They are evaluating a model-driven agent framework such as Strands. When does adopting it make sense here?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "When the team wants to hide the assembled prompt from developers"
+        },
+        {
+          "key": "B",
+          "text": "When the workflow is a fixed sequence of steps that never changes"
+        },
+        {
+          "key": "C",
+          "text": "When the task is open-ended and the framework removes repetitive scaffolding"
+        },
+        {
+          "key": "D",
+          "text": "When the aim is simply to reduce the model's per-token cost"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A model-driven framework such as Strands is built for agents whose steps are decided by the model rather than hardcoded, and it exists to eliminate repeated scaffolding - the agent loop, tool dispatch, context and state plumbing, and observability - so developers write tools and business logic instead of boilerplate. Grellmont's task is genuinely open-ended and its engineers are rewriting that same plumbing by hand, which is precisely the case the framework addresses. A is wrong because Anthropic's guidance is the opposite: understanding the exact prompt and tokens sent to the model is essential, and frameworks that obscure them make debugging harder. B is wrong because a fixed, unchanging sequence is a workflow that plain code orchestrates more simply and predictably than an agent loop. D is wrong because a framework changes developer ergonomics, not per-token pricing. Reference: https://strandsagents.com/",
+      "inferredAnswer": true,
+      "answerConfidence": "high",
+      "selectCount": 1,
+      "number": 5
+    },
+    {
+      "question": "Veril Notes rebuilds its messages array from a database on each request. After a change that logs two consecutive assistant replies, some requests fail with a 400 before the model runs, while single-reply conversations still succeed. What does the array violate?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Turns must alternate between user and assistant roles in order."
+        },
+        {
+          "key": "B",
+          "text": "Each turn needs a unique identifier to prevent duplicates."
+        },
+        {
+          "key": "C",
+          "text": "The first entry in the array has to carry the system role."
+        },
+        {
+          "key": "D",
+          "text": "Assistant turns cannot appear before any user turn exists."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The Messages API expects turns to alternate between user and assistant roles, so two assistant entries in a row break that ordering and are rejected before the model runs. The system prompt is a separate top-level parameter, not the first array entry. A leading assistant turn is a different ordering problem and is not what two back-to-back assistant replies describe. Turns are not keyed by unique identifiers for deduplication. Reference: https://platform.claude.com/docs/en/api/messages",
+      "selectCount": 1,
+      "number": 6
+    },
+    {
+      "question": "A platform team at Ridgeline Software runs Claude Code across dozens of repositories and many laptops. They need one security rule enforced in every session on every machine, and a set of build commands shared with everyone who clones a specific repo. Which two placements meet these needs? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Paste both into the chat at the start of every session"
+        },
+        {
+          "key": "B",
+          "text": "Define the security rule in the enterprise policy file read on all machines"
+        },
+        {
+          "key": "C",
+          "text": "Add both to each developer's personal user memory file by hand"
+        },
+        {
+          "key": "D",
+          "text": "Commit a CLAUDE.md at that repository's root so cloners load it"
+        }
+      ],
+      "correct": [
+        "B",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The CLAUDE.md hierarchy lets each requirement land at the right scope: an enterprise-managed policy file is read in every session on every machine, and a CLAUDE.md committed at a repository's root loads for everyone who clones that repo. Placing both in each developer's personal user memory neither enforces the rule org-wide nor travels with the repo, and it depends on manual copying. Pasting the content into the chat each session is ephemeral and easily forgotten. Reference: https://code.claude.com/docs/en/memory",
+      "selectCount": 2,
+      "number": 7
+    },
+    {
+      "question": "Wexbourne Labs plans to build a Claude coding agent and is deciding between hand-rolling a loop on the Messages API and adopting the Claude Agent SDK. Which two capabilities does the Agent SDK provide out of the box that the team would otherwise build themselves? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "A guarantee that the agent never exceeds its assigned task scope"
+        },
+        {
+          "key": "B",
+          "text": "A larger context window than the underlying Claude model provides"
+        },
+        {
+          "key": "C",
+          "text": "A built-in agent loop that manages the tool-call and result cycle across turns"
+        },
+        {
+          "key": "D",
+          "text": "Context management that compacts and prunes the transcript automatically"
+        }
+      ],
+      "correct": [
+        "C",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The Claude Agent SDK ships a built-in agent loop that manages the tool-call and result cycle across turns, and automatic context management that compacts and prunes the transcript, both of which a hand-rolled loop would have to implement. The SDK offers no guarantee that an agent stays within its task scope, which still requires explicit guardrails. It also cannot enlarge the underlying model's context window, which is fixed by the model. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 2,
+      "number": 8
+    },
+    {
+      "question": "Threnody Systems runs a research agent whose sessions span hundreds of turns. Over a session the context window fills with old tool outputs and prior turns until requests slow and the agent starts dropping earlier instructions. The team wants sessions to run longer without losing the thread. Which two changes address the bloat? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Clear stale tool results from earlier turns once they go unused."
+        },
+        {
+          "key": "B",
+          "text": "Lower the temperature so the agent produces shorter outputs."
+        },
+        {
+          "key": "C",
+          "text": "Offload token-heavy subtasks to subagents that return short summaries."
+        },
+        {
+          "key": "D",
+          "text": "Raise max_tokens so each response has more room to work."
+        }
+      ],
+      "correct": [
+        "A",
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Clearing stale tool results reclaims the window space that unreferenced outputs would otherwise consume across a long session. Routing token-heavy subtasks to subagents keeps their bulky intermediate work out of the main context and returns only compact summaries. Raising max_tokens changes how long each response can be, not how much accumulated input the window holds. Lowering temperature affects randomness, not the amount of context retained. Reference: https://platform.claude.com/docs/en/build-with-claude/context-editing",
+      "selectCount": 2,
+      "number": 9
+    },
+    {
+      "question": "Dunmore Retail pins its production requests to a specific Claude model snapshot for stable behavior. Anthropic has announced that this snapshot is deprecated with a retirement date a few months out. The team wants uninterrupted service and no surprise behavior changes. Which two practices should they adopt? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Re-run their evaluation suite on the replacement before switching production traffic."
+        },
+        {
+          "key": "B",
+          "text": "Switch requests to a floating model alias so updates apply automatically."
+        },
+        {
+          "key": "C",
+          "text": "Migrate to the recommended replacement snapshot before the published retirement date."
+        },
+        {
+          "key": "D",
+          "text": "Keep calling the deprecated snapshot until requests begin to fail."
+        }
+      ],
+      "correct": [
+        "A",
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Deprecated snapshots keep working until a published retirement date, so migrating to the recommended replacement ahead of that date preserves service, and validating the replacement against an eval suite first guards against behavior changes. A floating alias defeats the goal because it can shift behavior whenever the underlying model updates. Waiting until calls fail guarantees an outage at retirement. Reference: https://platform.claude.com/docs/en/about-claude/model-deprecations",
+      "selectCount": 2,
+      "number": 10
+    },
+    {
+      "question": "Verranda Logistics prompts Claude to summarize incident reports into a fixed section layout, describing that layout in a paragraph of instructions. The summaries come back with sections in varying order and headings worded differently each run, breaking a downstream template. The team wants the layout to stay identical across runs. Which prompt change is most effective?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Restate the layout requirements in stronger, more emphatic wording."
+        },
+        {
+          "key": "B",
+          "text": "Increase max_tokens so the model has room for the full layout."
+        },
+        {
+          "key": "C",
+          "text": "Lower the temperature so the model formats its output more consistently."
+        },
+        {
+          "key": "D",
+          "text": "Add worked examples showing the exact section order and headings."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Concrete examples that display the exact section order and headings show the model the target structure far more reliably than a prose description it can interpret loosely. Restating the same instructions more forcefully leaves the model free to vary an under-specified format. Lowering temperature reduces token-level randomness but does not teach a fixed layout. Raising max_tokens changes output capacity, not structural consistency. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/multishot-prompting",
+      "selectCount": 1,
+      "number": 11
+    },
+    {
+      "question": "Larkhaven IDE plans a feature where developers paste an entire repository into a Claude assistant for review. Before committing, the architect must confirm one infrastructure fact about each request. Which requirement belongs at the top of the list?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The request must run through the asynchronous batch endpoint."
+        },
+        {
+          "key": "B",
+          "text": "The prompt must be cached to keep repeated reviews cheap."
+        },
+        {
+          "key": "C",
+          "text": "The combined input must fit within the model's context window."
+        },
+        {
+          "key": "D",
+          "text": "The response must stream to keep the editor responsive."
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Pasting a whole repository can exceed the model's context window, so the first infrastructure fact to confirm is that the combined input fits within that limit or must be reduced. Streaming improves perceived responsiveness but does not decide whether the input can be accepted at all. The batch endpoint suits latency-tolerant volume, not an interactive review. Caching optimizes repeated cost but does not change the hard input ceiling. Reference: https://platform.claude.com/docs/en/build-with-claude/context-windows",
+      "selectCount": 1,
+      "number": 12
+    },
+    {
+      "question": "A developer at Torvane Analytics builds a headline-generation feature on Claude's latest model and wants more variety across runs. They add temperature and top_p to the request at non-default values, and every call returns a 400 error naming those exact fields. What should they conclude?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Those sampling parameters are deprecated on the latest models and should be omitted."
+        },
+        {
+          "key": "B",
+          "text": "The account lacks the tier required to adjust sampling on newer models."
+        },
+        {
+          "key": "C",
+          "text": "Temperature and top_p cannot be combined in a single request anymore."
+        },
+        {
+          "key": "D",
+          "text": "The values should be sent as strings rather than numbers on newer models."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "On Claude's newest models temperature, top_p, and top_k are deprecated and return a 400 error at non-default values, so they should be removed and variation guided through prompting instead. The values are numeric, not string-typed. There is no rule against combining the two fields that would produce this error. No usage tier unlocks deprecated sampling controls. Reference: https://platform.claude.com/docs/en/about-claude/model-deprecations",
+      "selectCount": 1,
+      "number": 13
+    },
+    {
+      "question": "Marrowbyte streams Claude responses and a developer wrote code that concatenates every raw server-sent line into the displayed text. Control frames and partial JSON leak into the UI, and the final assembled message is sometimes malformed. Which approach fixes this with the least custom code?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Consume the stream through the SDK helper that parses events and assembles the message."
+        },
+        {
+          "key": "B",
+          "text": "Disable streaming and poll a status endpoint until the message is ready."
+        },
+        {
+          "key": "C",
+          "text": "Filter the raw lines with a regular expression before appending them to the UI."
+        },
+        {
+          "key": "D",
+          "text": "Buffer all raw lines and parse the whole payload after the stream closes."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The official SDK streaming helper interprets each event type, ignores control frames, and accumulates text and tool deltas into a well-formed final message, which removes the hand-rolled parsing entirely. A regular-expression filter is brittle and still reimplements event handling. Buffering and parsing at the end discards the incremental display that streaming exists to provide. There is no message-completion status endpoint to poll, so disabling streaming does not apply. Reference: https://platform.claude.com/docs/en/build-with-claude/streaming",
+      "selectCount": 1,
+      "number": 14
+    },
+    {
+      "question": "Thornapple Systems will use Claude Code to restructure a large payments module that has thin test coverage. The lead worries a broad automated edit could change behavior unnoticed. What should the team put in place before starting the refactor?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Run the refactor twice and compare the two outputs."
+        },
+        {
+          "key": "B",
+          "text": "Ask Claude Code to explain each change after it edits."
+        },
+        {
+          "key": "C",
+          "text": "Split the module into more files so edits stay smaller."
+        },
+        {
+          "key": "D",
+          "text": "Add characterization tests that capture current behavior first."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Characterization tests pin down the module's existing behavior, giving the refactor a safety net that flags any unintended change automatically. Splitting files first is itself an untested edit and does not detect behavior drift. After-the-fact explanations describe changes but cannot prove behavior was preserved. Comparing two refactor runs only shows the model was consistent, not that it stayed faithful to the original. Reference: https://code.claude.com/docs/en/common-workflows",
+      "selectCount": 1,
+      "number": 15
+    },
+    {
+      "question": "Corriedale Feeds asks Claude for JSON and passes the reply straight into a JSON parser. A small fraction of replies include a stray sentence before the object and crash the consumer, and the team cannot tolerate hard failures. What is the most robust integration fix?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Validate each reply and re-request when it fails to parse."
+        },
+        {
+          "key": "B",
+          "text": "Increase max_tokens to prevent the object from being cut off."
+        },
+        {
+          "key": "C",
+          "text": "Lower temperature to zero to stop replies from varying in format."
+        },
+        {
+          "key": "D",
+          "text": "Wrap the parser so any malformed reply is silently dropped."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Defensive consumption means validating the reply and asking again when parsing fails, which recovers gracefully instead of crashing on the occasional off-format response. Silently dropping malformed replies hides real data loss and still leaves the user without an answer. Temperature zero reduces variation but does not guarantee clean JSON on every reply. Larger max_tokens addresses truncation, not a stray leading sentence. Reference: https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency",
+      "selectCount": 1,
+      "number": 16
+    },
+    {
+      "question": "Fenwick Data sets a permission value one way in the shared project settings file and the opposite way in a developer's local settings file. On that developer's machine the local value takes effect, though a teammate expected the shared value to win. Which behavior is correct?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Local settings override shared project settings on that machine."
+        },
+        {
+          "key": "B",
+          "text": "Shared project settings override any local settings file."
+        },
+        {
+          "key": "C",
+          "text": "Conflicting settings raise an error until one is removed."
+        },
+        {
+          "key": "D",
+          "text": "Whichever settings file was written last determines the value."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Local settings sit higher in the precedence order than shared project settings, so a developer's local override wins on that machine. The shared file does not take priority over the local one, which is why the teammate's expectation was wrong. Precedence is fixed by file role, not by which file was saved most recently. A conflict resolves by precedence rather than raising an error. Reference: https://code.claude.com/docs/en/settings",
+      "selectCount": 1,
+      "number": 17
+    },
+    {
+      "question": "Halbrook Tools ships a Claude Code plugin that assumes two other plugins are already installed at specific versions. Teammates who install it alone hit missing-command errors, and the author wants installs to pull the right companions automatically. What should the plugin declare?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "A hook that blocks the session until dependencies appear."
+        },
+        {
+          "key": "B",
+          "text": "Its required plugins and versions in the plugin manifest."
+        },
+        {
+          "key": "C",
+          "text": "A setup slash command that teammates run after installing."
+        },
+        {
+          "key": "D",
+          "text": "A note in the repository README listing the prerequisites."
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Declaring the required plugins and their versions in the plugin manifest lets the install resolve and pull the companions automatically, which is exactly the dependency behavior the author wants. A manual setup command depends on teammates remembering to run it. A README note documents the requirement but installs nothing. A blocking hook fails the session rather than satisfying the missing dependencies. Reference: https://code.claude.com/docs/en/plugins",
+      "selectCount": 1,
+      "number": 18
+    },
+    {
+      "question": "At Halloway Freight, a Claude Code agent occasionally writes source files that contain a hardcoded database password. The platform team wants each pending file write inspected automatically and stopped if it carries a credential, without relying on the model to notice. Which mechanism fits?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Enable a PostToolUse hook that records each written file to an audit log."
+        },
+        {
+          "key": "B",
+          "text": "Register a PreToolUse hook that scans the write payload and blocks it when a credential appears."
+        },
+        {
+          "key": "C",
+          "text": "Add a CLAUDE.md rule telling the agent never to write hardcoded credentials."
+        },
+        {
+          "key": "D",
+          "text": "Run a repository secret scanner in the continuous integration pipeline after the agent commits."
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A PreToolUse hook runs before the write is applied, so it can inspect the payload and return a blocking result the moment a credential is present, independent of the model's judgment. A CLAUDE.md rule is guidance the agent can ignore and enforces nothing. A continuous integration scanner runs only after the file is committed, so the secret already landed. A PostToolUse audit log records the write but does not prevent it. Reference: https://code.claude.com/docs/en/hooks",
+      "selectCount": 1,
+      "number": 19
+    },
+    {
+      "question": "Pellorm Freight writes Claude's extracted invoice fields directly to its ledger. The JSON always parses, but a few times a day a field holds an impossible value such as a negative quantity, and these pass straight through and corrupt reports. The team wants bad records caught before they land. Which practice fits best?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Retry each extraction several times and keep the first parsed result."
+        },
+        {
+          "key": "B",
+          "text": "Validate values against business rules and quarantine records that fail."
+        },
+        {
+          "key": "C",
+          "text": "Lower the temperature so the model produces fewer invalid values."
+        },
+        {
+          "key": "D",
+          "text": "Trust the parsed values since the JSON structure is always valid."
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Validating each value against business rules catches semantically impossible values that structural JSON parsing cannot see, and quarantining the failures holds them for review before they reach the ledger. Trusting the parsed values ignores that a well-formed structure can still carry invalid data. Retrying re-runs the same fallible extraction without adding any check. Lowering temperature may reduce invalid values but never prevents them and adds no gate. Reference: https://platform.claude.com/docs/en/build-with-claude/structured-outputs",
+      "selectCount": 1,
+      "number": 20
+    },
+    {
+      "question": "Thornbury Freight runs a Claude booking assistant with three lookup tools. After all needed lookups return, the team wants Claude to write a plain-language confirmation for the customer, but on that closing turn Claude often issues another tool call instead of prose. How should the request for that final turn be configured?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Add a line to each tool description telling the model to stop after three calls"
+        },
+        {
+          "key": "B",
+          "text": "Reduce the temperature so the model stops choosing tools on later turns"
+        },
+        {
+          "key": "C",
+          "text": "Drop the customer name from the system prompt to reduce tool triggers"
+        },
+        {
+          "key": "D",
+          "text": "Set tool_choice to none on the closing request so the model answers in prose"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Constraining tool selection on the final turn is done through the request's tool_choice field: setting it to none forces a text response and blocks any further tool call, which is exactly what the closing confirmation needs. Lowering temperature changes sampling randomness, not whether tools are eligible, so the model can still call one. Dropping the customer name does not govern tool eligibility either. Instructions placed inside tool descriptions are advisory and the model can ignore them, so a stop-after-three rule will not reliably hold. Reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use",
+      "selectCount": 1,
+      "number": 21
+    },
+    {
+      "question": "Halloway Media wrote a custom tool that downloads the full text of a user-supplied article URL and passes it to Claude for summaries. It breaks on PDFs and large pages, and the team maintains parsing code they would rather drop. Which Anthropic-managed capability replaces it?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The computer use tool, which drives a virtual screen and cursor"
+        },
+        {
+          "key": "B",
+          "text": "Anthropic's web fetch tool, which retrieves a given URL including PDFs"
+        },
+        {
+          "key": "C",
+          "text": "The code execution tool, which runs Python in a managed sandbox"
+        },
+        {
+          "key": "D",
+          "text": "Anthropic's web search tool, which returns ranked results for a query"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Anthropic's web fetch tool is a managed server tool that retrieves the full contents of a supplied URL, including PDFs, so it replaces the fragile custom downloader and removes the parsing code the team maintains. The web search tool returns ranked results for a query rather than fetching one known URL. The code execution tool runs Python in a sandbox and is not a web retriever. The computer use tool drives a virtual screen and is far heavier than fetching a page. Reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/web-fetch-tool",
+      "selectCount": 1,
+      "number": 22
+    },
+    {
+      "question": "Calderwynn Retail feeds Claude's JSON output straight into a parser. Most responses decode fine, but some arrive wrapped in triple-backtick code fences and the parser rejects them, forcing manual reruns. The team wants the parser to succeed whether or not fences appear. Which change makes consumption robust?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Lower the temperature so the model formats output more uniformly."
+        },
+        {
+          "key": "B",
+          "text": "Add a prompt line telling the model to omit code fences."
+        },
+        {
+          "key": "C",
+          "text": "Strip any surrounding code-fence markers before decoding the response."
+        },
+        {
+          "key": "D",
+          "text": "Switch to a larger model that formats its output more reliably."
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Stripping code-fence markers in the consumer before decoding makes parsing succeed regardless of how the model chooses to wrap the payload, with no dependence on model cooperation. A prompt instruction to omit fences is guidance the model can still drift from intermittently. Lowering temperature reduces randomness but does not guarantee fence-free output. A larger model offers no formatting guarantee either. Reference: https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/increase-consistency",
+      "selectCount": 1,
+      "number": 23
+    },
+    {
+      "question": "Cindral Systems prompts Claude to sort inbound tickets into one of six priority levels. Plain-language rules handle clear cases well, but borderline tickets that mix urgent and routine signals are often mislabeled. The team wants steadier accuracy on these edge cases without switching models. Which prompt change fits best?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Add an instruction to weigh urgency more heavily than routine signals."
+        },
+        {
+          "key": "B",
+          "text": "Increase max_tokens so the model can justify each classification."
+        },
+        {
+          "key": "C",
+          "text": "Include several labeled example tickets that show how borderline cases map to levels."
+        },
+        {
+          "key": "D",
+          "text": "Switch the six level names to shorter and more distinct labels."
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Showing the model several labeled examples of borderline tickets teaches the target mapping far more reliably than prose rules alone, which is exactly where example-based prompting helps. Shorter label names do not resolve genuinely ambiguous cases. Raising max_tokens only lengthens explanations without improving the decision. A stronger instruction to weigh urgency still leaves the boundary undefined without concrete cases. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/claude-prompting-best-practices",
+      "selectCount": 1,
+      "number": 24
+    },
+    {
+      "question": "A prompt that reads and edits local files reliably in Claude Code returns only a refusal-like text description when Marrowgate Labs runs the same wording through the Messages API, and no error is raised. Why does the API path behave differently?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The API request defines no tools, so the model cannot act on files."
+        },
+        {
+          "key": "B",
+          "text": "The API strips file paths from prompts as untrusted input."
+        },
+        {
+          "key": "C",
+          "text": "The API uses a smaller default model than the Claude Code session."
+        },
+        {
+          "key": "D",
+          "text": "The API requires a beta header before it will edit files."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Claude Code ships file-reading and editing tools in its harness, while a raw Messages API request has only the tools the caller defines, so with none defined the model can only describe what it would do. The two paths are not distinguished by a hidden smaller default model. The API does not silently strip file paths as untrusted content. No beta header grants generic file editing to a plain Messages call. Reference: https://platform.claude.com/docs/en/api/messages",
+      "selectCount": 1,
+      "number": 25
+    },
+    {
+      "question": "Marisol Freight lets Claude call inventory tools freely. On some turns Claude returns several tool_use blocks at once, and two that adjust the same stock record run out of order and corrupt the count. The team wants the model to issue only one tool call per turn. Which setting achieves this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Lower max_tokens so a single tool call fits per turn"
+        },
+        {
+          "key": "B",
+          "text": "Merge the two stock tools into a single combined tool"
+        },
+        {
+          "key": "C",
+          "text": "Set disable_parallel_tool_use to true in the tool_choice field"
+        },
+        {
+          "key": "D",
+          "text": "Return a tool_result after each block before sending the others"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Parallel tool calls are controlled in the tool_choice object: setting disable_parallel_tool_use to true makes the model emit at most one tool_use block per turn, which serializes the two conflicting stock updates. Returning a tool_result after each block is how you reply to a parallel batch, but it does not stop the model from issuing several calls in the first place. Merging the two tools removes one race yet abandons the separate operations the team still needs. Lowering max_tokens caps output length and does not bound the number of tool calls. Reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/implement-tool-use",
+      "selectCount": 1,
+      "number": 26
+    },
+    {
+      "question": "Grovemant Support runs a chatbot that resends the same 40,000 token policy manual in the system prompt on every turn, and input costs are climbing. The team wants to cut input spend without losing accuracy. Which two changes help most? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Cache the stable manual prefix so repeated turns reuse it."
+        },
+        {
+          "key": "B",
+          "text": "Retrieve only the manual sections relevant to each question."
+        },
+        {
+          "key": "C",
+          "text": "Switch responses to streaming so tokens arrive sooner."
+        },
+        {
+          "key": "D",
+          "text": "Lower max_tokens so each response returns fewer tokens."
+        }
+      ],
+      "correct": [
+        "A",
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Caching the stable manual prefix charges the large block at a reduced rate on repeat turns, and retrieving only the relevant sections shrinks how many manual tokens are sent at all, so both cut input spend while keeping the needed context. Lowering max_tokens trims output length, not the resent input. Streaming changes delivery timing and has no effect on how many input tokens are billed. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-caching",
+      "selectCount": 2,
+      "number": 27
+    },
+    {
+      "question": "Brookhaven Analytics runs an agent on the Claude Agent SDK that can call a shell tool. Certain destructive commands must be stopped by policy, and the team wants that decision made in their own code the instant the model requests such a tool, not left to the prompt. Which mechanism enforces this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "A stronger system prompt instruction forbidding all destructive commands"
+        },
+        {
+          "key": "B",
+          "text": "A PreToolUse hook that inspects the requested command and denies matching ones"
+        },
+        {
+          "key": "C",
+          "text": "A lower effort level so the model proposes fewer risky commands"
+        },
+        {
+          "key": "D",
+          "text": "A PostToolUse hook that logs the command after the shell tool executes"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A PreToolUse hook runs in the team's own code the moment the model requests a tool and can deny commands that match the policy before they execute, which is the deterministic enforcement point they need. A PostToolUse hook fires only after the shell tool has already run, too late to stop a destructive command. A system prompt instruction is guidance the model can still ignore. Lowering the effort level changes reasoning depth, not safety enforcement. Reference: https://code.claude.com/docs/en/hooks",
+      "selectCount": 1,
+      "number": 28
+    },
+    {
+      "question": "Kesterline Capital runs a Claude assistant that answers questions about bond covenants. Its replies are accurate but shallow and generic, missing the domain framing analysts expect, even though the questions are detailed. The team wants richer, domain-appropriate responses without changing the model. Which system prompt change helps most?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Assign the assistant the role of an experienced fixed-income analyst."
+        },
+        {
+          "key": "B",
+          "text": "Raise the model temperature to encourage more elaborate responses."
+        },
+        {
+          "key": "C",
+          "text": "Append several paragraphs of bond terminology to each user message."
+        },
+        {
+          "key": "D",
+          "text": "Instruct the assistant to give longer, more detailed answers."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Giving the assistant an expert role in the system prompt primes it to answer with the depth, framing, and vocabulary that a fixed-income specialist would use. Raising temperature adds randomness, not expertise. Pasting terminology into every user message bloats context without shaping how the model reasons. Telling it to always write longer answers produces padding rather than domain insight. Reference: https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/system-prompts",
+      "selectCount": 1,
+      "number": 29
+    },
+    {
+      "question": "Pellmore Labs is moving a working assistant from the claude.ai chat interface into a production integration on the Messages API. Which two responsibilities does their application now own that the chat interface handled for them? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Supplying the system prompt explicitly in every call."
+        },
+        {
+          "key": "B",
+          "text": "Tokenizing the prompt text before the request is sent."
+        },
+        {
+          "key": "C",
+          "text": "Running the model inference on the team's own hardware."
+        },
+        {
+          "key": "D",
+          "text": "Sending the full conversation history on each request."
+        }
+      ],
+      "correct": [
+        "A",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The Messages API is stateless, so the application must now resend the conversation history each turn and pass the system prompt explicitly, both of which the chat interface managed behind the scenes. Tokenization happens server-side and is not the caller's job. Inference still runs on Anthropic's infrastructure, so the team does not host the model on its own hardware. Reference: https://platform.claude.com/docs/en/api/messages",
+      "selectCount": 2,
+      "number": 30
+    },
+    {
+      "question": "Ashcombe Insurance runs a Claude agent whose final step must emit a claim record that downstream services can parse, but occasional malformed fields break the pipeline. The Python team wants type-checked, validated structured results from the agent without hand-writing parsing and retries. Which approach fits?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Raise the model's effort level so it formats the record more carefully"
+        },
+        {
+          "key": "B",
+          "text": "Add a longer natural-language instruction describing the required record format"
+        },
+        {
+          "key": "C",
+          "text": "Build the agent on PydanticAI so outputs are validated against typed models"
+        },
+        {
+          "key": "D",
+          "text": "Switch the agent to a faster model to reduce formatting mistakes"
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Building the agent on PydanticAI validates its outputs against typed models, so malformed fields are caught and coerced or retried without hand-written parsing, which fits the need for reliable structured results. Raising the effort level may improve formatting but offers no schema guarantee. A longer natural-language description still relies on the model complying rather than enforcing a type. Switching to a faster model changes latency, not output validity. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 1,
+      "number": 31
+    },
+    {
+      "question": "Veranth Support built a Claude assistant that answers customers using articles from an internal knowledge base that any support agent can edit. A tester edited one article to include instructions telling the assistant to disregard its guidelines, and the assistant began following them mid-conversation. Which change best prevents this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Restrict knowledge-base editing to a smaller group of reviewed support agents."
+        },
+        {
+          "key": "B",
+          "text": "Append the assistant's guidelines again after each article so they take priority."
+        },
+        {
+          "key": "C",
+          "text": "Instruct the assistant in its system prompt to only trust the knowledge base."
+        },
+        {
+          "key": "D",
+          "text": "Pass article text to the model as clearly labeled untrusted data separate from its instructions."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Labeling retrieved article text as untrusted data and keeping it separate from the assistant's instructions means injected text is treated as content to summarize, not commands to obey, which closes the path the tester used. Narrowing who can edit articles lowers the odds but still lets any edited article carry an injection. Telling the model to trust the knowledge base makes matters worse by elevating untrusted content. Re-appending guidelines relies on ordering, which manipulated content can still override. Reference: https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks",
+      "selectCount": 1,
+      "number": 32
+    },
+    {
+      "question": "Wrenlow Clinic defines a tool that writes triage records to a database. Claude often omits the severity value or invents status labels the database rejects, and the team needs conforming fields on the tool call every time. What should they change in the tool definition?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Retry the tool call whenever the database rejects the write."
+        },
+        {
+          "key": "B",
+          "text": "Force the tool with tool_choice so it always fires."
+        },
+        {
+          "key": "C",
+          "text": "Mark severity as required and constrain status with an enum."
+        },
+        {
+          "key": "D",
+          "text": "Add the missing rules to the system prompt as prose."
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The tool's input_schema is where field shape is enforced, so marking severity required and giving status an enum makes the model supply valid, conforming values. Prose rules in the system prompt are softer guidance the model can still miss. Retrying after a rejection wastes calls and does not change what the model generates. Forcing invocation guarantees the tool fires but not that its arguments match the database columns. Reference: https://platform.claude.com/docs/en/build-with-claude/tool-use/implement-tool-use",
+      "selectCount": 1,
+      "number": 33
+    },
+    {
+      "question": "Ashbourne moves a stable prompt template to Claude's newest generation and sees per-request input token counts rise about thirty percent, though the prompt text is unchanged. Their cost projection, built from counts measured on the previous model, is now well under actual spend. What accounts for this?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Prompt caching was reset by the migration, forcing full re-billing each call."
+        },
+        {
+          "key": "B",
+          "text": "The newest models use a newer tokenizer that produces more tokens per text."
+        },
+        {
+          "key": "C",
+          "text": "Input tokens are billed at a higher rate on the newest model generation."
+        },
+        {
+          "key": "D",
+          "text": "The newest models pad every prompt with a fixed block of system tokens."
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The newest Claude models use an updated tokenizer that produces roughly thirty percent more tokens for identical text, so counts measured on an earlier model understate cost and prompts should be recounted against the new model. The higher counts come from tokenization, not a raised input rate. Migration does not reset caching into permanent re-billing. There is no fixed system-token block that would explain a proportional rise. Reference: https://platform.claude.com/docs/en/build-with-claude/token-counting",
+      "selectCount": 1,
+      "number": 34
+    },
+    {
+      "question": "Ardenmoor Group runs nine Claude services on a model snapshot scheduled to retire in four months. The platform team must retire it cleanly across the services without a rushed cutover. What plan fits the maintenance phase best?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Freeze changes and keep calling the snapshot past its date."
+        },
+        {
+          "key": "B",
+          "text": "Switch the services to a floating alias on retirement day."
+        },
+        {
+          "key": "C",
+          "text": "Migrate the busiest service and leave the others pinned."
+        },
+        {
+          "key": "D",
+          "text": "Schedule staged migrations to the successor with eval checks per service."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A staged migration to the successor snapshot with an eval check on each service spreads the work over the runway and catches behavior changes before they reach users. Flipping everything to a floating alias on the last day is the rushed cutover the team wants to avoid. Calling a retired snapshot past its end-of-life date invites hard failures. Migrating only the busiest service leaves the rest exposed when the snapshot goes away. Reference: https://platform.claude.com/docs/en/about-claude/model-deprecations",
+      "selectCount": 1,
+      "number": 35
+    },
+    {
+      "question": "Kesterline Dispatch built a Claude integration with one function tool defined. On some turns the API response comes back with a stop reason signaling the model wants to call the tool, but the app just displays the empty text and stalls. What must the app do on those turns?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Run the requested function and return its output as a tool_result in a new user turn."
+        },
+        {
+          "key": "B",
+          "text": "Strip the tool definition and retry the request as a plain text completion."
+        },
+        {
+          "key": "C",
+          "text": "Resend the same request with a higher max_tokens so the model finishes its reply."
+        },
+        {
+          "key": "D",
+          "text": "Lower the temperature and retry until the model returns readable text."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A tool_use stop reason means the model paused to request a function call, so the app must execute the function and feed the result back as a tool_result block in a new user turn to let generation continue. Raising max_tokens does not resume a turn that intentionally stopped for a tool. Stripping the tool removes the capability the scenario needs and still leaves the request unfulfilled. Lowering temperature changes sampling, not the paused tool loop. Reference: https://platform.claude.com/docs/en/api/handling-stop-reasons",
+      "selectCount": 1,
+      "number": 36
+    },
+    {
+      "question": "Hollowmere Media sends full-resolution product photos to Claude for tagging and budgets cost from the text prompt length only. Actual per-request input costs run far above their estimate, and the gap grows with larger images. Which fact explains the overrun and points to the fix?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Vision requests always double the input token count of text-only requests."
+        },
+        {
+          "key": "B",
+          "text": "Image cost depends on file format, so converting to PNG reduces tokens."
+        },
+        {
+          "key": "C",
+          "text": "Image input scales with pixel dimensions, so downsampling photos lowers token cost."
+        },
+        {
+          "key": "D",
+          "text": "Images are billed at a separate flat fee that the text estimate omitted."
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Claude counts images as visual tokens based on their pixel dimensions, so high-resolution photos consume many tokens and downsampling before sending cuts the cost. There is no separate flat image fee. Vision does not impose a fixed doubling of input tokens. File format does not determine token count, since cost tracks resolution rather than encoding. Reference: https://platform.claude.com/docs/en/build-with-claude/vision",
+      "selectCount": 1,
+      "number": 37
+    },
+    {
+      "question": "Halcyon Retail runs a Claude system that reviews every vendor contract against the same fixed set of five compliance checks that never varies from contract to contract. The team wants the five checks to run at the same time to cut turnaround without altering results. Which workflow pattern fits this known, independent set of checks?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Run a single orchestrator that decides at runtime how many checks to spawn"
+        },
+        {
+          "key": "B",
+          "text": "Route each contract to one of five specialized prompts by type"
+        },
+        {
+          "key": "C",
+          "text": "Chain the five checks so each receives the previous check's output"
+        },
+        {
+          "key": "D",
+          "text": "Run the five checks as parallel calls and aggregate their results"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A fixed set of five checks that never varies is a known, independent workload, so running them as concurrent sectioned calls and aggregating the results is the parallelization pattern that cuts turnaround without changing outcomes. An orchestrator that decides the number of checks at runtime adds machinery for variability that does not exist here. Chaining assumes each check depends on the previous one, but these checks are independent. Routing sends a contract to a single prompt, which cannot run five checks at once. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 1,
+      "number": 38
+    },
+    {
+      "question": "Marranth Publishing asks Claude to turn raw interview notes into a polished case study in one prompt, and quality is inconsistent. Every attempt must extract quotes, structure an outline, then write prose, and the steps always run in that order. Which approach most improves reliability?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Launch three subagents that each attempt the full case study independently"
+        },
+        {
+          "key": "B",
+          "text": "Send the same single prompt but raise the effort level for deeper reasoning"
+        },
+        {
+          "key": "C",
+          "text": "Add more few-shot examples of finished case studies to the single prompt"
+        },
+        {
+          "key": "D",
+          "text": "Split the work into ordered calls where each call performs one step"
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Because the task always runs the same three steps and a single overloaded prompt is unreliable, splitting it into ordered calls where each call performs one step is prompt chaining, which raises accuracy by making each call simpler. Raising the effort level deepens reasoning inside one still-overloaded call and does not decompose the work. Launching subagents to each write the whole case study duplicates effort rather than sequencing the steps. Adding more examples to the single prompt does not address the overload. Reference: https://www.anthropic.com/engineering/building-effective-agents",
+      "selectCount": 1,
+      "number": 39
+    },
+    {
+      "question": "Espen Labs enables extended thinking on a Claude reasoning task and sets the thinking budget to 12000 tokens while leaving the response ceiling at 8000. Every request now fails at submission with a validation error referencing the thinking budget and the response ceiling. The visible answers they expect are short. What is the cause?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The thinking budget exceeds max_tokens, which must be larger than the budget."
+        },
+        {
+          "key": "B",
+          "text": "Short visible answers are incompatible with any nonzero thinking budget."
+        },
+        {
+          "key": "C",
+          "text": "The thinking budget must be a multiple of the model's output block size."
+        },
+        {
+          "key": "D",
+          "text": "Extended thinking cannot be enabled unless streaming is also turned on."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The thinking budget is a subset of max_tokens, so max_tokens must be set higher than the budget or the request is rejected before generation. Streaming is unrelated to enabling thinking. There is no multiple-of-block-size requirement on the budget. A small visible answer is fine because the budget caps internal reasoning, not the final text. Reference: https://platform.claude.com/docs/en/build-with-claude/extended-thinking",
+      "selectCount": 1,
+      "number": 40
+    },
+    {
+      "question": "An engineer at Pelham Dynamics defines a custom lookup tool in a Messages API request and is unsure how execution works. When Claude replies with a tool_use block for this custom tool, which two actions must the calling application take to continue the exchange? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Run the tool itself and capture its output in the application"
+        },
+        {
+          "key": "B",
+          "text": "Wait for Anthropic to execute the function in a managed sandbox"
+        },
+        {
+          "key": "C",
+          "text": "Resubmit the original prompt with the tool schema removed"
+        },
+        {
+          "key": "D",
+          "text": "Send the tool's output back as a tool_result in a user message"
+        }
+      ],
+      "correct": [
+        "A",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Custom tools are client-executed: when the model returns a tool_use block, the calling application runs the tool and captures the result, then sends that result back as a tool_result block in a user message so the model can continue. The API never executes custom tools in a managed sandbox, so waiting for Anthropic to run the function stalls the exchange forever. Resubmitting the original prompt without the schema discards the pending tool call and breaks the loop. Reference: https://platform.claude.com/docs/en/agents-and-tools/tool-use/handle-tool-calls",
+      "selectCount": 2,
+      "number": 41
+    },
+    {
+      "question": "Marrowbrook Studios runs a public tagline generator on the Claude API. Even for ordinary product prompts, it sometimes returns phrasing that breaches the company usage policy, and the trust team must catch such phrasing before it reaches visitors. Which control best enforces the policy at launch?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Add a system prompt line instructing the model to always follow the usage policy."
+        },
+        {
+          "key": "B",
+          "text": "Log generated responses for a weekly review after they are published."
+        },
+        {
+          "key": "C",
+          "text": "Raise the model tier so it follows the usage policy more reliably."
+        },
+        {
+          "key": "D",
+          "text": "Screen every generated response through a safety classifier and block disallowed phrasing before display."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A safety classifier applied to each response is an enforceable output guardrail: disallowed phrasing is caught and blocked before any visitor sees it, which is what a launch gate requires. A system prompt instruction is guidance the model can drift from and stops nothing on its own. A larger tier may still emit policy-breaching text and adds no enforcement layer. Logging for later review detects problems only after users are already exposed. Reference: https://platform.claude.com/docs/en/test-and-evaluate/strengthen-guardrails/mitigate-jailbreaks",
+      "selectCount": 1,
+      "number": 42
+    },
+    {
+      "question": "Brookvale Systems wraps Claude Code non-interactively inside a monitoring service. Right now it waits for the entire run to finish before showing anything, and operators want to watch tool calls and text appear as the run proceeds. Which invocation produces incremental machine-readable events?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Run headless with output format stream-json for event-by-event JSON"
+        },
+        {
+          "key": "B",
+          "text": "Resume the prior session so its earlier output streams again"
+        },
+        {
+          "key": "C",
+          "text": "Run headless with plain text output and tail the log file"
+        },
+        {
+          "key": "D",
+          "text": "Start the session in plan mode so steps appear before running"
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Running Claude Code non-interactively with the output format set to stream-json emits structured events as they occur, so the monitoring service can render each tool call and text chunk in real time. Plain text output with log polling delays the view and loses the structured event shape. Plan mode changes how a session proposes work, not how output is streamed. Resuming a prior session replays a different conversation and does not make the current run incremental. Reference: https://code.claude.com/docs/en/headless",
+      "selectCount": 1,
+      "number": 43
+    },
+    {
+      "question": "Cindermont Labs authors an MCP server whose tools include read-only lookups and a few that delete records. They want every connecting client to know which tools are destructive so clients can prompt for confirmation, without each client hardcoding tool names. What should the server include in its tool definitions?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "A separate MCP resource listing which tools are dangerous"
+        },
+        {
+          "key": "B",
+          "text": "Behavior annotations such as readOnlyHint and destructiveHint on each tool"
+        },
+        {
+          "key": "C",
+          "text": "A required confirmation parameter that clients pass on every call"
+        },
+        {
+          "key": "D",
+          "text": "A prefix like delete_ on the names of the destructive tools"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "MCP tool definitions carry optional behavior annotations such as readOnlyHint and destructiveHint that let a server declare intent, so any connected client can decide when to require confirmation without hardcoding names. A required confirmation parameter forces callers to pass a value but does not tell clients which tools are dangerous. Encoding danger in a name prefix is a brittle convention every client would have to parse for itself. A side resource listing dangerous tools is not part of the tool metadata clients read when deciding whether to gate a call. Reference: https://modelcontextprotocol.io/docs/concepts/tools",
+      "selectCount": 1,
+      "number": 44
+    },
+    {
+      "question": "Pellworth Systems built a custom Claude agent loop on the Messages API. On each turn it sends only the latest user or tool message to the API instead of the growing conversation, and the agent keeps forgetting earlier steps and repeating tool calls it already made. What is the loop doing wrong?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "It relies on model aliases instead of pinned snapshots across turns"
+        },
+        {
+          "key": "B",
+          "text": "It omits the accumulated message history that the stateless API needs"
+        },
+        {
+          "key": "C",
+          "text": "It sets the sampling temperature too high for consistent multi-step reasoning"
+        },
+        {
+          "key": "D",
+          "text": "It never raises the effort level as the task grows longer"
+        }
+      ],
+      "correct": [
+        "B"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "The Messages API is stateless, so each request must carry the full accumulated conversation, and sending only the latest message strips the earlier turns, which is why the agent forgets steps and repeats tool calls. Temperature affects sampling variability, not whether prior turns are present. Model aliases versus pinned snapshots concern which model version answers, not conversation state. Effort level tunes reasoning depth and does not restore missing history. Reference: https://platform.claude.com/docs/en/api/messages",
+      "selectCount": 1,
+      "number": 45
+    },
+    {
+      "question": "Ombrelle Health built a Claude support assistant over a documentation store. To be safe, each query retrieves the fifty most similar passages and pastes them all into the prompt. Answers have grown less accurate and more expensive than an earlier version that used far fewer passages. What context change should the team make?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Retrieve even more passages so no relevant detail is missed."
+        },
+        {
+          "key": "B",
+          "text": "Summarize each of the fifty passages before adding them."
+        },
+        {
+          "key": "C",
+          "text": "Keep the fifty passages but move them ahead of the question."
+        },
+        {
+          "key": "D",
+          "text": "Retrieve a small set of the most relevant passages."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "A focused set of high-signal passages raises accuracy and lowers cost, because a large low-relevance dump dilutes the useful content and pads every request. Retrieving even more passages worsens both the noise and the token bill. Reordering all fifty passages does not remove the irrelevant ones diluting the answer. Summarizing all fifty still injects fifty low-signal blocks and adds extra model calls. Reference: https://platform.claude.com/docs/en/build-with-claude/context-windows",
+      "selectCount": 1,
+      "number": 46
+    },
+    {
+      "question": "Noval Helpdesk built its live chat assistant on the Message Batches API to save money. Agents now wait many minutes for each reply because responses return asynchronously, and leadership wants sub-second interaction restored. What is the right change?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Poll the batch results endpoint more frequently to retrieve replies sooner."
+        },
+        {
+          "key": "B",
+          "text": "Raise a batch priority setting so interactive turns jump ahead."
+        },
+        {
+          "key": "C",
+          "text": "Route the interactive chat through synchronous Messages API calls instead."
+        },
+        {
+          "key": "D",
+          "text": "Split each conversation into smaller batch jobs to shorten the queue."
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Batch processing is built for latency-tolerant, high-volume work and returns results asynchronously, so an interactive chat that needs immediate replies belongs on synchronous Messages API calls. Polling faster cannot beat the asynchronous processing window the batch model imposes. Smaller batch jobs still return asynchronously and do not restore realtime response. There is no priority dial that makes a batch request behave like a synchronous call. Reference: https://platform.claude.com/docs/en/build-with-claude/batch-processing",
+      "selectCount": 1,
+      "number": 47
+    },
+    {
+      "question": "Kelverton feeds Claude the entire case archive on every question, keeping each request just under the model's token limit. Answer quality has dropped and the model misses details that are present in the archive. A lead proposes moving to a larger-window model. What better explains the problem?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The token limit was silently lowered, truncating the archive before processing."
+        },
+        {
+          "key": "B",
+          "text": "The model ignores any content placed after the first few thousand tokens."
+        },
+        {
+          "key": "C",
+          "text": "Recall degrades as the context fills, so curating relevant material helps more."
+        },
+        {
+          "key": "D",
+          "text": "A larger window is required because recall is fixed by window size alone."
+        }
+      ],
+      "correct": [
+        "C"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "As a context window fills, recall and accuracy decline even below the hard limit, an effect often called context rot, so trimming to the most relevant material usually beats simply adding capacity. The token limit is not lowered without notice. A larger window does not by itself restore recall when the context is bloated. The model does attend to later content, so a fixed cutoff is not the cause. Reference: https://platform.claude.com/docs/en/build-with-claude/context-windows",
+      "selectCount": 1,
+      "number": 48
+    },
+    {
+      "question": "At Denwick Software an engineer sets a personal coding style in their user-level memory file, but the checked-in project memory file states a different team standard. Inside the repository, Claude Code follows the team standard. Which rule explains this outcome?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Project memory outranks user memory inside that repository."
+        },
+        {
+          "key": "B",
+          "text": "The memory file edited most recently wins the conflict."
+        },
+        {
+          "key": "C",
+          "text": "Memory files stop loading once a system prompt exists."
+        },
+        {
+          "key": "D",
+          "text": "User memory outranks project memory inside that repository."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Project memory is the more specific, repository-scoped source, so it takes precedence over personal user memory when the two conflict inside that project. The user file does not override the project standard, which is why the team convention wins. Precedence follows the memory hierarchy, not which file was edited last. Memory files continue to load alongside any system instructions rather than being switched off. Reference: https://code.claude.com/docs/en/memory",
+      "selectCount": 1,
+      "number": 49
+    },
+    {
+      "question": "Sundermol Retail's product owner requires the support assistant to answer shoppers in French, Japanese, and Portuguese with no separate build per language. A developer must turn this into a functional requirement. Which one follows directly?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Replies must be generated in English and machine-translated afterward."
+        },
+        {
+          "key": "B",
+          "text": "Each language needs its own translated system prompt and endpoint."
+        },
+        {
+          "key": "C",
+          "text": "A language detector must route each chat to a dedicated model."
+        },
+        {
+          "key": "D",
+          "text": "One Claude model serves all three languages from the same prompt."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Claude handles many languages natively, so a single model answering all three from the same prompt satisfies the no-separate-build constraint directly. Routing to per-language dedicated models reintroduces the separate builds the requirement forbids. Per-language prompts and endpoints multiply the maintenance the owner wanted to avoid. Generating in English and translating afterward adds a lossy step that native multilingual output makes unnecessary. Reference: https://platform.claude.com/docs/en/build-with-claude/multilingual-support",
+      "selectCount": 1,
+      "number": 50
+    },
+    {
+      "question": "Brackwater Freight tries to trim its Claude bill by lowering max_tokens on a summarization endpoint whose replies are already brief. After the change the monthly output-token charge is essentially unchanged. Why did lowering the ceiling not reduce cost?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Lowering max_tokens raises the per-token price to offset the shorter cap."
+        },
+        {
+          "key": "B",
+          "text": "The max_tokens ceiling only affects input pricing, never output pricing."
+        },
+        {
+          "key": "C",
+          "text": "Output tokens are billed against the ceiling regardless of what is generated."
+        },
+        {
+          "key": "D",
+          "text": "Billing counts the output tokens actually generated, not the max_tokens ceiling."
+        }
+      ],
+      "correct": [
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "You are billed for the output tokens the model actually produces, and max_tokens is only an upper bound, so cutting a ceiling that was never reached changes nothing. Lowering the cap does not raise the per-token rate. The ceiling does not shift output charges onto input. Generation is billed against tokens emitted, not against the ceiling. Reference: https://platform.claude.com/docs/en/about-claude/pricing",
+      "selectCount": 1,
+      "number": 51
+    },
+    {
+      "question": "Marrenford Data sees a specific production call to the Messages API intermittently return a 500-class server error that they cannot reproduce in testing. They want to escalate to Anthropic support with the one detail that lets support trace the exact failed call. What should they capture from each response?",
+      "questionType": "single_choice",
+      "multiSelect": false,
+      "choices": [
+        {
+          "key": "A",
+          "text": "The request-id returned with each API response."
+        },
+        {
+          "key": "B",
+          "text": "The full prompt text sent in the failing request."
+        },
+        {
+          "key": "C",
+          "text": "The wall-clock timestamp when the call was attempted."
+        },
+        {
+          "key": "D",
+          "text": "The model alias configured for the failing request."
+        }
+      ],
+      "correct": [
+        "A"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Every API response carries a request-id that uniquely identifies that call in Anthropic's systems, so passing it to support lets them trace the exact server-side failure. The prompt text describes what was sent but does not pin the individual failed request. A timestamp narrows the window but cannot single out one call among many. The model alias identifies the model, not the specific request that errored. Reference: https://platform.claude.com/docs/en/api/errors",
+      "selectCount": 1,
+      "number": 52
+    },
+    {
+      "question": "Tessaly Freight is preparing the first production deployment of a Claude API service. The security lead wants credential handling set up so that a single leaked key causes the least possible damage and can be contained quickly. Which two practices meet that goal? Choose 2.",
+      "questionType": "multiple_choice",
+      "multiSelect": true,
+      "choices": [
+        {
+          "key": "A",
+          "text": "Issue a separate least-privilege key per service so one leak can be revoked alone."
+        },
+        {
+          "key": "B",
+          "text": "Share one organization-wide key across all services to keep the rotation process simple."
+        },
+        {
+          "key": "C",
+          "text": "Compile the API key into the client application and obscure it with build-time encoding."
+        },
+        {
+          "key": "D",
+          "text": "Load the API key from a managed secret store instead of committing it to the repository."
+        }
+      ],
+      "correct": [
+        "A",
+        "D"
+      ],
+      "explanations": {
+        "A": "",
+        "B": "",
+        "C": "",
+        "D": ""
+      },
+      "questionExplanation": "Loading the key from a managed secret store at runtime keeps it out of source control, removing the most common leak path. A separate least-privilege key per service means a single exposure can be revoked without disrupting the others, limiting the blast radius. Compiling the key into a client bundle is reversible and hands the key to anyone with the app. A single shared organization key gives one leak the widest possible reach and forces a disruptive rotation across everything. Reference: https://platform.claude.com/docs/en/api/administration-api",
+      "selectCount": 2,
+      "number": 53
+    }
+  ]
+}
