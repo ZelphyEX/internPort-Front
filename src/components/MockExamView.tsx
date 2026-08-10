@@ -459,7 +459,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Hệ thống Thi thử & Luyện tập Anthropic</h1>
             <p className="text-blue-100 text-xs md:text-sm leading-relaxed max-w-2xl font-medium">
-              Kho đề thi thử chính thức gồm 12 đề luyện tập (mỗi đề 60 câu hỏi tình huống) bao quát toàn bộ chương trình chứng chỉ Associate và Architect của Anthropic.
+              Kho đề thi thử chính thức gồm 18 đề luyện tập bao quát toàn bộ chương trình chứng chỉ Associate và Architect của Anthropic.
             </p>
 
             {/* Mode selection toggle */}
