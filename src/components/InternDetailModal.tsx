@@ -7,7 +7,6 @@ import {
   Mail,
   Phone,
   Github,
-  Building2,
   CheckCircle2,
   AlertCircle,
   TrendingUp,
@@ -344,10 +343,11 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
           {/* Details Tabs / Info Sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Left Info: Liên hệ & Chuyên môn.
-                Khối "Thông tin Hành chính & Đào tạo" (SĐT, Trường, Mentor hướng dẫn,
-                Thời gian thực tập) và "Ngành" đã bị bỏ khỏi cả CSDL lẫn giao diện —
-                xem migration d5c8a2e64f19 và e7a4b1d09c53. */}
+            {/* Left Info: Liên hệ.
+                Đã bỏ khỏi khối này: SĐT, Trường, Mentor hướng dẫn, Thời gian thực tập
+                (cùng cột trong CSDL — migration d5c8a2e64f19), Ngành (e7a4b1d09c53),
+                và Định hướng (chỉ bỏ hiển thị, cột `department` vẫn còn vì báo cáo
+                ngày và dự án đang dùng). */}
             <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
               <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">Thông tin Liên hệ</h4>
 
@@ -355,10 +355,6 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-slate-400" />
                   <span>Email: <strong className="text-slate-800 dark:text-slate-200">{intern.email}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <Building2 className="w-4 h-4 text-slate-400" />
-                  <span>Định hướng: <strong className="text-slate-800 dark:text-slate-200">{intern.department}</strong></span>
                 </div>
               </div>
             </div>

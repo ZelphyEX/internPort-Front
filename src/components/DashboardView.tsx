@@ -109,19 +109,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
     ? (interns.reduce((acc, i) => acc + i.score, 0) / totalInterns).toFixed(1)
     : '0.0';
 
-  // Department Breakdown
-  const deptMap: Record<string, number> = {};
-  interns.forEach(i => {
-    deptMap[i.department] = (deptMap[i.department] || 0) + 1;
-  });
-
-  const departmentList = [
-    { name: 'Java Back-End', count: deptMap['Java Back-End'] || 0, color: 'bg-amber-500' },
-    { name: 'React Front-End', count: deptMap['React Front-End'] || 0, color: 'bg-blue-500' },
-    { name: 'Cloud & DevOps', count: deptMap['Cloud & DevOps'] || 0, color: 'bg-emerald-500' },
-    { name: 'Salesforce / ERP', count: deptMap['Salesforce / ERP'] || 0, color: 'bg-sky-500' },
-    { name: 'AI & Data Science', count: deptMap['AI & Data Science'] || 0, color: 'bg-purple-500' }
-  ];
+  // `deptMap` / `departmentList` đã bỏ cùng panel "Phân bổ Theo Khối Kỹ thuật".
 
   // Thông tin tiến độ cá nhân của Intern đang đăng nhập (dùng cho thanh progress bar riêng)
   // Nếu tài khoản đang đăng nhập không map được internId cụ thể (VD: đổi vai trò thử nghiệm từ tài khoản Admin/Mentor),
@@ -386,41 +374,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Left Column: Department Distribution & Top Interns */}
         <div className="space-y-6 lg:col-span-2">
 
-          {/* Department Breakdown Panel */}
-          <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-2xs">
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-base">Phân bổ Theo Khối Kỹ thuật</h3>
-                <p className="text-xs text-slate-500 dark:text-slate-400">Số lượng nhân sự thực tập sinh theo mảng chuyên môn</p>
-              </div>
-              <button
-                onClick={() => onNavigateTab('interns')}
-                className="text-xs font-bold text-blue-600 hover:text-blue-800 flex items-center gap-1 cursor-pointer"
-              >
-                Xem chi tiết <ChevronRight className="w-3.5 h-3.5" />
-              </button>
-            </div>
-
-            <div className="space-y-3.5">
-              {departmentList.map((dept, idx) => {
-                const percentage = totalInterns > 0 ? Math.round((dept.count / totalInterns) * 100) : 0;
-                return (
-                  <div key={idx} className="space-y-1.5">
-                    <div className="flex items-center justify-between text-xs font-medium">
-                      <span className="text-slate-800 dark:text-slate-200 font-semibold">{dept.name}</span>
-                      <span className="text-slate-500 dark:text-slate-400">{dept.count} thực tập sinh ({percentage}%)</span>
-                    </div>
-                    <div className="w-full bg-slate-100 dark:bg-slate-800 rounded-full h-2.5 overflow-hidden">
-                      <div
-                        className={`h-full rounded-full transition-all duration-500 ${dept.color}`}
-                        style={{ width: `${percentage}%` }}
-                      ></div>
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          </div>
+          {/* Khối "Phân bổ Theo Khối Kỹ thuật" đã bỏ theo yêu cầu. */}
 
           {/* Featured Active Interns List */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-2xs">
