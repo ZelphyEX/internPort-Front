@@ -149,9 +149,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [savingMember, setSavingMember] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
-  // Ô tìm kiếm ứng viên giờ nằm trong AssignPicker; state này chỉ còn dùng cho
-  // bộ lọc `candidates` bên dưới (giữ để không phải viết lại phần lọc).
-  const [memberSearch] = useState('');
+  // Ô tìm kiếm ứng viên nằm trong AssignPicker (component đó tự giữ state, và bị
+  // unmount khi đổi dự án nên tự reset) — ở đây không cần state tìm kiếm nữa.
   // Nhóm đang được gán — để hiện spinner đúng chip đang bấm.
   const [busyGroupId, setBusyGroupId] = useState<string | null>(null);
 
@@ -184,7 +183,6 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     else setMembers(null);
     setShowMembers(false);
     setIsAssigningTask(false);
-    setMemberSearch('');
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [openProjectId]);
 
@@ -488,12 +486,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   // ======================================================================== //
   const projectTasks = tasks.filter((t) => t.projectId === openProject.id);
   const memberIds = new Set((members || []).map((m) => String(m.id)));
-  const candidates = interns
-    .filter((i) => !memberIds.has(i.id))
-    .filter((i) => {
-      const q = memberSearch.trim().toLowerCase();
-      return !q || i.name.toLowerCase().includes(q) || i.email.toLowerCase().includes(q);
-    });
+  // Người đã là thành viên bị loại khỏi kho chọn; lọc theo từ khoá do AssignPicker lo.
+  const candidates = interns.filter((i) => !memberIds.has(i.id));
 
   return (
     <div className="space-y-6 pb-12">
