@@ -1098,7 +1098,12 @@ export const documentsApi = {
       description: string;
       content_url: string;
       type: ApiDocType;
+      category: string;
+      file_type: string;
+      file_size_bytes: number;
       tag_ids: number[];
+      /** Gửi mảng tên tag (kể cả []) để gán lại toàn bộ tag của tài liệu. */
+      tag_names: string[];
     }>
   ) {
     return request<ApiDocument>(`/documents/${id}`, { method: 'PATCH', body: payload });
@@ -1312,6 +1317,24 @@ export const learningApi = {
   /** GET /me/roadmaps/{assignment_id} — Chi tiết + trạng thái từng bài. Quyền: INTERN. */
   myRoadmapDetail(assignmentId: number) {
     return request<ApiAssignedRoadmapDetail>(`/me/roadmaps/${assignmentId}`);
+  },
+
+  /**
+   * GET /users/{id}/roadmaps — Lộ trình + % tiến độ của MỘT người. Quyền: MENTOR.
+   * Dùng ở màn hồ sơ chi tiết Thực tập sinh.
+   */
+  roadmapsForUser(userId: number) {
+    return request<ApiAssignedRoadmap[]>(`/users/${userId}/roadmaps`);
+  },
+
+  /**
+   * GET /users/{id}/roadmaps/{assignment_id} — Chi tiết từng chặng, từng bài học và
+   * bài nào người đó đã hoàn thành. Quyền: MENTOR.
+   */
+  roadmapDetailForUser(userId: number, assignmentId: number) {
+    return request<ApiAssignedRoadmapDetail>(
+      `/users/${userId}/roadmaps/${assignmentId}`
+    );
   },
 
   /** POST /lessons/{module_document_id}/complete — Đánh dấu hoàn thành. Quyền: INTERN. */

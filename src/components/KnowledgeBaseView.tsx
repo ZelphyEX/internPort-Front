@@ -11,6 +11,7 @@ import {
   X,
   ExternalLink,
   Trash2,
+  Pencil,
   Plus,
   UploadCloud,
   Loader2
@@ -27,9 +28,14 @@ interface KnowledgeBaseViewProps {
   currentRole?: UserRole;
   onDeleteDocument?: (documentId: string) => void;
   onAddDocument?: (newDoc: DocumentResource) => void;
+  /**
+   * Cập nhật tài liệu đã có. `patch` chỉ chứa những gì thực sự đổi — file mới là
+   * KHÔNG bắt buộc, không chọn file thì giữ nguyên file cũ.
+   */
+  onUpdateDocument?: (documentId: string, patch: Partial<DocumentResource>) => void;
 }
 
-export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents, currentRole, onDeleteDocument, onAddDocument }) => {
+export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents, currentRole, onDeleteDocument, onAddDocument, onUpdateDocument }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string>('ALL');
   const [previewDoc, setPreviewDoc] = useState<DocumentResource | null>(null);
@@ -45,8 +51,10 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
     onDeleteDocument(docId);
   };
 
-  // --- Thêm Tài Liệu Mới ---
+  // --- Form thêm / sửa tài liệu (dùng chung một form) ---
+  // `editingDocId` khác null = đang SỬA tài liệu đó; null = đang THÊM mới.
   const [isAddingDoc, setIsAddingDoc] = useState(false);
+  const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [newDocTitle, setNewDocTitle] = useState('');
   const [newDocCategory, setNewDocCategory] = useState<DocumentResource['category']>('Onboarding');
   const [newDocAuthor, setNewDocAuthor] = useState('');
@@ -70,6 +78,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
 
   const resetDocForm = () => {
     setIsAddingDoc(false);
+    setEditingDocId(null);
     setNewDocTitle('');
     setNewDocCategory('Onboarding');
     setNewDocAuthor('');
@@ -77,6 +86,24 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
     setNewDocTags('');
     setNewDocFile(null);
     if (fileInputRef.current) fileInputRef.current.value = '';
+  };
+
+  /**
+   * Mở form ở chế độ SỬA, điền sẵn toàn bộ giá trị đang có để người dùng chỉ việc
+   * xoá/đổi phần cần đổi. File để trống nghĩa là giữ nguyên file cũ.
+   */
+  const startEditDoc = (e: React.MouseEvent, doc: DocumentResource) => {
+    e.stopPropagation();
+    setEditingDocId(doc.id);
+    setIsAddingDoc(true);
+    setNewDocTitle(doc.title);
+    setNewDocCategory(doc.category);
+    setNewDocAuthor(doc.author);
+    setNewDocDescription(doc.description);
+    setNewDocTags(doc.tags.join(', '));
+    setNewDocFile(null);
+    if (fileInputRef.current) fileInputRef.current.value = '';
+    window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
   const handlePickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -98,42 +125,66 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
     }
   };
 
-  // Tải file lên bucket trước (POST /documents/upload -> content_url), rồi mới tạo
-  // bản ghi tài liệu. Định dạng + dung lượng lấy thẳng từ file, không nhập tay.
-  const handleCreateDocument = async () => {
-    if (!newDocTitle.trim() || !onAddDocument) return;
-    if (!newDocFile) {
+  const parsedTags = () => newDocTags.split(',').map(t => t.trim()).filter(Boolean);
+
+  /**
+   * Lưu form — dùng cho cả THÊM và SỬA.
+   *
+   * Thêm: buộc phải chọn file (tài liệu không có file thì không tải về được).
+   * Sửa : file là tuỳ chọn — không chọn thì giữ nguyên file cũ, chỉ đổi phần chữ.
+   * Có chọn file mới thì tải lên bucket trước (POST /documents/upload) để lấy
+   * content_url, rồi mới ghi bản ghi. Định dạng + dung lượng luôn suy từ chính file.
+   */
+  const handleSaveDocument = async () => {
+    if (!newDocTitle.trim()) return;
+    const isEditing = editingDocId !== null;
+    if (isEditing ? !onUpdateDocument : !onAddDocument) return;
+
+    if (!isEditing && !newDocFile) {
       alert('Hãy chọn file tài liệu để tải lên.');
       return;
     }
     if (!tokenStore.isAuthenticated()) {
-      alert('Cần đăng nhập bằng tài khoản thật để tải tệp lên hệ thống.');
+      alert('Cần đăng nhập bằng tài khoản thật để lưu tài liệu lên hệ thống.');
       return;
     }
 
     setUploading(true);
     try {
-      const { content_url } = await documentsApi.upload(newDocFile);
+      // Chỉ gọi upload khi thực sự có file mới.
+      const uploaded = newDocFile ? await documentsApi.upload(newDocFile) : null;
 
-      const newDoc: DocumentResource = {
-        id: `DOC-${Date.now().toString().slice(-6)}`,
+      const common = {
         title: newDocTitle.trim(),
         category: newDocCategory,
         author: newDocAuthor.trim() || 'Gimasys Team',
-        updatedAt: new Date().toISOString().slice(0, 10),
-        fileType: detectFileType(newDocFile.name),
-        fileSize: formatFileSize(newDocFile.size),
-        // Số byte thật để gửi lên server; `fileSize` chỉ là chuỗi để hiển thị.
-        fileSizeBytes: newDocFile.size,
-        downloadCount: 0,
         description: newDocDescription.trim() || 'Tài liệu nội bộ Gimasys.',
-        tags: newDocTags.split(',').map(t => t.trim()).filter(Boolean),
-        contentUrl: content_url,
+        tags: parsedTags(),
       };
-      onAddDocument(newDoc);
+      // Ba field này chỉ đổi khi có file mới; sửa chữ thôi thì giữ nguyên.
+      const fileFields = newDocFile
+        ? {
+            fileType: detectFileType(newDocFile.name),
+            fileSize: formatFileSize(newDocFile.size),
+            fileSizeBytes: newDocFile.size,
+            contentUrl: uploaded?.content_url,
+          }
+        : {};
+
+      if (isEditing) {
+        onUpdateDocument!(editingDocId!, { ...common, ...fileFields });
+      } else {
+        onAddDocument!({
+          id: `DOC-${Date.now().toString().slice(-6)}`,
+          updatedAt: new Date().toISOString().slice(0, 10),
+          downloadCount: 0,
+          ...common,
+          ...fileFields,
+        } as DocumentResource);
+      }
       resetDocForm();
     } catch (err) {
-      alert(err instanceof ApiError ? err.detail : 'Tải tệp lên thất bại. Kiểm tra kết nối mạng rồi thử lại.');
+      alert(err instanceof ApiError ? err.detail : 'Lưu tài liệu thất bại. Kiểm tra kết nối mạng rồi thử lại.');
     } finally {
       setUploading(false);
     }
@@ -208,22 +259,37 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
         )}
       </div>
 
-      {/* FORM: Thêm Tài Liệu Mới */}
-      {isAddingDoc && canManage && onAddDocument && (
+      {/* FORM dùng chung: Thêm mới HOẶC sửa tài liệu đang có */}
+      {isAddingDoc && canManage && (
         <div className="bg-blue-50/80 dark:bg-blue-950/20 border-2 border-blue-400 dark:border-blue-800 rounded-2xl p-5 shadow-inner space-y-3">
           <div className="flex items-center justify-between">
             <h4 className="font-extrabold text-blue-950 dark:text-blue-200 text-sm flex items-center gap-2">
-              <Plus className="w-4 h-4 text-blue-600" />
-              <span>Thêm Tài Liệu Mới Vào Thư Viện</span>
+              {editingDocId ? (
+                <Pencil className="w-4 h-4 text-blue-600" />
+              ) : (
+                <Plus className="w-4 h-4 text-blue-600" />
+              )}
+              <span>
+                {editingDocId
+                  ? 'Chỉnh Sửa Tài Liệu'
+                  : 'Thêm Tài Liệu Mới Vào Thư Viện'}
+              </span>
             </h4>
             <button
               type="button"
-              onClick={() => setIsAddingDoc(false)}
+              onClick={resetDocForm}
               className="p-1 text-slate-400 hover:text-slate-600 cursor-pointer"
             >
               <X className="w-4 h-4" />
             </button>
           </div>
+
+          {editingDocId && (
+            <p className="text-[11px] text-blue-800 dark:text-blue-300 bg-blue-100/70 dark:bg-blue-950/40 border border-blue-300 dark:border-blue-800 rounded-xl px-3 py-2 leading-relaxed">
+              Các ô đã điền sẵn nội dung hiện tại — sửa hoặc xoá phần nào bạn muốn đổi.
+              <strong> Không chọn tệp mới thì tệp cũ được giữ nguyên.</strong>
+            </p>
+          )}
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3 text-xs">
             <div className="md:col-span-2">
@@ -329,12 +395,19 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
             </button>
             <button
               type="button"
-              onClick={handleCreateDocument}
-              disabled={uploading || !newDocFile || !newDocTitle.trim()}
+              onClick={handleSaveDocument}
+              // Sửa: không bắt chọn file lại. Thêm mới: bắt buộc có file.
+              disabled={uploading || !newDocTitle.trim() || (!editingDocId && !newDocFile)}
               className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-xs shadow-xs inline-flex items-center gap-1.5"
             >
               {uploading && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
-              <span>{uploading ? 'Đang tải tệp lên...' : 'Tải Lên & Lưu Tài Liệu'}</span>
+              <span>
+                {uploading
+                  ? 'Đang lưu...'
+                  : editingDocId
+                  ? 'Lưu Thay Đổi'
+                  : 'Tải Lên & Lưu Tài Liệu'}
+              </span>
             </button>
           </div>
         </div>
@@ -377,18 +450,33 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
             key={doc.id}
             className="relative bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all flex flex-col justify-between space-y-4 group"
           >
-            {canManage && onDeleteDocument && (
-              <button
-                type="button"
-                onClick={(e) => handleDeleteClick(e, doc.id, doc.title)}
-                title="Xoá Tài Liệu Này"
-                className="absolute top-3 right-3 p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
+            {/* Sửa + Xoá, hiện khi trỏ chuột vào thẻ */}
+            {canManage && (onUpdateDocument || onDeleteDocument) && (
+              <div className="absolute top-3 right-3 flex items-center gap-1 opacity-0 group-hover:opacity-100 focus-within:opacity-100 transition-opacity">
+                {onUpdateDocument && (
+                  <button
+                    type="button"
+                    onClick={(e) => startEditDoc(e, doc)}
+                    title="Chỉnh sửa tài liệu này"
+                    className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer"
+                  >
+                    <Pencil className="w-3.5 h-3.5" />
+                  </button>
+                )}
+                {onDeleteDocument && (
+                  <button
+                    type="button"
+                    onClick={(e) => handleDeleteClick(e, doc.id, doc.title)}
+                    title="Xoá Tài Liệu Này"
+                    className="p-1.5 rounded-lg text-red-400 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/40 cursor-pointer"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
+              </div>
             )}
             <div className="space-y-3">
-              <div className="flex items-center justify-between pr-6">
+              <div className="flex items-center justify-between pr-16">
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getFileTypeBadge(doc.fileType)}`}>
                   {doc.fileType} • {doc.fileSize}
                 </span>

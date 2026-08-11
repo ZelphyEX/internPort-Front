@@ -219,34 +219,23 @@ export const InternsView: React.FC<InternsViewProps> = ({
                       alt={intern.name}
                       className="w-12 h-12 rounded-xl object-cover border border-slate-200 dark:border-slate-700 shadow-2xs"
                     />
-                    <div>
-                      <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm group-hover:text-blue-600 transition-colors">
+                    <div className="min-w-0">
+                      <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm group-hover:text-blue-600 transition-colors truncate">
                         {intern.name}
                       </h3>
-                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">{intern.roleTitle}</p>
+                      <p className="text-xs text-slate-500 dark:text-slate-400 font-medium truncate">{intern.email}</p>
                     </div>
                   </div>
 
-                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(intern.status)}`}>
+                  <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border shrink-0 ${getStatusBadge(intern.status)}`}>
                     {intern.status}
                   </span>
                 </div>
 
-                {/* Key Tags & Info */}
-                <div className="space-y-2 text-xs">
-                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 bg-slate-50 dark:bg-slate-900 px-3 py-2 rounded-xl">
-                    <span className="font-semibold text-slate-700 dark:text-slate-300">Khối:</span>
-                    <span className="font-bold text-blue-700">{intern.department}</span>
-                  </div>
-
-                  {/* Dòng "Mentor hướng dẫn" đã bỏ cùng cột users.mentor_id. */}
-                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 text-[11px] px-1">
-                    <span className="text-slate-500 dark:text-slate-400">Dự án:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
-                      {intern.project}
-                    </span>
-                  </div>
-                </div>
+                {/* Đã bỏ khỏi thẻ: dòng chức danh ("Thực tập sinh Java Back-End"),
+                    ô "Khối:" và dòng "Dự án:" — cả ba đều suy ra từ `department`
+                    (không còn được điền ở đâu) hoặc từ dữ liệu mẫu. Thay bằng email
+                    để vẫn nhận ra được người trong thẻ. */}
 
               </div>
 

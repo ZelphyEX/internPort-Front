@@ -148,7 +148,7 @@ const EXAMS_DATA: Exam[] = [
     id: 'claude-foundation-1',
     title: 'Claude Foundation — Practice Exam 1',
     code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 1 chứng chỉ Claude Certified Associate - Foundations. Tập trung vào cấu trúc hệ thống, SDK cơ bản, thiết kế Prompt và các đặc điểm mô hình.',
+    description: 'Bộ câu hỏi thi thử số 1 chứng chỉ Claude Certified Architect - Foundations. Tập trung vào cấu trúc hệ thống, SDK cơ bản, thiết kế Prompt và các đặc điểm mô hình.',
     duration: 120,
     questions: fd1.questions as Question[]
   },
@@ -156,7 +156,7 @@ const EXAMS_DATA: Exam[] = [
     id: 'claude-foundation-2',
     title: 'Claude Foundation — Practice Exam 2',
     code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 2 chứng chỉ Claude Certified Associate - Foundations. Đánh giá các quy tắc prompt cơ bản, cấu trúc context window, và định dạng JSON.',
+    description: 'Bộ câu hỏi thi thử số 2 chứng chỉ Claude Certified Architect - Foundations. Đánh giá các quy tắc prompt cơ bản, cấu trúc context window, và định dạng JSON.',
     duration: 120,
     questions: fd2.questions as Question[]
   },
@@ -164,7 +164,7 @@ const EXAMS_DATA: Exam[] = [
     id: 'claude-foundation-3',
     title: 'Claude Foundation — Practice Exam 3',
     code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 3 chứng chỉ Claude Certified Associate - Foundations. Tập trung sâu vào cơ chế Tokenizer, Prompt Engineering, và cấu hình cuộc hội thoại.',
+    description: 'Bộ câu hỏi thi thử số 3 chứng chỉ Claude Certified Architect - Foundations. Tập trung sâu vào cơ chế Tokenizer, Prompt Engineering, và cấu hình cuộc hội thoại.',
     duration: 120,
     questions: fd3.questions as Question[]
   },
@@ -172,7 +172,7 @@ const EXAMS_DATA: Exam[] = [
     id: 'claude-foundation-4',
     title: 'Claude Foundation — Practice Exam 4',
     code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 4 chứng chỉ Claude Certified Associate - Foundations. Gồm các câu hỏi thực tế về Model Context Protocol (MCP) và bảo mật cơ bản cho doanh nghiệp.',
+    description: 'Bộ câu hỏi thi thử số 4 chứng chỉ Claude Certified Architect - Foundations. Gồm các câu hỏi thực tế về Model Context Protocol (MCP) và bảo mật cơ bản cho doanh nghiệp.',
     duration: 120,
     questions: fd4.questions as Question[]
   },
@@ -180,7 +180,7 @@ const EXAMS_DATA: Exam[] = [
     id: 'claude-foundation-5',
     title: 'Claude Foundation — Practice Exam 5',
     code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 5 chứng chỉ Claude Certified Associate - Foundations. Trắc nghiệm mô phỏng chi tiết các case study thiết kế Prompt và định dạng API.',
+    description: 'Bộ câu hỏi thi thử số 5 chứng chỉ Claude Certified Architect - Foundations. Trắc nghiệm mô phỏng chi tiết các case study thiết kế Prompt và định dạng API.',
     duration: 120,
     questions: fd5.questions as Question[]
   },
@@ -188,7 +188,7 @@ const EXAMS_DATA: Exam[] = [
     id: 'claude-foundation-6',
     title: 'Claude Foundation — Practice Exam 6',
     code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 6 chứng chỉ Claude Certified Associate - Foundations. Kiểm tra kiến thức tổng hợp, so sánh mô hình Opus, Sonnet và Haiku.',
+    description: 'Bộ câu hỏi thi thử số 6 chứng chỉ Claude Certified Architect - Foundations. Kiểm tra kiến thức tổng hợp, so sánh mô hình Opus, Sonnet và Haiku.',
     duration: 120,
     questions: fd6.questions as Question[]
   },
@@ -525,7 +525,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Hệ thống Thi thử & Luyện tập Anthropic</h1>
             <p className="text-blue-100 text-xs md:text-sm leading-relaxed max-w-2xl font-medium">
-              Kho đề thi thử chính thức gồm 18 đề luyện tập bao quát toàn bộ chương trình chứng chỉ Associate và Architect của Anthropic.
+              Kho đề thi thử chính thức gồm 18 đề luyện tập bao quát ba chương trình chứng chỉ Architect – Foundations, Developer – Foundations và Architect – Professional của Anthropic.
             </p>
 
             {/* Mode selection toggle */}
@@ -557,7 +557,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
           {/* Claude Foundation Section */}
           <div className="space-y-3">
             <h2 className="text-base font-black text-slate-800 dark:text-slate-200 border-l-4 border-blue-600 pl-3 uppercase tracking-wider">
-              Claude Certified Associate – Foundations (Claude Foundation)
+              Claude Certified Architect – Foundations (Claude Foundation)
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EXAMS_DATA.filter(e => e.code === 'Claude Foundation').map((exam) => {
@@ -665,7 +665,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
           {/* Claude Developer Section */}
           <div className="space-y-3 pt-4">
             <h2 className="text-base font-black text-slate-800 dark:text-slate-200 border-l-4 border-emerald-600 pl-3 uppercase tracking-wider">
-              Claude Certified Associate – Developer (Claude Developer)
+              Claude Certified Developer – Foundations (Claude Developer)
             </h2>
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EXAMS_DATA.filter(e => e.code === 'Claude Developer').map((exam) => {

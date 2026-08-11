@@ -725,6 +725,44 @@ export default function App() {
     setDocuments(prev => [newDoc, ...prev]);
   };
 
+  /**
+   * Sửa tài liệu đã có. Chỉ gửi lên những field thực sự đổi (PATCH /documents/{id}),
+   * nên không chọn file mới thì `content_url` / định dạng / dung lượng giữ nguyên.
+   */
+  const handleUpdateDocument = async (docId: string, patch: Partial<DocumentResource>) => {
+    if (!isBackendId(docId)) {
+      alert('Tài liệu này là dữ liệu mẫu, chưa có trên máy chủ nên không sửa được.');
+      return;
+    }
+    try {
+      await documentsApi.update(Number(docId), {
+        ...(patch.title !== undefined ? { title: patch.title } : {}),
+        ...(patch.description !== undefined ? { description: patch.description } : {}),
+        ...(patch.category !== undefined ? { category: patch.category } : {}),
+        ...(patch.tags !== undefined ? { tag_names: patch.tags } : {}),
+        // Ba field dưới chỉ có khi người dùng chọn file mới.
+        ...(patch.contentUrl !== undefined ? { content_url: patch.contentUrl } : {}),
+        ...(patch.fileType !== undefined
+          ? { type: feFileTypeToApiType(patch.fileType), file_type: patch.fileType }
+          : {}),
+        ...(patch.fileSizeBytes !== undefined ? { file_size_bytes: patch.fileSizeBytes } : {}),
+      });
+      setDocuments((prev) =>
+        prev.map((d) =>
+          d.id === docId
+            ? { ...d, ...patch, updatedAt: new Date().toISOString().slice(0, 10) }
+            : d
+        )
+      );
+    } catch (err) {
+      alert(
+        err instanceof ApiError
+          ? err.detail || 'Cập nhật tài liệu thất bại.'
+          : 'Không kết nối được máy chủ — thay đổi chưa được lưu.'
+      );
+    }
+  };
+
   // Bỏ trạng thái intern khỏi state cục bộ (kèm dọn Task/Báo cáo liên quan)
   const removeInternLocal = (internId: string) => {
     setInterns(prev => prev.filter(i => i.id !== internId));
@@ -911,6 +949,7 @@ export default function App() {
               currentRole={currentRole}
               onDeleteDocument={handleDeleteDocument}
               onAddDocument={handleAddDocument}
+              onUpdateDocument={handleUpdateDocument}
             />
           )}
 

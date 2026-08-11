@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { Intern, DailyReport, TaskItem, AIEvalReport, UserRole } from '../types';
 import { tokenStore, assignmentsApi, ApiAssignmentListItem } from '../services/api';
+import { InternProgressPanel } from './InternProgressPanel';
 
 interface InternDetailModalProps {
   intern: Intern | null;
@@ -340,9 +341,16 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
             )}
           </div>
 
+          {/* Điểm năng lực (từ Mock Exam) + Chi tiết Lộ trình Đào tạo.
+              Đặt lên trên cùng vì đây là hai thứ Mentor cần xem nhất khi mở hồ sơ.
+              Cả hai đều thu gọn mặc định và tự cuộn trong khung riêng — xem
+              InternProgressPanel — nên modal không bị đẩy dài dù lộ trình có rất
+              nhiều bài học. */}
+          <InternProgressPanel internId={intern.id} internName={intern.name} />
+
           {/* Details Tabs / Info Sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
+
             {/* Left Info: Liên hệ.
                 Đã bỏ khỏi khối này: SĐT, Trường, Mentor hướng dẫn, Thời gian thực tập
                 (cùng cột trong CSDL — migration d5c8a2e64f19), Ngành (e7a4b1d09c53),
