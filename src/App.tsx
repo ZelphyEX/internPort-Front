@@ -877,6 +877,7 @@ export default function App() {
               projects={projects}
               tasks={tasks}
               interns={interns}
+              groups={groups}
               onUpdateTaskStatus={handleUpdateTaskStatus}
               onAddTask={handleAddTask}
               onDeleteTask={handleDeleteTask}

@@ -16,9 +16,10 @@ import {
   X,
   CalendarDays,
 } from 'lucide-react';
-import { Project, TaskItem, TaskStatus, TaskPriority, UserRole, Intern } from '../types';
+import { Project, TaskItem, TaskStatus, TaskPriority, UserRole, Intern, Group } from '../types';
 import { canManageContent } from '../services/permissions';
 import { projectsApi, tokenStore, ApiError, ApiProjectMember } from '../services/api';
+import { AssignPicker } from './AssignPicker';
 
 /**
  * Tab "Dự án & Kanban Worklog" — cấu trúc 2 tầng:
@@ -37,6 +38,8 @@ interface ProjectsViewProps {
   projects: Project[];
   tasks: TaskItem[];
   interns?: Intern[];
+  /** Nhóm để gán cả nhóm vào dự án (Mentor/Admin). */
+  groups?: Group[];
   onUpdateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
   onAddTask: (task: TaskItem) => void;
   onDeleteTask?: (taskId: string) => void;
@@ -119,6 +122,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   projects,
   tasks,
   interns = [],
+  groups = [],
   onUpdateTaskStatus,
   onAddTask,
   onDeleteTask,
@@ -145,7 +149,11 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [loadingMembers, setLoadingMembers] = useState(false);
   const [savingMember, setSavingMember] = useState(false);
   const [showMembers, setShowMembers] = useState(false);
-  const [memberSearch, setMemberSearch] = useState('');
+  // Ô tìm kiếm ứng viên giờ nằm trong AssignPicker; state này chỉ còn dùng cho
+  // bộ lọc `candidates` bên dưới (giữ để không phải viết lại phần lọc).
+  const [memberSearch] = useState('');
+  // Nhóm đang được gán — để hiện spinner đúng chip đang bấm.
+  const [busyGroupId, setBusyGroupId] = useState<string | null>(null);
 
   // --- Giao task trong phạm vi dự án ---
   const [isAssigningTask, setIsAssigningTask] = useState(false);
@@ -214,6 +222,34 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Thêm thành viên thất bại.');
     } finally {
+      setSavingMember(false);
+    }
+  };
+
+  // Gán CẢ NHÓM vào dự án. Không chỉ thêm những người đang có trong nhóm: backend
+  // ghi `source_group_id` nên ai vào nhóm sau này cũng tự được thêm vào dự án.
+  const handleAddGroup = async (groupId: string) => {
+    if (!openProjectId || !isBackendId(openProjectId) || !isBackendId(groupId)) {
+      alert('Dự án hoặc nhóm này là dữ liệu demo, chưa có trên máy chủ.');
+      return;
+    }
+    setBusyGroupId(groupId);
+    setSavingMember(true);
+    try {
+      const res = await projectsApi.addGroup(Number(openProjectId), Number(groupId));
+      loadMembers(openProjectId);
+      onReloadProjects?.();
+      alert(
+        res.added_count > 0
+          ? `Đã thêm ${res.added_count} thành viên từ nhóm vào dự án` +
+              (res.skipped_existing > 0 ? ` (${res.skipped_existing} người đã ở trong dự án).` : '.') +
+              '\n\nTừ nay ai được thêm vào nhóm này cũng tự vào dự án.'
+          : 'Cả nhóm đã ở trong dự án này rồi — không thêm ai mới.'
+      );
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Gán nhóm vào dự án thất bại.');
+    } finally {
+      setBusyGroupId(null);
       setSavingMember(false);
     }
   };
@@ -568,42 +604,35 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             </div>
           )}
 
-          {/* Kho chọn: người đã vào dự án sẽ biến mất khỏi đây */}
+          {/* Khối gán dùng chung với Lộ trình Đào tạo — xem AssignPicker.
+              Người đã vào dự án tự biến mất khỏi danh sách ứng viên. */}
           {canManage && (
-            <div className="pt-4 border-t border-slate-100 dark:border-slate-800 space-y-2">
-              <p className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
-                Thêm thành viên vào dự án
-              </p>
-              <div className="relative max-w-sm">
-                <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-slate-400" />
-                <input
-                  value={memberSearch}
-                  onChange={(e) => setMemberSearch(e.target.value)}
-                  placeholder="Tìm thực tập sinh..."
-                  className="w-full pl-9 pr-3 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-                />
-              </div>
-              {candidates.length === 0 ? (
-                <p className="text-xs text-slate-500">
-                  {interns.length === 0
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <AssignPicker
+                groups={(groups || []).map((g) => ({
+                  id: g.id,
+                  name: g.name,
+                  memberCount: g.memberCount,
+                  cohort: g.cohort,
+                }))}
+                candidates={candidates.map((i) => ({
+                  id: i.id,
+                  name: i.name,
+                  subtitle: i.email,
+                }))}
+                busy={savingMember}
+                busyGroupId={busyGroupId}
+                groupTitle="Thêm cả nhóm vào dự án"
+                personTitle="Thêm từng thực tập sinh"
+                emptyCandidates={
+                  interns.length === 0
                     ? 'Chưa tải được danh sách thực tập sinh.'
-                    : 'Tất cả thực tập sinh phù hợp đã ở trong dự án này.'}
-                </p>
-              ) : (
-                <div className="flex flex-wrap gap-2 max-h-40 overflow-y-auto">
-                  {candidates.map((i) => (
-                    <button
-                      key={i.id}
-                      disabled={savingMember}
-                      onClick={() => handleAddMember(i.id)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-slate-700 bg-slate-50 dark:bg-slate-900 hover:border-blue-400 hover:text-blue-600 text-xs font-bold text-slate-700 dark:text-slate-200 disabled:opacity-50 transition-colors cursor-pointer"
-                    >
-                      <UserPlus className="w-3.5 h-3.5" />
-                      <span>{i.name}</span>
-                    </button>
-                  ))}
-                </div>
-              )}
+                    : 'Tất cả thực tập sinh phù hợp đã ở trong dự án này.'
+                }
+                groupNote="Gán nhóm là luật thường trực: người được thêm vào nhóm sau này cũng tự vào dự án. Khi họ rời nhóm, chỉ gỡ nếu chưa được giao task nào."
+                onAssignGroup={handleAddGroup}
+                onAssignPerson={(c) => handleAddMember(c.id)}
+              />
             </div>
           )}
         </div>

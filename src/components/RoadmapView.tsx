@@ -12,11 +12,13 @@ import {
 import { AuthUser, Intern, Group, DocumentResource, UserRole } from '../types';
 import { canManageContent, ADMIN_READ_ONLY_NOTE } from '../services/permissions';
 import { ModuleDetailPanel, ModuleDeadlineChip } from './ModuleDetailPanel';
+import { AssignPicker } from './AssignPicker';
 import {
   ApiError,
   roadmapsApi,
   modulesApi,
   learningApi,
+  assignmentsApi,
   tokenStore,
   ApiRoadmapListItem,
   ApiRoadmapDetail,
@@ -286,8 +288,11 @@ const MentorRoadmapView: React.FC<{
 
 
   const [isAssigning, setIsAssigning] = useState(false);
-  const [assignInternIds, setAssignInternIds] = useState<string[]>([]);
-  const [assignGroupId, setAssignGroupId] = useState('');
+  // Ai đã được gán lộ trình đang mở — để họ biến mất khỏi danh sách ứng viên,
+  // giống cách màn Dự án loại người đã là thành viên.
+  const [assignedUserIds, setAssignedUserIds] = useState<Set<number>>(new Set());
+  const [assigning, setAssigning] = useState(false);
+  const [busyGroupId, setBusyGroupId] = useState<string | null>(null);
 
   const loadRoadmaps = () => {
     // GET /roadmaps trả Page -> phải lấy .items. Trả thẳng response vào setRoadmaps
@@ -310,8 +315,14 @@ const MentorRoadmapView: React.FC<{
   const openModule = detail?.modules.find((m) => m.id === openModuleId) || null;
 
   useEffect(() => {
-    if (selectedId != null) loadDetail(selectedId);
-    else setDetail(null);
+    if (selectedId != null) {
+      loadDetail(selectedId);
+      // Nạp luôn danh sách đã được gán để lọc ứng viên (xem loadAssignees).
+      loadAssignees(selectedId);
+    } else {
+      setDetail(null);
+      setAssignedUserIds(new Set());
+    }
   }, [selectedId]);
 
   const handleCreateRoadmap = async () => {
@@ -375,46 +386,61 @@ const MentorRoadmapView: React.FC<{
     }
   };
 
-  const handleAssign = async () => {
-    if (!selectedId) return;
+  /** Ai đang được gán lộ trình này — dùng để lọc danh sách ứng viên. */
+  const loadAssignees = (roadmapId: number) => {
+    if (!tokenStore.isAuthenticated()) return;
+    assignmentsApi
+      .list({ roadmap_id: roadmapId, size: 100 })
+      .then((res) => setAssignedUserIds(new Set(res.items.map((a) => a.user_id))))
+      .catch(() => setAssignedUserIds(new Set()));
+  };
 
-    // Chỉ id số mới là tài khoản thật do backend cấp (dữ liệu demo dùng id dạng "INT-01").
-    const numericInternIds = assignInternIds.map(Number).filter(Number.isInteger);
-    const hasGroup = !!assignGroupId && Number.isInteger(Number(assignGroupId));
-
-    // Trước đây không kiểm tra gì: chọn rỗng (hoặc chỉ chọn intern demo) vẫn báo
-    // "Đã gán lộ trình" dù không gọi API nào — người dùng tưởng đã gán xong.
-    if (!hasGroup && numericInternIds.length === 0) {
-      alert('Hãy chọn ít nhất một Nhóm hoặc một Thực tập sinh (tài khoản thật) để gán.');
+  // Gán CẢ NHÓM. Là luật thường trực: backend ghi `source_group_id` nên ai vào
+  // nhóm sau này cũng tự nhận được lộ trình (trước đây không có, người vào sau
+  // không nhận được gì).
+  const handleAssignGroup = async (groupId: string) => {
+    if (!selectedId || !Number.isInteger(Number(groupId))) {
+      alert('Nhóm này là dữ liệu demo, chưa có trên máy chủ.');
       return;
     }
-
+    setBusyGroupId(groupId);
+    setAssigning(true);
     try {
-      // 2 endpoint trả về 2 dạng khác nhau: assign-group trả số đếm,
-      // assign cá nhân trả mảng `created`. Backend bỏ qua người đã được gán trước đó.
-      let assignedCount = 0;
-      let skippedCount = 0;
-      if (hasGroup) {
-        const res = await roadmapsApi.assignGroup(selectedId, Number(assignGroupId));
-        assignedCount += res.assigned_count;
-        skippedCount += res.skipped_existing;
-      }
-      if (numericInternIds.length > 0) {
-        const res = await roadmapsApi.assign(selectedId, numericInternIds);
-        assignedCount += res.created.length;
-        skippedCount += numericInternIds.length - res.created.length;
-      }
-      setAssignInternIds([]);
-      setAssignGroupId('');
-      setIsAssigning(false);
-      const skippedNote = skippedCount > 0 ? ` (bỏ qua ${skippedCount} người đã được gán trước đó)` : '';
+      const res = await roadmapsApi.assignGroup(selectedId, Number(groupId));
+      loadAssignees(selectedId);
       alert(
-        assignedCount > 0
-          ? `Đã gán lộ trình cho ${assignedCount} thực tập sinh${skippedNote}.`
-          : 'Không có ai được gán mới — tất cả những người bạn chọn đã được gán lộ trình này từ trước.'
+        res.assigned_count > 0
+          ? `Đã gán lộ trình cho ${res.assigned_count} thành viên của nhóm` +
+              (res.skipped_existing > 0 ? ` (${res.skipped_existing} người đã được gán trước đó).` : '.') +
+              '\n\nTừ nay ai được thêm vào nhóm này cũng tự nhận lộ trình.'
+          : 'Cả nhóm đã được gán lộ trình này từ trước — không gán mới cho ai.'
       );
     } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Gán lộ trình cho nhóm thất bại.');
+    } finally {
+      setBusyGroupId(null);
+      setAssigning(false);
+    }
+  };
+
+  /** Gán cho MỘT thực tập sinh — bấm chip là gán ngay, không cần nút xác nhận. */
+  const handleAssignIntern = async (internId: string, name: string) => {
+    // Chỉ id số mới là tài khoản thật do backend cấp (demo dùng id dạng "INT-01").
+    if (!selectedId || !Number.isInteger(Number(internId))) {
+      alert(`"${name}" là dữ liệu demo, chưa có tài khoản thật trên hệ thống.`);
+      return;
+    }
+    setAssigning(true);
+    try {
+      const res = await roadmapsApi.assign(selectedId, [Number(internId)]);
+      loadAssignees(selectedId);
+      if (res.created.length === 0) {
+        alert(`"${name}" đã được gán lộ trình này từ trước.`);
+      }
+    } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Gán lộ trình thất bại.');
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -542,47 +568,34 @@ const MentorRoadmapView: React.FC<{
               )}
             </div>
 
+            {/* Khối gán dùng chung với màn Dự án & Kanban — xem AssignPicker.
+                Thay cho hai ô <select> cũ (dropdown nhóm + multi-select giữ Ctrl):
+                giờ bấm chip là gán ngay, và người đã được gán tự biến mất. */}
             {isAssigning && (
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-4 space-y-3">
-                <div>
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-1">Gán theo Nhóm</label>
-                  <select
-                    value={assignGroupId}
-                    onChange={(e) => setAssignGroupId(e.target.value)}
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900"
-                  >
-                    <option value="">— Không chọn nhóm —</option>
-                    {groups.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <div>
-                  <label className="text-xs font-bold text-slate-600 dark:text-slate-300 block mb-1">
-                    Hoặc chọn từng Thực tập sinh
-                  </label>
-                  <select
-                    multiple
-                    value={assignInternIds}
-                    onChange={(e) =>
-                      setAssignInternIds(
-                        Array.from(e.target.selectedOptions).map((o) => (o as HTMLOptionElement).value)
-                      )
-                    }
-                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 h-28"
-                  >
-                    {interns.map((i) => (
-                      <option key={i.id} value={i.id}>
-                        {i.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-                <button onClick={handleAssign} className="w-full py-1.5 rounded-lg bg-blue-600 hover:bg-blue-500 text-white text-xs font-bold">
-                  Xác nhận gán
-                </button>
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
+                <AssignPicker
+                  groups={groups.map((g) => ({
+                    id: g.id,
+                    name: g.name,
+                    memberCount: g.memberCount,
+                    cohort: g.cohort,
+                  }))}
+                  candidates={interns
+                    .filter((i) => !assignedUserIds.has(Number(i.id)))
+                    .map((i) => ({ id: i.id, name: i.name, subtitle: i.email }))}
+                  busy={assigning}
+                  busyGroupId={busyGroupId}
+                  groupTitle="Gán lộ trình cho cả nhóm"
+                  personTitle="Gán cho từng thực tập sinh"
+                  emptyCandidates={
+                    interns.length === 0
+                      ? 'Chưa tải được danh sách thực tập sinh.'
+                      : 'Tất cả thực tập sinh đã được gán lộ trình này.'
+                  }
+                  groupNote="Gán nhóm là luật thường trực: người được thêm vào nhóm sau này cũng tự nhận lộ trình. Khi họ rời nhóm, chỉ thu hồi nếu chưa học bài nào."
+                  onAssignGroup={handleAssignGroup}
+                  onAssignPerson={(c) => handleAssignIntern(c.id, c.name)}
+                />
               </div>
             )}
 
