@@ -115,10 +115,21 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
     }
     setSavingMember(true);
     try {
-      await groupsApi.addMembers(Number(openGroupId), ids);
+      const res = await groupsApi.addMembers(Number(openGroupId), ids);
       setPickedInternIds([]);
       loadMembers(openGroupId);
       onReloadGroups();
+      // Vào nhóm là kế thừa ngay lộ trình + dự án của nhóm. Nói ra để Mentor biết
+      // vừa cấp thêm quyền học/làm việc cho ai, chứ không âm thầm.
+      const inherited: string[] = [];
+      if (res.inherited_roadmaps > 0) inherited.push(`${res.inherited_roadmaps} lượt gán lộ trình`);
+      if (res.inherited_projects > 0) inherited.push(`${res.inherited_projects} lượt vào dự án`);
+      if (inherited.length > 0) {
+        alert(
+          `Đã thêm ${res.added_count} người vào nhóm.\n\n` +
+            `Họ được nhận luôn theo nhóm: ${inherited.join(' và ')}.`
+        );
+      }
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Thêm thành viên thất bại.');
     } finally {
@@ -128,12 +139,27 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
 
   const handleRemoveMember = async (userId: number, fullName: string) => {
     if (!openGroupId) return;
-    if (!window.confirm(`Gỡ "${fullName}" khỏi nhóm này?`)) return;
+    if (
+      !window.confirm(
+        `Gỡ "${fullName}" khỏi nhóm này?\n\n` +
+          'Những lộ trình / dự án người này nhận được VÌ ở trong nhóm sẽ bị thu hồi — ' +
+          'trừ phần họ đã bắt đầu (đã học bài hoặc đang có task), phần đó được giữ lại.'
+      )
+    ) {
+      return;
+    }
     setSavingMember(true);
     try {
-      await groupsApi.removeMember(Number(openGroupId), userId);
+      const res = await groupsApi.removeMember(Number(openGroupId), userId);
       loadMembers(openGroupId);
       onReloadGroups();
+      if (res.kept_roadmaps > 0 || res.kept_projects > 0) {
+        alert(
+          `Đã gỡ "${fullName}" khỏi nhóm.\n\n` +
+            `Giữ lại (vì đã có tiến độ): ${res.kept_roadmaps} lộ trình, ${res.kept_projects} dự án.\n` +
+            `Thu hồi: ${res.revoked_roadmaps} lộ trình, ${res.revoked_projects} dự án.`
+        );
+      }
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Gỡ thành viên thất bại.');
     } finally {

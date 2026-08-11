@@ -344,31 +344,28 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
           {/* Details Tabs / Info Sections */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
             
-            {/* Left Info: Contact & Mentor */}
+            {/* Left Info: Liên hệ & Chuyên môn.
+                Khối "Thông tin Hành chính & Đào tạo" (SĐT, Trường, Mentor hướng dẫn,
+                Thời gian thực tập) đã bị bỏ khỏi cả CSDL lẫn giao diện — xem
+                migration d5c8a2e64f19. */}
             <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
-              <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">Thông tin Hành chính & Đào tạo</h4>
-              
+              <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">Thông tin Liên hệ</h4>
+
               <div className="space-y-2 text-xs text-slate-600 dark:text-slate-400">
                 <div className="flex items-center gap-2">
                   <Mail className="w-4 h-4 text-slate-400" />
                   <span>Email: <strong className="text-slate-800 dark:text-slate-200">{intern.email}</strong></span>
                 </div>
                 <div className="flex items-center gap-2">
-                  <Phone className="w-4 h-4 text-slate-400" />
-                  <span>SĐT: <strong className="text-slate-800 dark:text-slate-200">{intern.phone}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <GraduationCap className="w-4 h-4 text-slate-400" />
-                  <span>Trường: <strong className="text-slate-800 dark:text-slate-200">{intern.university || 'Đại học Bách Khoa'}</strong></span>
-                </div>
-                <div className="flex items-center gap-2">
                   <Building2 className="w-4 h-4 text-slate-400" />
-                  <span>Mentor hướng dẫn: <strong className="text-blue-700">{intern.mentor}</strong></span>
+                  <span>Định hướng: <strong className="text-slate-800 dark:text-slate-200">{intern.department}</strong></span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Calendar className="w-4 h-4 text-slate-400" />
-                  <span>Thời gian thực tập: <strong className="text-slate-800 dark:text-slate-200">{intern.startDate} đến {intern.endDate}</strong></span>
-                </div>
+                {intern.major && (
+                  <div className="flex items-center gap-2">
+                    <GraduationCap className="w-4 h-4 text-slate-400" />
+                    <span>Ngành: <strong className="text-slate-800 dark:text-slate-200">{intern.major}</strong></span>
+                  </div>
+                )}
               </div>
             </div>
 

@@ -465,7 +465,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{intern.department}</p>
-                    <p className="text-[11px] text-slate-400 truncate">Mentor: {intern.mentor.split('(')[0]}</p>
+                    <p className="text-[11px] text-slate-400 truncate">{intern.department}</p>
                   </div>
                 </div>
               ))}

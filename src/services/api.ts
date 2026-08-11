@@ -286,14 +286,9 @@ export interface ApiUser {
   status?: ApiUserStatus;
   avatar_url?: string | null;
   // Hồ sơ Intern — chỉ có ý nghĩa khi role === 'INTERN', đều optional/nullable.
+  // Khối hành chính (phone / university / mentor_id / start_date / end_date) đã bị
+  // bỏ khỏi bảng users ở backend (migration d5c8a2e64f19).
   department?: ApiDepartment | null;
-  mentor_id?: number | null;
-  mentor_name?: string | null;
-  mentor_email?: string | null;
-  phone?: string | null;
-  start_date?: string | null;
-  end_date?: string | null;
-  university?: string | null;
   major?: string | null;
   bio?: string | null;
   github_url?: string | null;
@@ -355,19 +350,36 @@ export interface GoogleSignupPayload {
 // ---- Điểm thi thử Anthropic Mock Exam -------------------------------------
 
 /**
- * Thang điểm chuẩn hoá của bài thi thử. PHẢI khớp `app/services/exam_service.py`
- * bên backend — server là nơi tính điểm chính thức, hằng số ở đây chỉ để hiển thị
- * (thanh tiến độ, màu đỗ/không đỗ) mà không phải chờ gọi API.
+ * Thang điểm bài thi thử. PHẢI khớp `app/services/exam_service.py` bên backend —
+ * server là nơi tính điểm chính thức, hằng số ở đây chỉ để hiển thị (thanh tiến
+ * độ, màu đỗ/trượt) mà không phải chờ gọi API.
+ *
+ * Mọi câu tính như nhau; điểm = phần trăm câu đúng × 10. Đỗ khi đúng >= 80%.
  */
-export const EXAM_SCORE_MIN = 100;
+export const EXAM_SCORE_MIN = 0;
 export const EXAM_SCORE_MAX = 1000;
-export const EXAM_PASSING_SCORE = 720;
+export const EXAM_PASS_PERCENT = 80;
+export const EXAM_PASSING_SCORE = (EXAM_SCORE_MAX * EXAM_PASS_PERCENT) / 100; // 800
 
-/** Quy đổi số câu đúng sang thang 100..1000 (cùng công thức với backend). */
+/** Quy đổi số câu đúng sang thang 0..1000 (cùng công thức với backend). */
 export function examScaledScore(correctCount: number, totalQuestions: number): number {
   if (totalQuestions <= 0) return EXAM_SCORE_MIN;
   const ratio = Math.min(1, Math.max(0, correctCount / totalQuestions));
-  return Math.round(EXAM_SCORE_MIN + ratio * (EXAM_SCORE_MAX - EXAM_SCORE_MIN));
+  return Math.round(ratio * EXAM_SCORE_MAX);
+}
+
+/** Phần trăm câu đúng suy từ điểm (điểm = phần trăm × 10). */
+export function examPercent(score: number): number {
+  return score / 10;
+}
+
+/**
+ * Đỗ hay không, tính trên SỐ CÂU chứ không trên điểm đã làm tròn — giống backend.
+ * Dùng bản này ngay sau khi chấm bài; với dữ liệu đã lưu thì so `score >= 800`.
+ */
+export function examIsPassing(correctCount: number, totalQuestions: number): boolean {
+  if (totalQuestions <= 0) return false;
+  return correctCount * 100 >= totalQuestions * EXAM_PASS_PERCENT;
 }
 
 /** Một lần làm bài ở chế độ thi. */
@@ -419,6 +431,31 @@ export interface ApiExamOverview {
   interns_with_attempts: number;
   interns_total: number;
   interns: ApiExamSummary[];
+}
+
+// ---- Gán nhóm (luật thường trực) ------------------------------------------
+
+/**
+ * Kết quả thêm thành viên vào nhóm. Gán nhóm là LUẬT THƯỜNG TRỰC: vào nhóm là
+ * nhận ngay mọi lộ trình + dự án nhóm đang có, kể cả khi nhóm được gán từ trước.
+ */
+export interface ApiAddMembersResult {
+  members: ApiGroupMember[];
+  added_count: number;
+  skipped_existing: number;
+  inherited_roadmaps: number;
+  inherited_projects: number;
+}
+
+/**
+ * Kết quả gỡ thành viên khỏi nhóm. `kept_*` = số lộ trình/dự án KHÔNG bị thu hồi
+ * vì người đó đã có tiến độ — chúng chuyển thành gán cá nhân thay vì bị xoá.
+ */
+export interface ApiRemoveMemberResult {
+  revoked_roadmaps: number;
+  kept_roadmaps: number;
+  revoked_projects: number;
+  kept_projects: number;
 }
 
 // ---- Yêu cầu chuyển vai trò ----------------------------------------------
@@ -833,11 +870,6 @@ export const usersApi = {
     id: number,
     payload: Partial<{
       department: ApiDepartment;
-      mentor_id: number;
-      phone: string;
-      start_date: string;
-      end_date: string;
-      university: string;
       major: string;
       bio: string;
       github_url: string;
@@ -993,17 +1025,29 @@ export const groupsApi = {
     return request<void>(`/groups/${id}`, { method: 'DELETE' });
   },
 
-  /** POST /groups/{id}/members — Thêm nhiều Intern vào nhóm. Quyền: MENTOR. */
+  /**
+   * POST /groups/{id}/members — Thêm nhiều Intern vào nhóm. Quyền: MENTOR.
+   *
+   * Người mới **tự động kế thừa** mọi lộ trình và dự án đang gán cho nhóm —
+   * `inherited_roadmaps` / `inherited_projects` cho biết đã cấp thêm bao nhiêu.
+   */
   addMembers(id: number, user_ids: number[]) {
-    return request<ApiGroupMember[]>(`/groups/${id}/members`, {
+    return request<ApiAddMembersResult>(`/groups/${id}/members`, {
       method: 'POST',
       body: { user_ids },
     });
   },
 
-  /** DELETE /groups/{id}/members/{user_id} — Kick 1 Intern. Quyền: MENTOR. */
+  /**
+   * DELETE /groups/{id}/members/{user_id} — Gỡ 1 Intern khỏi nhóm. Quyền: MENTOR.
+   *
+   * Chỉ thu hồi lộ trình/dự án người đó có VÌ thuộc nhóm này và chưa động vào;
+   * phần đã có tiến độ được giữ lại (`kept_*`) dưới dạng gán cá nhân.
+   */
   removeMember(id: number, userId: number) {
-    return request<void>(`/groups/${id}/members/${userId}`, { method: 'DELETE' });
+    return request<ApiRemoveMemberResult>(`/groups/${id}/members/${userId}`, {
+      method: 'DELETE',
+    });
   },
 };
 
@@ -1411,6 +1455,19 @@ export const projectsApi = {
       method: 'POST',
       body: { user_ids },
     });
+  },
+
+  /**
+   * POST /projects/{id}/members/group — Gán cả một NHÓM vào dự án. Quyền: MENTOR.
+   *
+   * Là luật thường trực, không phải chép một lần: ai vào nhóm sau cũng tự được
+   * thêm vào dự án này. Đối xứng với `roadmapsApi.assignGroup`.
+   */
+  addGroup(id: number, group_id: number) {
+    return request<{ added_count: number; skipped_existing: number }>(
+      `/projects/${id}/members/group`,
+      { method: 'POST', body: { group_id } }
+    );
   },
 
   /** DELETE /projects/{id}/members/{user_id} — Gỡ 1 thành viên. Quyền: MENTOR/ADMIN. */

@@ -251,13 +251,7 @@ export const InternsView: React.FC<InternsViewProps> = ({
                     <span className="font-bold text-blue-700">{intern.department}</span>
                   </div>
 
-                  <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 text-[11px] px-1">
-                    <span className="text-slate-500 dark:text-slate-400">Mentor hướng dẫn:</span>
-                    <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
-                      {intern.mentor.split('(')[0]}
-                    </span>
-                  </div>
-
+                  {/* Dòng "Mentor hướng dẫn" đã bỏ cùng cột users.mentor_id. */}
                   <div className="flex items-center justify-between text-slate-600 dark:text-slate-400 text-[11px] px-1">
                     <span className="text-slate-500 dark:text-slate-400">Dự án:</span>
                     <span className="font-semibold text-slate-800 dark:text-slate-200 truncate max-w-[150px]">
@@ -303,7 +297,7 @@ export const InternsView: React.FC<InternsViewProps> = ({
                 <tr>
                   <th className="p-4">Thực tập sinh</th>
                   <th className="p-4">Khối Kỹ thuật</th>
-                  <th className="p-4">Mentor</th>
+                  <th className="p-4">Ngành</th>
                   <th className="p-4">Trạng thái</th>
                   <th className="p-4">Lộ trình học tập</th>
                   <th className="p-4">Điểm</th>
@@ -331,7 +325,7 @@ export const InternsView: React.FC<InternsViewProps> = ({
                       </div>
                     </td>
                     <td className="p-4 font-semibold text-slate-800 dark:text-slate-200">{intern.department}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-400">{intern.mentor.split('(')[0]}</td>
+                    <td className="p-4 text-slate-600 dark:text-slate-400">{intern.major || '—'}</td>
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(intern.status)}`}>
                         {intern.status}

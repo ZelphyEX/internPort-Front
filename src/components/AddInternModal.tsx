@@ -76,10 +76,9 @@ export const AddInternModal: React.FC<AddInternModalProps> = ({
         });
         // Bổ sung hồ sơ ngay sau khi có id thật (không chặn nếu bước này lỗi).
         try {
+          // SĐT/Trường/Mentor phụ trách/Thời gian thực tập đã bị bỏ khỏi hồ sơ.
           await usersApi.updateProfile(created.id, {
             department: FE_DEPARTMENT_TO_API[department],
-            phone: phone.trim() || undefined,
-            university: university.trim() || undefined,
           });
         } catch {
           /* hồ sơ có thể sửa lại sau ở màn chi tiết */

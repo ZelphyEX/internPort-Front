@@ -79,14 +79,16 @@ export function apiUserToIntern(u: ApiUser): Intern {
     id: String(u.id),
     name: u.full_name,
     email: u.email,
-    phone: u.phone || '',
+    // SĐT / mentor phụ trách / thời gian thực tập đã bị bỏ khỏi backend. Vẫn để
+    // chuỗi rỗng vì kiểu `Intern` ở FE còn dùng các trường này ở dữ liệu mẫu.
+    phone: '',
     avatar: u.avatar_url || DEFAULT_AVATAR,
     department,
     roleTitle: `Thực tập sinh ${department}`,
-    mentor: u.mentor_name || '',
-    mentorEmail: u.mentor_email || '',
-    startDate: u.start_date || '',
-    endDate: u.end_date || '',
+    mentor: '',
+    mentorEmail: '',
+    startDate: '',
+    endDate: '',
     status: u.status === 'LOCKED' ? 'Paused' : 'Active',
     project: '',
     projectId: '',
@@ -95,7 +97,6 @@ export function apiUserToIntern(u: ApiUser): Intern {
     githubUrl: u.github_url || undefined,
     skills: [],
     bio: u.bio || undefined,
-    university: u.university || undefined,
     major: u.major || undefined,
   };
 }

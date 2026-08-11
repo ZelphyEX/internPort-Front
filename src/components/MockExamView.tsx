@@ -25,7 +25,11 @@ import {
   tokenStore,
   examAttemptsApi,
   examScaledScore,
+  examIsPassing,
+  examPercent,
   EXAM_PASSING_SCORE,
+  EXAM_PASS_PERCENT,
+  EXAM_SCORE_MAX,
 } from '../services/api';
 
 // Import Claude Developer (dev)
@@ -1104,7 +1108,9 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     });
 
     const score = examScaledScore(correctCount, currentExam.questions.length);
-    const isPassed = score >= EXAM_PASSING_SCORE;
+    // Xét đỗ trên SỐ CÂU, không trên điểm đã làm tròn (xem examIsPassing).
+    const isPassed = examIsPassing(correctCount, currentExam.questions.length);
+    const percent = examPercent(score);
 
     return (
       <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
@@ -1128,7 +1134,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               <span>{isPassed ? 'ĐẠT (PASS)' : 'KHÔNG ĐẠT (FAIL)'}</span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed pt-2 font-medium">
-              Bạn làm chính xác <strong>{correctCount} / {currentExam.questions.length}</strong> câu hỏi. Thang điểm <strong>100 – 1000</strong>, cần từ <strong>{EXAM_PASSING_SCORE} điểm</strong> trở lên để đạt.
+              Bạn làm chính xác <strong>{correctCount} / {currentExam.questions.length}</strong> câu hỏi (<strong>{percent.toFixed(1)}%</strong>). Cần đúng từ <strong>{EXAM_PASS_PERCENT}%</strong> trở lên ({EXAM_PASSING_SCORE}/{EXAM_SCORE_MAX} điểm) để đạt.
               {mode === 'practice' && <span className="block mt-1.5 text-blue-500 font-bold">Chế độ Luyện tập không ghi đè Điểm cao nhất trong hồ sơ thi thật.</span>}
             </p>
 

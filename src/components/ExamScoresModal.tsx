@@ -18,9 +18,11 @@ import {
   ApiExamOverview,
   ApiExamSummary,
   EXAM_PASSING_SCORE,
+  EXAM_PASS_PERCENT,
   EXAM_SCORE_MAX,
   EXAM_SCORE_MIN,
   examAttemptsApi,
+  examPercent,
   tokenStore,
 } from '../services/api';
 
@@ -32,7 +34,8 @@ import {
  *   * MENTOR / ADMIN : điểm của chính mình + bảng điểm toàn bộ Thực tập sinh, bấm
  *                      vào từng người để xem điểm từng đề của họ.
  *
- * Điểm hiển thị là điểm TỐT NHẤT của mỗi đề (thang 100–1000, đạt từ 720).
+ * Điểm hiển thị là điểm TỐT NHẤT của mỗi đề: phần trăm câu đúng quy về thang 1000
+ * (mọi câu tính như nhau), đạt khi đúng từ 80%.
  * Chỉ tính bài làm ở chế độ THI — luyện tập không được ghi nhận.
  */
 
@@ -128,12 +131,15 @@ const SummaryHeadline: React.FC<{ summary: ApiExamSummary; label: string }> = ({
         value: summary.avg_score !== null && summary.avg_score !== undefined
           ? summary.avg_score.toFixed(1)
           : '—',
-        hint: `thang ${EXAM_SCORE_MIN}–${EXAM_SCORE_MAX}`,
+        hint:
+          summary.avg_score !== null && summary.avg_score !== undefined
+            ? `${examPercent(summary.avg_score).toFixed(1)}% • thang ${EXAM_SCORE_MAX}`
+            : `thang ${EXAM_SCORE_MAX}`,
       },
       {
         title: 'Điểm cao nhất',
         value: summary.best_score ?? '—',
-        hint: `đạt từ ${EXAM_PASSING_SCORE}`,
+        hint: `đạt từ ${EXAM_PASS_PERCENT}%`,
       },
       {
         title: 'Đề đã đạt',
@@ -220,8 +226,9 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                 Bảng điểm Anthropic Mock Exam
               </h3>
               <p className="text-[11px] text-slate-500 dark:text-slate-400 leading-snug">
-                Điểm tốt nhất mỗi đề, thang {EXAM_SCORE_MIN}–{EXAM_SCORE_MAX}, đạt từ{' '}
-                {EXAM_PASSING_SCORE}. Chỉ tính bài làm ở chế độ thi.
+                Điểm tốt nhất mỗi đề — phần trăm câu đúng quy về thang {EXAM_SCORE_MAX},
+                đạt từ {EXAM_PASS_PERCENT}% ({EXAM_PASSING_SCORE} điểm). Chỉ tính bài làm
+                ở chế độ thi.
               </p>
             </div>
           </div>
