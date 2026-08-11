@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 
 import {
   Building2,
@@ -14,6 +14,7 @@ import {
   Lock,
   Mail,
   ChevronDown,
+  Clock,
   X,
 } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
@@ -24,6 +25,7 @@ import {
   ApiError,
   ApiGoogleProfile,
   isPendingApprovalError,
+  takeSessionEndedReason,
 } from '../services/api';
 import { apiUserToAuthUser } from '../services/mappers';
 import { PendingApprovalView } from './PendingApprovalView';
@@ -78,6 +80,15 @@ const emailFromGoogleCredential = (credential: string): string => {
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+
+  // Vì sao vừa bị đá ra đây (phiên hết hạn / token hỏng). Đọc trong effect chứ
+  // không trong useState initializer: StrictMode gọi initializer hai lần, lần thứ
+  // hai đã bị xoá mất nên lời nhắn sẽ biến mất ngay ở môi trường dev.
+  const [sessionNotice, setSessionNotice] = useState<string | null>(null);
+  useEffect(() => {
+    const reason = takeSessionEndedReason();
+    if (reason) setSessionNotice(reason);
+  }, []);
 
   // Khác null = đang hiển thị màn "tài khoản Mentor chờ Admin duyệt".
   const [pendingEmail, setPendingEmail] = useState<string | null>(null);
@@ -233,6 +244,14 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
         {/* Khung đăng nhập */}
         <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-md w-full backdrop-blur-xl space-y-6">
+
+          {/* Vì sao vừa bị đưa về đây (phiên hết hạn sau 1 ngày, hoặc token hỏng) */}
+          {sessionNotice && (
+            <p className="text-[11px] font-bold text-amber-300 bg-amber-950/30 border border-amber-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
+              <Clock className="w-4 h-4 shrink-0 mt-px" />
+              <span>{sessionNotice}</span>
+            </p>
+          )}
 
           {/* Nút Google — cách duy nhất để vào hệ thống */}
           <div className="space-y-3">

@@ -46,6 +46,8 @@ import {
   dailyReportsApi,
   ApiError,
   setUnauthorizedHandler,
+  isSessionExpired,
+  endSession,
 } from './services/api';
 import {
   feFileTypeToApiType,
@@ -61,6 +63,13 @@ import {
 export default function App() {
   // Auth State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
+    // Phiên chỉ sống 1 ngày. Dọn ngay lúc khởi tạo state, nếu không giao diện
+    // portal sẽ loé lên một nhịp rồi mới bị đá về màn đăng nhập.
+    if (isSessionExpired()) {
+      endSession();
+      localStorage.removeItem('gimasys_current_user');
+      return null;
+    }
     const savedUser = localStorage.getItem('gimasys_current_user');
     return savedUser ? JSON.parse(savedUser) : null;
   });
@@ -85,6 +94,22 @@ export default function App() {
       setCurrentUser(null);
       localStorage.removeItem('gimasys_current_user');
     });
+  }, []);
+
+  // Phiên hết hạn theo ĐỒNG HỒ, không theo hoạt động: một tab để mở qua đêm phải
+  // tự về màn đăng nhập, chứ không hiện giao diện như thể vẫn còn đăng nhập rồi
+  // đợi thao tác đầu tiên mới báo lỗi. Kiểm tra mỗi phút + mỗi lần quay lại cửa sổ.
+  useEffect(() => {
+    const checkSession = () => {
+      if (tokenStore.isAuthenticated() && isSessionExpired()) endSession();
+    };
+    checkSession();
+    const timer = window.setInterval(checkSession, 60_000);
+    window.addEventListener('focus', checkSession);
+    return () => {
+      window.clearInterval(timer);
+      window.removeEventListener('focus', checkSession);
+    };
   }, []);
 
   // Vai trò dùng để dựng giao diện phải lấy từ SERVER, không tin localStorage.

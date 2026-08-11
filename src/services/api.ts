@@ -21,6 +21,8 @@ export const API_BASE_URL: string =
 // Khóa lưu token trong localStorage
 const ACCESS_TOKEN_KEY = 'gimasys_access_token';
 const REFRESH_TOKEN_KEY = 'gimasys_refresh_token';
+/** Hạn tuyệt đối của phiên (ms epoch) — server quyết định, xem TokenResponse. */
+const SESSION_EXPIRES_AT_KEY = 'gimasys_session_expires_at';
 
 // ---- Quản lý token --------------------------------------------------------
 
@@ -31,21 +33,49 @@ export const tokenStore = {
   getRefresh(): string | null {
     return localStorage.getItem(REFRESH_TOKEN_KEY);
   },
-  set(accessToken: string, refreshToken?: string): void {
+  set(accessToken: string, refreshToken?: string, sessionExpiresAt?: string): void {
     if (accessToken) localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
     if (refreshToken) localStorage.setItem(REFRESH_TOKEN_KEY, refreshToken);
+    if (sessionExpiresAt) {
+      const ms = Date.parse(sessionExpiresAt);
+      if (!Number.isNaN(ms)) localStorage.setItem(SESSION_EXPIRES_AT_KEY, String(ms));
+    }
   },
   setAccess(accessToken: string): void {
     if (accessToken) localStorage.setItem(ACCESS_TOKEN_KEY, accessToken);
   },
+  /** Mốc hết hạn phiên (ms epoch), null nếu server không gửi (backend cũ). */
+  getSessionExpiresAt(): number | null {
+    const raw = localStorage.getItem(SESSION_EXPIRES_AT_KEY);
+    if (!raw) return null;
+    const ms = Number(raw);
+    return Number.isFinite(ms) ? ms : null;
+  },
   clear(): void {
     localStorage.removeItem(ACCESS_TOKEN_KEY);
     localStorage.removeItem(REFRESH_TOKEN_KEY);
+    localStorage.removeItem(SESSION_EXPIRES_AT_KEY);
   },
   isAuthenticated(): boolean {
     return !!localStorage.getItem(ACCESS_TOKEN_KEY);
   },
 };
+
+/**
+ * True khi phiên đã quá hạn tuyệt đối.
+ *
+ * Server không gia hạn mốc này khi refresh, nên đây là "1 ngày kể từ lúc đăng
+ * nhập", không phải "1 ngày kể từ lần thao tác cuối". Trả false nếu chưa biết mốc
+ * (backend cũ chưa trả `session_expires_at`) — khi đó vẫn còn 401 làm lưới đỡ.
+ */
+export function isSessionExpired(): boolean {
+  const expiresAt = tokenStore.getSessionExpiresAt();
+  return expiresAt !== null && Date.now() >= expiresAt;
+}
+
+/** Thông báo dùng chung khi phiên hết hạn theo thời gian. */
+export const SESSION_EXPIRED_DETAIL =
+  'Phiên đăng nhập đã hết hạn (mỗi phiên chỉ kéo dài 1 ngày). Vui lòng đăng nhập lại.';
 
 // ---- Kiểu dữ liệu chung ---------------------------------------------------
 
@@ -91,6 +121,27 @@ export function setUnauthorizedHandler(fn: () => void): void {
   onUnauthorized = fn;
 }
 
+/** Lý do phiên vừa kết thúc, để màn đăng nhập giải thích thay vì đá ra im lặng. */
+const SESSION_ENDED_KEY = 'gimasys_session_ended';
+
+/** Kết thúc phiên tại chỗ: xoá token và đưa app về màn đăng nhập. */
+export function endSession(reason: string = SESSION_EXPIRED_DETAIL): void {
+  tokenStore.clear();
+  try {
+    localStorage.setItem(SESSION_ENDED_KEY, reason);
+  } catch {
+    /* localStorage đầy/bị chặn: mất lời nhắn thôi, vẫn phải đăng xuất */
+  }
+  if (onUnauthorized) onUnauthorized();
+}
+
+/** Đọc rồi XOÁ lý do phiên trước kết thúc (chỉ hiện một lần). */
+export function takeSessionEndedReason(): string | null {
+  const reason = localStorage.getItem(SESSION_ENDED_KEY);
+  if (reason) localStorage.removeItem(SESSION_ENDED_KEY);
+  return reason;
+}
+
 function buildUrl(path: string, query?: RequestOptions['query']): string {
   const url = `${API_BASE_URL}${path}`;
   if (!query) return url;
@@ -127,6 +178,14 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     allowRetry = true,
   } = options;
 
+  // Phiên hết hạn theo thời gian: kết thúc ngay tại client, không gửi request nào
+  // nữa. Nếu để đi tiếp thì server trả 401, FE lại thử refresh (cũng hỏng) rồi mới
+  // đăng xuất — chậm hơn và tạo ra một loạt request rác.
+  if (auth && isSessionExpired()) {
+    endSession();
+    throw new ApiError(401, SESSION_EXPIRED_DETAIL);
+  }
+
   const headers: Record<string, string> = {};
   if (!isFormData && body !== undefined) headers['Content-Type'] = 'application/json';
   if (auth) {
@@ -151,8 +210,7 @@ async function request<T>(path: string, options: RequestOptions = {}): Promise<T
     if (refreshed) {
       return request<T>(path, { ...options, allowRetry: false });
     }
-    tokenStore.clear();
-    if (onUnauthorized) onUnauthorized();
+    endSession('Phiên đăng nhập không còn hiệu lực. Vui lòng đăng nhập lại.');
     throw await parseError(res);
   }
 
@@ -248,6 +306,11 @@ export interface LoginResponse {
   refresh_token: string;
   token_type: string;
   user: ApiUser;
+  /**
+   * Hạn TUYỆT ĐỐI của phiên (ISO 8601 UTC). `/auth/refresh` không đẩy mốc này ra
+   * xa, nên đến lúc đó là phải đăng nhập lại dù đang dùng liên tục.
+   */
+  session_expires_at: string;
 }
 
 // ---- Đăng nhập bằng Google (đường vào duy nhất) ---------------------------
@@ -573,7 +636,7 @@ export const authApi = {
       body: payload,
       auth: false,
     });
-    tokenStore.set(data.access_token, data.refresh_token);
+    tokenStore.set(data.access_token, data.refresh_token, data.session_expires_at);
     return data;
   },
 
@@ -594,7 +657,11 @@ export const authApi = {
       auth: false,
     });
     if (data.status === 'AUTHENTICATED' && data.tokens) {
-      tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+      tokenStore.set(
+        data.tokens.access_token,
+        data.tokens.refresh_token,
+        data.tokens.session_expires_at
+      );
     }
     return data;
   },
@@ -611,7 +678,11 @@ export const authApi = {
       auth: false,
     });
     if (data.status === 'AUTHENTICATED' && data.tokens) {
-      tokenStore.set(data.tokens.access_token, data.tokens.refresh_token);
+      tokenStore.set(
+        data.tokens.access_token,
+        data.tokens.refresh_token,
+        data.tokens.session_expires_at
+      );
     }
     return data;
   },
