@@ -102,8 +102,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         ? `${examSummary.exams_passed}/${examSummary.exams_taken} đề đã đạt — xem chi tiết`
         : 'Chưa thi bài nào ở chế độ thi — xem chi tiết'
       : examOverview && examOverview.interns_with_attempts > 0
-      ? `${examOverview.interns_with_attempts}/${examOverview.interns_total} thực tập sinh đã thi — xem bảng điểm`
-      : 'Chưa có thực tập sinh nào thi — xem bảng điểm';
+      ? `${examOverview.interns_with_attempts}/${examOverview.interns_total} ${currentRole === 'ADMIN' ? 'thành viên' : 'thực tập sinh'} đã thi — xem bảng điểm`
+      : `Chưa có ${currentRole === 'ADMIN' ? 'thành viên' : 'thực tập sinh'} nào thi — xem bảng điểm`;
 
   // Statistics Calculations
   const totalInterns = interns.length;

@@ -404,6 +404,7 @@ export interface ApiExamSummary {
   user_id: number;
   full_name?: string | null;
   email?: string | null;
+  role?: ApiRole;
   avg_score?: number | null;
   best_score?: number | null;
   exams_taken: number;

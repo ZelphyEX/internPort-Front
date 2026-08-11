@@ -263,7 +263,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                 <div className="space-y-3">
                   <h4 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
                     <BarChart3 className="w-4 h-4" />
-                    <span>Toàn bộ Thực tập sinh</span>
+                    <span>{currentRole === 'ADMIN' ? 'Thực tập sinh & Mentor' : 'Toàn bộ Thực tập sinh'}</span>
                   </h4>
 
                   <div className="p-4 rounded-2xl bg-gradient-to-br from-blue-50 to-indigo-50 dark:from-blue-950/30 dark:to-indigo-950/30 border border-blue-200 dark:border-blue-900 flex items-center justify-between gap-4">
@@ -279,7 +279,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                     </div>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 text-right leading-relaxed max-w-[55%]">
                       Tính trên <strong>{overview.interns_with_attempts}</strong> /{' '}
-                      {overview.interns_total} Thực tập sinh đã thi ít nhất một bài. Người
+                      {overview.interns_total} {currentRole === 'ADMIN' ? 'thành viên' : 'Thực tập sinh'} đã thi ít nhất một bài. Người
                       chưa thi không bị tính là 0 điểm.
                     </p>
                   </div>
@@ -291,7 +291,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                         type="text"
                         value={search}
                         onChange={(e) => setSearch(e.target.value)}
-                        placeholder="Tìm Thực tập sinh theo tên hoặc email..."
+                        placeholder={currentRole === 'ADMIN' ? "Tìm thành viên theo tên hoặc email..." : "Tìm Thực tập sinh theo tên hoặc email..."}
                         className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
                       />
                     </div>
@@ -301,8 +301,8 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                     {interns.length === 0 ? (
                       <p className="text-xs text-slate-400 text-center py-6">
                         {overview.interns_total === 0
-                          ? 'Chưa có Thực tập sinh nào trong hệ thống.'
-                          : 'Không tìm thấy Thực tập sinh nào khớp.'}
+                          ? (currentRole === 'ADMIN' ? 'Chưa có thành viên nào trong hệ thống.' : 'Chưa có Thực tập sinh nào trong hệ thống.')
+                          : (currentRole === 'ADMIN' ? 'Không tìm thấy thành viên nào khớp.' : 'Không tìm thấy Thực tập sinh nào khớp.')}
                       </p>
                     ) : (
                       interns.map((intern) => {
@@ -323,8 +323,18 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                                 <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
                               )}
                               <div className="min-w-0 flex-1">
-                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                                  {intern.full_name || `Người dùng #${intern.user_id}`}
+                                <p className="text-xs font-bold text-slate-900 dark:text-slate-100 flex items-center gap-1.5 truncate">
+                                  <span className="truncate">{intern.full_name || `Người dùng #${intern.user_id}`}</span>
+                                  {currentRole === 'ADMIN' && intern.role === 'MENTOR' && (
+                                    <span className="text-[9px] font-black px-1 py-0.2 rounded border uppercase bg-indigo-100 text-indigo-800 border-indigo-200 dark:bg-indigo-900/30 dark:text-indigo-300 dark:border-indigo-800 shrink-0">
+                                      Mentor
+                                    </span>
+                                  )}
+                                  {currentRole === 'ADMIN' && intern.role === 'INTERN' && (
+                                    <span className="text-[9px] font-black px-1 py-0.2 rounded border uppercase bg-slate-100 text-slate-800 border-slate-200 dark:bg-slate-900/30 dark:text-slate-300 dark:border-slate-800 shrink-0">
+                                      Intern
+                                    </span>
+                                  )}
                                 </p>
                                 <p className="text-[11px] text-slate-500 dark:text-slate-400 flex items-center gap-1 truncate">
                                   <Mail className="w-3 h-3 shrink-0" />
