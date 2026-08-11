@@ -18,7 +18,8 @@ import {
   Sliders,
   Pause,
   Play,
-  Save
+  Save,
+  History
 } from 'lucide-react';
 import { AuthUser } from '../types';
 import {
@@ -27,6 +28,7 @@ import {
   examScaledScore,
   EXAM_PASSING_SCORE,
 } from '../services/api';
+import { ExamScoresModal } from './ExamScoresModal';
 
 // Import Claude Developer (dev)
 import dev1 from '../data/CF.tests/exams/exam_dev_1.json';
@@ -258,6 +260,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   const [savedSessions, setSavedSessions] = useState<Record<string, SavedSession>>({});
   // Khác null = nộp bài xong nhưng không đẩy được kết quả lên server.
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [isScoresOpen, setIsScoresOpen] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -502,9 +505,19 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
         <div className="bg-gradient-to-r from-blue-600 via-indigo-600 to-indigo-700 rounded-3xl p-6 md:p-8 text-white shadow-md relative overflow-hidden">
           <div className="absolute right-0 top-0 translate-x-10 -translate-y-10 w-64 h-64 bg-white/5 rounded-full blur-2xl"></div>
           <div className="relative z-10 space-y-4 max-w-3xl">
-            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/25 border border-blue-400/35 text-xs font-bold">
-              <Award className="w-3.5 h-3.5 text-blue-300" />
-              <span>Anthropic Certification Hub</span>
+            <div className="flex items-center gap-2 flex-wrap">
+              <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-blue-500/25 border border-blue-400/35 text-xs font-bold">
+                <Award className="w-3.5 h-3.5 text-blue-300" />
+                <span>Anthropic Certification Hub</span>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsScoresOpen(true)}
+                className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-purple-500/25 border border-purple-400/35 text-xs font-bold hover:bg-purple-500/40 transition-colors cursor-pointer text-purple-200"
+              >
+                <History className="w-3.5 h-3.5 text-purple-300" />
+                <span>Xem lịch sử thi thử</span>
+              </button>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">Hệ thống Thi thử & Luyện tập Anthropic</h1>
             <p className="text-blue-100 text-xs md:text-sm leading-relaxed max-w-2xl font-medium">
@@ -861,6 +874,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             </div>
           </div>
         </div>
+        {isScoresOpen && (
+          <ExamScoresModal
+            currentRole={currentUser?.role || 'INTERN'}
+            onClose={() => setIsScoresOpen(false)}
+          />
+        )}
       </div>
     );
   }
@@ -1152,6 +1171,13 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               <span>Làm lại</span>
             </button>
             <button
+              onClick={() => setIsScoresOpen(true)}
+              className="px-4 py-2 bg-purple-600 hover:bg-purple-500 text-white font-extrabold text-xs rounded-xl shadow-xs hover:shadow-md flex items-center gap-1.5 cursor-pointer"
+            >
+              <History className="w-4 h-4" />
+              <span>Lịch sử & Bảng điểm</span>
+            </button>
+            <button
               onClick={handleBackToSelect}
               className="px-4 py-2 bg-blue-600 hover:bg-blue-500 text-white font-extrabold text-xs rounded-xl shadow-xs hover:shadow-md flex items-center gap-1.5 cursor-pointer"
             >
@@ -1272,6 +1298,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             );
           })}
         </div>
+        {isScoresOpen && (
+          <ExamScoresModal
+            currentRole={currentUser?.role || 'INTERN'}
+            onClose={() => setIsScoresOpen(false)}
+          />
+        )}
       </div>
     );
   }
