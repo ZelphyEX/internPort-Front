@@ -6,6 +6,7 @@ import {
   Trash2,
   ChevronRight,
   Users as UsersIcon,
+  UserMinus,
   Loader2,
   GraduationCap,
 } from 'lucide-react';
@@ -22,6 +23,7 @@ import {
   tokenStore,
   ApiRoadmapListItem,
   ApiRoadmapDetail,
+  ApiAssignmentListItem,
   ApiModule,
   ApiAssignedRoadmap,
   ApiAssignedRoadmapDetail,
@@ -287,12 +289,16 @@ const MentorRoadmapView: React.FC<{
   const [newModuleEnd, setNewModuleEnd] = useState('');
 
 
-  const [isAssigning, setIsAssigning] = useState(false);
-  // Ai đã được gán lộ trình đang mở — để họ biến mất khỏi danh sách ứng viên,
-  // giống cách màn Dự án loại người đã là thành viên.
-  const [assignedUserIds, setAssignedUserIds] = useState<Set<number>>(new Set());
+  const [showLearners, setShowLearners] = useState(false);
+  // Ai đang theo lộ trình đang mở. Dùng cho CẢ hai việc: hiện danh sách "Thành viên
+  // khoá học", và loại họ khỏi kho ứng viên khi gán (giống màn Dự án loại người đã
+  // là thành viên).
+  const [assignments, setAssignments] = useState<ApiAssignmentListItem[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
   const [assigning, setAssigning] = useState(false);
   const [busyGroupId, setBusyGroupId] = useState<string | null>(null);
+
+  const assignedUserIds = new Set(assignments.map((a) => a.user_id));
 
   const loadRoadmaps = () => {
     // GET /roadmaps trả Page -> phải lấy .items. Trả thẳng response vào setRoadmaps
@@ -321,7 +327,8 @@ const MentorRoadmapView: React.FC<{
       loadAssignees(selectedId);
     } else {
       setDetail(null);
-      setAssignedUserIds(new Set());
+      setAssignments([]);
+      setShowLearners(false);
     }
   }, [selectedId]);
 
@@ -386,13 +393,38 @@ const MentorRoadmapView: React.FC<{
     }
   };
 
-  /** Ai đang được gán lộ trình này — dùng để lọc danh sách ứng viên. */
+  /** Ai đang theo lộ trình này — cho danh sách thành viên + lọc kho ứng viên. */
   const loadAssignees = (roadmapId: number) => {
     if (!tokenStore.isAuthenticated()) return;
+    setLoadingAssignments(true);
     assignmentsApi
       .list({ roadmap_id: roadmapId, size: 100 })
-      .then((res) => setAssignedUserIds(new Set(res.items.map((a) => a.user_id))))
-      .catch(() => setAssignedUserIds(new Set()));
+      .then((res) => setAssignments(res.items))
+      .catch(() => setAssignments([]))
+      .finally(() => setLoadingAssignments(false));
+  };
+
+  /**
+   * Gỡ một người khỏi lộ trình. Backend xoá luôn `lesson_progress` của lượt gán đó
+   * (`assignment_service.delete_assignment`) nên tiến độ học mất hẳn — phải cảnh báo
+   * rõ, và nêu số phần trăm đang có để người bấm biết mình đang xoá cái gì.
+   */
+  const handleUnassign = async (assignmentId: number, name: string) => {
+    const target = assignments.find((a) => a.assignment_id === assignmentId);
+    const progressNote =
+      target && target.progress_percent > 0
+        ? `\n\nCẢNH BÁO: người này đã học được ${target.progress_percent}% — toàn bộ tiến độ sẽ bị xoá và KHÔNG lấy lại được.`
+        : '';
+    if (!window.confirm(`Gỡ "${name}" khỏi lộ trình này?${progressNote}`)) return;
+    setAssigning(true);
+    try {
+      await assignmentsApi.remove(assignmentId);
+      if (selectedId != null) loadAssignees(selectedId);
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Gỡ khỏi lộ trình thất bại.');
+    } finally {
+      setAssigning(false);
+    }
   };
 
   // Gán CẢ NHÓM. Là luật thường trực: backend ghi `source_group_id` nên ai vào
@@ -558,44 +590,117 @@ const MentorRoadmapView: React.FC<{
                 <h3 className="font-extrabold text-slate-800 dark:text-slate-100">{detail.title}</h3>
                 {detail.description && <p className="text-xs text-slate-400 mt-0.5">{detail.description}</p>}
               </div>
-              {!readOnly && (
-                <button
-                  onClick={() => setIsAssigning((s) => !s)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 text-xs font-bold text-slate-700 dark:text-slate-200"
-                >
-                  <UsersIcon className="w-3.5 h-3.5" /> Gán lộ trình
-                </button>
-              )}
+              {/* Một nút mở panel "Thành viên khoá học" gồm CẢ danh sách người đang
+                  học VÀ khối gán — giống nút "Thành viên (N)" ở màn Dự án & Kanban.
+                  Trước đây chỉ có nút "Gán lộ trình" nên gán xong không có chỗ nào
+                  xem lại ai đang theo lộ trình này. */}
+              <button
+                onClick={() => setShowLearners((s) => !s)}
+                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                  showLearners
+                    ? 'bg-blue-600 text-white border-blue-600'
+                    : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-200'
+                }`}
+              >
+                <UsersIcon className="w-3.5 h-3.5" />
+                <span>Thành viên khoá học ({assignments.length})</span>
+              </button>
             </div>
 
-            {/* Khối gán dùng chung với màn Dự án & Kanban — xem AssignPicker.
-                Thay cho hai ô <select> cũ (dropdown nhóm + multi-select giữ Ctrl):
-                giờ bấm chip là gán ngay, và người đã được gán tự biến mất. */}
-            {isAssigning && (
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5">
-                <AssignPicker
-                  groups={groups.map((g) => ({
-                    id: g.id,
-                    name: g.name,
-                    memberCount: g.memberCount,
-                    cohort: g.cohort,
-                  }))}
-                  candidates={interns
-                    .filter((i) => !assignedUserIds.has(Number(i.id)))
-                    .map((i) => ({ id: i.id, name: i.name, subtitle: i.email }))}
-                  busy={assigning}
-                  busyGroupId={busyGroupId}
-                  groupTitle="Gán lộ trình cho cả nhóm"
-                  personTitle="Gán cho từng thực tập sinh"
-                  emptyCandidates={
-                    interns.length === 0
-                      ? 'Chưa tải được danh sách thực tập sinh.'
-                      : 'Tất cả thực tập sinh đã được gán lộ trình này.'
-                  }
-                  groupNote="Gán nhóm là luật thường trực: người được thêm vào nhóm sau này cũng tự nhận lộ trình. Khi họ rời nhóm, chỉ thu hồi nếu chưa học bài nào."
-                  onAssignGroup={handleAssignGroup}
-                  onAssignPerson={(c) => handleAssignIntern(c.id, c.name)}
-                />
+            {/* Panel "Thành viên khoá học": danh sách người đang theo lộ trình +
+                khối gán. Cấu trúc y hệt panel "Thành viên dự án" ở màn Dự án. */}
+            {showLearners && (
+              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-5 space-y-4">
+                <h3 className="text-xs font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
+                  <UsersIcon className="w-4 h-4" />
+                  <span>Thành viên khoá học</span>
+                </h3>
+
+                {loadingAssignments ? (
+                  <p className="text-xs text-slate-400 flex items-center gap-2">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tải...
+                  </p>
+                ) : assignments.length === 0 ? (
+                  <p className="text-xs text-slate-500">
+                    Chưa có ai được gán lộ trình này.
+                  </p>
+                ) : (
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                    {assignments.map((a) => (
+                      <div
+                        key={a.assignment_id}
+                        className="flex items-center justify-between gap-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl px-3 py-2"
+                      >
+                        <div className="min-w-0 flex-1">
+                          <div className="flex items-center gap-2">
+                            <p className="text-xs font-bold text-slate-800 dark:text-slate-100 truncate">
+                              {a.user_name || `Người dùng #${a.user_id}`}
+                            </p>
+                            {a.status === 'COMPLETED' && (
+                              <span className="text-[9px] font-black px-1.5 py-0.5 rounded border uppercase bg-emerald-100 text-emerald-800 border-emerald-300 shrink-0">
+                                Hoàn thành
+                              </span>
+                            )}
+                          </div>
+                          <div className="flex items-center gap-2 mt-1">
+                            <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                              <div
+                                className="h-full rounded-full bg-blue-500"
+                                style={{ width: `${a.progress_percent}%` }}
+                              />
+                            </div>
+                            <span className="text-[10px] text-slate-400 shrink-0">
+                              {a.progress_percent}%
+                            </span>
+                          </div>
+                        </div>
+                        {!readOnly && (
+                          <button
+                            disabled={assigning}
+                            onClick={() => handleUnassign(a.assignment_id, a.user_name)}
+                            title="Gỡ khỏi lộ trình"
+                            className="p-1.5 rounded-lg text-slate-400 hover:text-red-500 hover:bg-red-50 dark:hover:bg-red-950/40 disabled:opacity-50 shrink-0 cursor-pointer"
+                          >
+                            <UserMinus className="w-4 h-4" />
+                          </button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Khối gán dùng chung với màn Dự án & Kanban — xem AssignPicker.
+                    Thay cho hai ô <select> cũ (dropdown nhóm + multi-select giữ Ctrl):
+                    giờ bấm chip là gán ngay, và người đã được gán tự biến mất. */}
+                {/* Quản trị viên chỉ XEM: thấy danh sách thành viên nhưng không có
+                    khối gán và không có nút gỡ (xem ADMIN_READ_ONLY_NOTE). */}
+                {!readOnly && (
+                  <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+                    <AssignPicker
+                      groups={groups.map((g) => ({
+                        id: g.id,
+                        name: g.name,
+                        memberCount: g.memberCount,
+                        cohort: g.cohort,
+                      }))}
+                      candidates={interns
+                        .filter((i) => !assignedUserIds.has(Number(i.id)))
+                        .map((i) => ({ id: i.id, name: i.name, subtitle: i.email }))}
+                      busy={assigning}
+                      busyGroupId={busyGroupId}
+                      groupTitle="Gán lộ trình cho cả nhóm"
+                      personTitle="Gán cho từng thực tập sinh"
+                      emptyCandidates={
+                        interns.length === 0
+                          ? 'Chưa tải được danh sách thực tập sinh.'
+                          : 'Tất cả thực tập sinh đã được gán lộ trình này.'
+                      }
+                      groupNote="Gán nhóm là luật thường trực: người được thêm vào nhóm sau này cũng tự nhận lộ trình. Khi họ rời nhóm, chỉ thu hồi nếu chưa học bài nào."
+                      onAssignGroup={handleAssignGroup}
+                      onAssignPerson={(c) => handleAssignIntern(c.id, c.name)}
+                    />
+                  </div>
+                )}
               </div>
             )}
 
