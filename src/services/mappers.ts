@@ -97,7 +97,6 @@ export function apiUserToIntern(u: ApiUser): Intern {
     githubUrl: u.github_url || undefined,
     skills: [],
     bio: u.bio || undefined,
-    major: u.major || undefined,
   };
 }
 

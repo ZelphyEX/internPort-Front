@@ -346,8 +346,8 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
             
             {/* Left Info: Liên hệ & Chuyên môn.
                 Khối "Thông tin Hành chính & Đào tạo" (SĐT, Trường, Mentor hướng dẫn,
-                Thời gian thực tập) đã bị bỏ khỏi cả CSDL lẫn giao diện — xem
-                migration d5c8a2e64f19. */}
+                Thời gian thực tập) và "Ngành" đã bị bỏ khỏi cả CSDL lẫn giao diện —
+                xem migration d5c8a2e64f19 và e7a4b1d09c53. */}
             <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
               <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">Thông tin Liên hệ</h4>
 
@@ -360,12 +360,6 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
                   <Building2 className="w-4 h-4 text-slate-400" />
                   <span>Định hướng: <strong className="text-slate-800 dark:text-slate-200">{intern.department}</strong></span>
                 </div>
-                {intern.major && (
-                  <div className="flex items-center gap-2">
-                    <GraduationCap className="w-4 h-4 text-slate-400" />
-                    <span>Ngành: <strong className="text-slate-800 dark:text-slate-200">{intern.major}</strong></span>
-                  </div>
-                )}
               </div>
             </div>
 

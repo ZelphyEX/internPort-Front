@@ -36,10 +36,7 @@ interface DashboardViewProps {
   currentUser?: AuthUser | null;
   onNavigateTab: (tab: any) => void;
   onSelectIntern: (intern: Intern) => void;
-  onOpenAddIntern: () => void;
-  onOpenAddTask: () => void;
   onOpenAddReport: () => void;
-  onOpenAiAssistant: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -51,10 +48,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUser,
   onNavigateTab,
   onSelectIntern,
-  onOpenAddIntern,
-  onOpenAddTask,
-  onOpenAddReport,
-  onOpenAiAssistant
+  onOpenAddReport
 }) => {
   const [aiStandupSummary, setAiStandupSummary] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
@@ -516,40 +510,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             )}
           </div>
 
-          {/* Quick Management Shortcuts */}
-          <div className="bg-gradient-to-br from-slate-900 to-indigo-950 rounded-2xl p-6 text-white shadow-md">
-            <h3 className="font-extrabold text-base mb-1">Quản lý Nhanh Portal</h3>
-            <p className="text-xs text-slate-300 mb-4">Các tính năng khởi tạo và điều phối</p>
-
-            <div className="space-y-2">
-              <button
-                onClick={onOpenAddIntern}
-                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
-              >
-                <span>+ Thêm Hồ sơ Thực tập sinh</span>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-              </button>
-
-              <button
-                onClick={onOpenAddTask}
-                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-white/10 hover:bg-white/20 text-xs font-semibold flex items-center justify-between transition-colors cursor-pointer"
-              >
-                <span>+ Phân công Task Mới</span>
-                <ChevronRight className="w-4 h-4 text-slate-300" />
-              </button>
-
-              <button
-                onClick={onOpenAiAssistant}
-                className="w-full text-left px-3.5 py-2.5 rounded-xl bg-indigo-600/60 hover:bg-indigo-600 text-xs font-bold text-indigo-100 flex items-center justify-between transition-colors cursor-pointer border border-indigo-400/30"
-              >
-                <div className="flex items-center gap-2">
-                  <Sparkles className="w-4 h-4 text-amber-300" />
-                  <span>Trợ lý Gemini AI Advisor</span>
-                </div>
-                <ChevronRight className="w-4 h-4 text-indigo-200" />
-              </button>
-            </div>
-          </div>
+          {/* Khối "Quản lý Nhanh Portal" đã bỏ theo yêu cầu: ba nút trong đó chỉ là
+              lối tắt tới việc đã có sẵn ở thanh bên và trong từng tab. */}
 
         </div>
 

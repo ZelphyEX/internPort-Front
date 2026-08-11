@@ -286,10 +286,9 @@ export interface ApiUser {
   status?: ApiUserStatus;
   avatar_url?: string | null;
   // Hồ sơ Intern — chỉ có ý nghĩa khi role === 'INTERN', đều optional/nullable.
-  // Khối hành chính (phone / university / mentor_id / start_date / end_date) đã bị
-  // bỏ khỏi bảng users ở backend (migration d5c8a2e64f19).
+  // Đã bỏ khỏi bảng users ở backend: phone / university / mentor_id / start_date /
+  // end_date (migration d5c8a2e64f19) và major (migration e7a4b1d09c53).
   department?: ApiDepartment | null;
-  major?: string | null;
   bio?: string | null;
   github_url?: string | null;
   score?: number | null;
@@ -865,12 +864,11 @@ export const usersApi = {
     return request<ApiUser>(`/users/${id}`);
   },
 
-  /** PATCH /users/{id}/profile — Cập nhật hồ sơ Intern (department/mentor/score...). Quyền: MENTOR. */
+  /** PATCH /users/{id}/profile — Cập nhật hồ sơ Intern (department/bio/score...). Quyền: MENTOR. */
   updateProfile(
     id: number,
     payload: Partial<{
       department: ApiDepartment;
-      major: string;
       bio: string;
       github_url: string;
       score: number;

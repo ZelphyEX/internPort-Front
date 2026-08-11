@@ -24,7 +24,6 @@ import { canManageInterns } from '../services/permissions';
 interface InternsViewProps {
   interns: Intern[];
   onSelectIntern: (intern: Intern) => void;
-  onOpenAddIntern: () => void;
   onDeleteIntern?: (internId: string) => void;
   onKickIntern?: (internId: string) => void;
   currentRole: UserRole;
@@ -34,7 +33,6 @@ interface InternsViewProps {
 export const InternsView: React.FC<InternsViewProps> = ({
   interns,
   onSelectIntern,
-  onOpenAddIntern,
   onDeleteIntern,
   onKickIntern,
   currentRole,
@@ -113,18 +111,8 @@ export const InternsView: React.FC<InternsViewProps> = ({
           </p>
         </div>
 
-        {canManage && (
-          <div className="flex items-center gap-2 shrink-0">
-            <button
-              id="btn-add-intern-main"
-              onClick={onOpenAddIntern}
-              className="inline-flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-white bg-blue-600 hover:bg-blue-500 shadow-md transition-all cursor-pointer"
-            >
-              <Plus className="w-4 h-4" />
-              <span>Thêm Thực tập sinh mới</span>
-            </button>
-          </div>
-        )}
+        {/* Nút "Thêm Thực tập sinh mới" đã bỏ: tài khoản chỉ sinh ra từ luồng
+            Đăng nhập bằng Google (người dùng tự vào, xem auth_service). */}
       </div>
 
       {/* Filter & Search Toolbar */}
@@ -297,7 +285,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
                 <tr>
                   <th className="p-4">Thực tập sinh</th>
                   <th className="p-4">Khối Kỹ thuật</th>
-                  <th className="p-4">Ngành</th>
                   <th className="p-4">Trạng thái</th>
                   <th className="p-4">Lộ trình học tập</th>
                   <th className="p-4">Điểm</th>
@@ -325,7 +312,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
                       </div>
                     </td>
                     <td className="p-4 font-semibold text-slate-800 dark:text-slate-200">{intern.department}</td>
-                    <td className="p-4 text-slate-600 dark:text-slate-400">{intern.major || '—'}</td>
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(intern.status)}`}>
                         {intern.status}

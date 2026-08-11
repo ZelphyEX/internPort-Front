@@ -26,7 +26,6 @@ import { SettingsView } from './components/SettingsView';
 import { MockExamView } from './components/MockExamView';
 
 import { InternDetailModal } from './components/InternDetailModal';
-import { AddInternModal } from './components/AddInternModal';
 import { AddReportModal } from './components/AddReportModal';
 import { AIAssistantModal } from './components/AIAssistantModal';
 
@@ -345,7 +344,6 @@ export default function App() {
 
   // Modal States
   const [selectedIntern, setSelectedIntern] = useState<Intern | null>(null);
-  const [isAddInternOpen, setIsAddInternOpen] = useState(false);
   const [isAddReportOpen, setIsAddReportOpen] = useState(false);
   const [isAiAssistantOpen, setIsAiAssistantOpen] = useState(false);
   const [isGroupScreenOpen, setIsGroupScreenOpen] = useState(false);
@@ -443,9 +441,8 @@ export default function App() {
   }, [currentUser, currentRole]);
 
   // Handler Functions
-  const handleAddIntern = (newIntern: Intern) => {
-    setInterns(prev => [newIntern, ...prev]);
-  };
+  // Đã bỏ `handleAddIntern`: tài khoản Thực tập sinh chỉ sinh ra từ luồng Đăng nhập
+  // bằng Google, không tạo tay từ portal nữa.
 
   // true nếu id là số nguyên do backend cấp (mock data dùng id dạng "TSK-001", "PRJ-00"...).
   const isBackendId = (id: string) => {
@@ -809,9 +806,6 @@ export default function App() {
           activeTab={activeTab}
           onSelectTab={(tab) => { setActiveTab(tab); setIsGroupScreenOpen(false); }}
           currentRole={currentRole}
-          onOpenAddIntern={() => setIsAddInternOpen(true)}
-          onOpenAddTask={() => { setActiveTab('projects'); setIsGroupScreenOpen(false); }}
-          onOpenAddReport={() => setIsAddReportOpen(true)}
           // Quản lý nhóm là chức năng của MENTOR trở lên: backend chặn `GET /groups`
           // với Intern, nên với Intern mục này bị ẩn hẳn khỏi thanh bên.
           onOpenGroupScreen={currentRole !== 'INTERN' ? () => setIsGroupScreenOpen(true) : undefined}
@@ -849,10 +843,7 @@ export default function App() {
               currentUser={currentUser}
               onNavigateTab={setActiveTab}
               onSelectIntern={setSelectedIntern}
-              onOpenAddIntern={() => setIsAddInternOpen(true)}
-              onOpenAddTask={() => { setActiveTab('projects'); setIsGroupScreenOpen(false); }}
               onOpenAddReport={() => setIsAddReportOpen(true)}
-              onOpenAiAssistant={() => setIsAiAssistantOpen(true)}
             />
           )}
 
@@ -860,7 +851,6 @@ export default function App() {
             <InternsView
               interns={interns}
               onSelectIntern={setSelectedIntern}
-              onOpenAddIntern={() => setIsAddInternOpen(true)}
               onDeleteIntern={handleDeleteIntern}
               onKickIntern={handleKickIntern}
               currentRole={currentRole}
@@ -947,12 +937,6 @@ export default function App() {
         currentRole={currentRole}
         onDeleteIntern={handleDeleteIntern}
         onKickIntern={handleKickIntern}
-      />
-
-      <AddInternModal
-        isOpen={isAddInternOpen}
-        onClose={() => setIsAddInternOpen(false)}
-        onAddIntern={handleAddIntern}
       />
 
       <AddReportModal
