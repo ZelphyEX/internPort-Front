@@ -18,7 +18,6 @@ import {
   UserX
 } from 'lucide-react';
 import { Intern, DailyReport, TaskItem, AIEvalReport, UserRole } from '../types';
-import { tokenStore, assignmentsApi, ApiAssignmentListItem } from '../services/api';
 import { InternProgressPanel } from './InternProgressPanel';
 
 interface InternDetailModalProps {
@@ -44,26 +43,10 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
 
-  // Danh sách lộ trình thật đã gán cho intern này (thay cho con số roadmapProgress cũ —
-  // 1 intern có thể có nhiều lộ trình, mỗi lộ trình 1 % tiến độ riêng). Chỉ gọi được khi
-  // đăng nhập thật, quyền MENTOR/ADMIN, và id là số do backend cấp (không phải id mock).
-  const [assignments, setAssignments] = useState<ApiAssignmentListItem[] | null>(null);
-  const [loadingAssignments, setLoadingAssignments] = useState(false);
-
-  useEffect(() => {
-    const numericId = intern ? Number(intern.id) : NaN;
-    const isRealId = Number.isInteger(numericId) && intern != null && String(numericId) === intern.id;
-    if (!intern || currentRole === 'INTERN' || !isRealId || !tokenStore.isAuthenticated()) {
-      setAssignments(null);
-      return;
-    }
-    setLoadingAssignments(true);
-    assignmentsApi
-      .list({ user_id: numericId, size: 50 })
-      .then((res) => setAssignments(res.items))
-      .catch(() => setAssignments(null))
-      .finally(() => setLoadingAssignments(false));
-  }, [intern, currentRole]);
+  // Bỏ phần tự tải `GET /roadmap-assignments?user_id=` ở đây: hai khối dùng nó (4 ô
+  // thống kê + thanh % lộ trình) đã bị bỏ, và `InternProgressPanel` bên dưới đã tải
+  // dữ liệu đầy đủ hơn (tới từng bài học). Giữ lại chỉ là thêm một lần gọi API vô ích
+  // mỗi lần mở hồ sơ.
 
   if (!intern) return null;
 
@@ -194,75 +177,13 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
         {/* Modal Content Scrollable */}
         <div className="p-6 space-y-6 overflow-y-auto flex-1">
           
-          {/* Quick Stats Grid */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/80 rounded-2xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Điểm Năng lực</span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <Award className="w-4 h-4 text-amber-500" />
-                <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{intern.score}</span>
-                <span className="text-xs text-slate-400">/10</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/80 rounded-2xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Tỷ lệ Chuyên cần</span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <CheckCircle2 className="w-4 h-4 text-emerald-500" />
-                <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{intern.attendanceRate}%</span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/80 rounded-2xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Lộ trình Đã Giao</span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <TrendingUp className="w-4 h-4 text-blue-500" />
-                <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">
-                  {assignments ? assignments.length : '—'}
-                </span>
-              </div>
-            </div>
-
-            <div className="p-3.5 bg-slate-50 dark:bg-slate-900 border border-slate-200/80 rounded-2xl">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Task Hoàn thành</span>
-              <div className="flex items-center gap-1.5 mt-1">
-                <Briefcase className="w-4 h-4 text-purple-500" />
-                <span className="text-lg font-extrabold text-slate-900 dark:text-slate-100">{completedTasksCount}/{internTasks.length}</span>
-              </div>
-            </div>
-          </div>
-
-          {/* Chi tiết từng Lộ trình được giao — dữ liệu thật từ GET /roadmap-assignments?user_id= */}
-          {currentRole !== 'INTERN' && (
-            <div className="bg-slate-50 dark:bg-slate-900 border border-slate-200/80 dark:border-slate-700 rounded-2xl p-4">
-              <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm mb-3">Chi tiết Lộ trình Đào tạo</h4>
-              {loadingAssignments && <p className="text-xs text-slate-400">Đang tải...</p>}
-              {!loadingAssignments && assignments && assignments.length === 0 && (
-                <p className="text-xs text-slate-400">Chưa được giao lộ trình học tập nào.</p>
-              )}
-              {!loadingAssignments && assignments === null && (
-                <p className="text-xs text-slate-400">Không có dữ liệu (tài khoản demo cục bộ chưa hỗ trợ).</p>
-              )}
-              {!loadingAssignments && assignments && assignments.length > 0 && (
-                <div className="space-y-3">
-                  {assignments.map((a) => (
-                    <div key={a.assignment_id} className="space-y-1">
-                      <div className="flex items-center justify-between text-xs font-semibold">
-                        <span className="text-slate-800 dark:text-slate-200">{a.roadmap_title}</span>
-                        <span className="text-blue-700 dark:text-blue-400 font-extrabold">{a.progress_percent}%</span>
-                      </div>
-                      <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                        <div
-                          className={`h-full rounded-full ${a.status === 'COMPLETED' ? 'bg-emerald-500' : 'bg-blue-600'}`}
-                          style={{ width: `${a.progress_percent}%` }}
-                        ></div>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
+          {/* Đã bỏ 4 ô thống kê cũ (Điểm Năng lực /10, Tỷ lệ Chuyên cần, Lộ trình Đã
+              Giao, Task Hoàn thành) và khối "Chi tiết Lộ trình Đào tạo" chỉ có thanh
+              phần trăm:
+                * `score` và `attendanceRate` không còn được điền ở đâu -> luôn 0;
+                * hai thứ còn lại đã có trong InternProgressPanel bên dưới, ở dạng
+                  đầy đủ hơn (điểm từng đề thi + từng bài học đã hoàn thành).
+              Giữ lại hai khối trùng lặp chỉ làm hồ sơ dài ra mà không thêm thông tin. */}
 
           {/* AI Evaluation Generator Banner */}
           <div className="bg-gradient-to-r from-amber-500/10 via-indigo-500/10 to-blue-500/10 border border-indigo-200/80 rounded-2xl p-5 space-y-3">
@@ -348,8 +269,9 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
               nhiều bài học. */}
           <InternProgressPanel internId={intern.id} internName={intern.name} />
 
-          {/* Details Tabs / Info Sections */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          {/* Chỉ còn một thẻ (Thông tin Liên hệ) sau khi bỏ Ma trận Kỹ năng, nên để
+              một cột cho khỏi hở nửa hàng trống. */}
+          <div className="grid grid-cols-1 gap-6">
 
             {/* Left Info: Liên hệ.
                 Đã bỏ khỏi khối này: SĐT, Trường, Mentor hướng dẫn, Thời gian thực tập
@@ -367,24 +289,9 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
               </div>
             </div>
 
-            {/* Right Info: Skill Matrix */}
-            <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
-              <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">Ma trận Kỹ năng Chuyên môn</h4>
-              
-              <div className="space-y-2.5">
-                {intern.skills.map((skill, idx) => (
-                  <div key={idx} className="space-y-1">
-                    <div className="flex items-center justify-between text-xs font-semibold">
-                      <span className="text-slate-800 dark:text-slate-200">{skill.name}</span>
-                      <span className="text-blue-700 font-bold">{skill.level}%</span>
-                    </div>
-                    <div className="w-full bg-slate-200 dark:bg-slate-700 h-2 rounded-full overflow-hidden">
-                      <div className="bg-blue-600 h-full rounded-full" style={{ width: `${skill.level}%` }}></div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
+            {/* Khối "Ma trận Kỹ năng Chuyên môn" đã bỏ: `Intern.skills` chỉ có trong
+                dữ liệu mẫu — với tài khoản thật `apiUserToIntern` luôn trả về `[]`
+                nên khối này luôn rỗng. */}
 
           </div>
 
