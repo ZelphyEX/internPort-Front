@@ -18,6 +18,9 @@ import {
 import { DocumentResource, UserRole } from '../types';
 import { canManageContent } from '../services/permissions';
 import { documentsApi, tokenStore, ApiError } from '../services/api';
+// Dùng chung với mapper để chuỗi dung lượng lúc tải lên và lúc đọc lại từ server
+// luôn giống nhau (trước đây có hai bản, làm tròn khác nhau).
+import { formatFileSize } from '../services/mappers';
 
 interface KnowledgeBaseViewProps {
   documents: DocumentResource[];
@@ -63,13 +66,6 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
     if (ext === 'doc' || ext === 'docx') return 'DOCX';
     if (ext === 'ppt' || ext === 'pptx') return 'SLIDE';
     return 'MD';
-  };
-
-  /** Số byte -> chuỗi dễ đọc ("845 KB", "2.4 MB"). */
-  const formatFileSize = (bytes: number): string => {
-    if (bytes < 1024) return `${bytes} B`;
-    if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
-    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
   };
 
   const resetDocForm = () => {
@@ -127,6 +123,8 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
         updatedAt: new Date().toISOString().slice(0, 10),
         fileType: detectFileType(newDocFile.name),
         fileSize: formatFileSize(newDocFile.size),
+        // Số byte thật để gửi lên server; `fileSize` chỉ là chuỗi để hiển thị.
+        fileSizeBytes: newDocFile.size,
         downloadCount: 0,
         description: newDocDescription.trim() || 'Tài liệu nội bộ Gimasys.',
         tags: newDocTags.split(',').map(t => t.trim()).filter(Boolean),
@@ -150,7 +148,17 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
     window.open(doc.contentUrl, '_blank', 'noreferrer');
   };
 
-  const categories = ['ALL', 'CCA-F Certificate', 'Coding Standard', 'Onboarding', 'Architecture', 'Template'];
+  // Nguồn duy nhất cho cả thanh lọc và ô chọn danh mục lúc tải lên — thêm/bớt ở đây
+  // là cả hai chỗ đổi theo, không còn lệch nhau.
+  const DOC_CATEGORIES: DocumentResource['category'][] = [
+    'CCA-F Certificate',
+    'Coding Standard',
+    'Onboarding',
+    'Architecture',
+    'Template',
+    'AI',
+  ];
+  const categories = ['ALL', ...DOC_CATEGORIES];
 
   const filteredDocs = documents.filter((doc) => {
     const matchesCategory = selectedCategory === 'ALL' || doc.category === selectedCategory;
@@ -236,12 +244,9 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
                 onChange={(e) => setNewDocCategory(e.target.value as DocumentResource['category'])}
                 className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-slate-100"
               >
-                <option value="CCA-F Certificate">CCA-F Certificate</option>
-                <option value="Coding Standard">Coding Standard</option>
-                <option value="Onboarding">Onboarding</option>
-                <option value="Architecture">Architecture</option>
-                <option value="Template">Template</option>
-                <option value="API Docs">API Docs</option>
+                {DOC_CATEGORIES.map((c) => (
+                  <option key={c} value={c}>{c}</option>
+                ))}
               </select>
             </div>
 

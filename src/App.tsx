@@ -704,6 +704,12 @@ export default function App() {
           // tài liệu tạo ra không có file để tải về.
           content_url: newDoc.contentUrl || '',
           type: feFileTypeToApiType(newDoc.fileType),
+          // Trước đây bốn field dưới đây KHÔNG được gửi, nên tải lại trang là mất
+          // danh mục (rơi về "API Docs"), mất dung lượng, và DOCX/MD lẫn vào nhau.
+          category: newDoc.category,
+          file_type: newDoc.fileType,
+          file_size_bytes: newDoc.fileSizeBytes,
+          tag_names: newDoc.tags,
         });
         // Đồng bộ id server (dạng số) về client để lần xoá sau gọi đúng endpoint.
         setDocuments(prev => [{ ...newDoc, id: String(created.id) }, ...prev]);

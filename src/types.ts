@@ -91,13 +91,15 @@ export interface DailyReport {
 export interface DocumentResource {
   id: string;
   title: string;
-  category: 'Coding Standard' | 'Onboarding' | 'Architecture' | 'Template' | 'API Docs' | 'CCA-F Certificate' | string;
+  category: 'Coding Standard' | 'Onboarding' | 'Architecture' | 'Template' | 'AI' | 'API Docs' | 'CCA-F Certificate' | string;
   author: string;
   updatedAt: string;
   /** Suy ra từ đuôi file lúc tải lên, không cho người dùng tự chọn. */
   fileType: 'PDF' | 'DOCX' | 'SLIDE' | 'MD';
-  /** Suy ra từ kích thước thật của file (`File.size`), không nhập tay. */
+  /** Chuỗi để hiển thị ("845 KB"). Suy ra từ `File.size`, không nhập tay. */
   fileSize: string;
+  /** Số byte thật — gửi lên server để lần đọc lại vẫn có dung lượng đúng. */
+  fileSizeBytes?: number;
   downloadCount: number;
   description: string;
   tags: string[];

@@ -109,16 +109,43 @@ const API_TYPE_TO_FE_FILETYPE: Record<ApiDocType, DocumentResource['fileType']> 
   VIDEO: 'SLIDE',
 };
 
-/** ApiDocument (server) -> DocumentResource (frontend). */
+/** Đổi số byte sang chuỗi dễ đọc. Dùng chung với KnowledgeBaseView lúc tải lên. */
+export function formatFileSize(bytes: number): string {
+  if (!Number.isFinite(bytes) || bytes <= 0) return '—';
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const FE_FILETYPES: DocumentResource['fileType'][] = ['PDF', 'DOCX', 'SLIDE', 'MD'];
+
+/**
+ * ApiDocument (server) -> DocumentResource (frontend).
+ *
+ * Backend giờ lưu thẳng `category` / `file_type` / `file_size_bytes` (migration
+ * a92f4c17be60). Trước đây ba thứ này không được lưu ở đâu cả:
+ *   * `category` lấy tạm từ tag đầu tiên, không có tag thì rơi về "API Docs" —
+ *     nên tải lại trang là mọi tài liệu đều thành "API Docs";
+ *   * `fileType` suy từ `type` (chỉ 4 giá trị) nên DOCX và MD lẫn vào nhau;
+ *   * `fileSize` luôn hiện "—".
+ * Vẫn suy ngược từ `type` khi cột mới là NULL, để tài liệu tạo trước migration
+ * hiển thị được như cũ.
+ */
 export function apiDocumentToResource(d: ApiDocument): DocumentResource {
+  const storedFileType = (d.file_type || '').toUpperCase() as DocumentResource['fileType'];
   return {
     id: String(d.id),
     title: d.title || '',
-    category: (d.tags && d.tags[0]) || 'API Docs',
+    category: d.category || 'Onboarding',
     author: 'Gimasys',
     updatedAt: d.created_at,
-    fileType: API_TYPE_TO_FE_FILETYPE[d.type] || 'MD',
-    fileSize: '—',
+    fileType: FE_FILETYPES.includes(storedFileType)
+      ? storedFileType
+      : API_TYPE_TO_FE_FILETYPE[d.type] || 'MD',
+    fileSize:
+      d.file_size_bytes !== undefined && d.file_size_bytes !== null
+        ? formatFileSize(d.file_size_bytes)
+        : '—',
     downloadCount: 0,
     // Backend thực tế có thể trả null dù kiểu khai báo là string (VD document id 16 trả description: null)
     // -> phải fallback '' để tránh crash khi component gọi .toLowerCase() lúc tìm kiếm.
