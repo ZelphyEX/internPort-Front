@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { UserRole } from '../types';
 import {
+  ApiExamAttempt,
   ApiExamOverview,
   ApiExamSummary,
   EXAM_PASSING_SCORE,
@@ -67,7 +68,14 @@ const PassBadge: React.FC<{ passed: boolean }> = ({ passed }) => (
 );
 
 /** Danh sách điểm từng đề của một người. */
-const PerExamList: React.FC<{ summary: ApiExamSummary }> = ({ summary }) => {
+const PerExamList: React.FC<{
+  summary: ApiExamSummary;
+  attempts: ApiExamAttempt[];
+  loadingAttempts: boolean;
+  onLoadAttempts: () => void;
+}> = ({ summary, attempts, loadingAttempts, onLoadAttempts }) => {
+  const [expandedExamId, setExpandedExamId] = useState<string | null>(null);
+
   if (summary.per_exam.length === 0) {
     return (
       <p className="text-xs text-slate-400 px-3 py-4 text-center">
@@ -75,43 +83,116 @@ const PerExamList: React.FC<{ summary: ApiExamSummary }> = ({ summary }) => {
       </p>
     );
   }
+
+  const formatDuration = (seconds?: number | null) => {
+    if (seconds === undefined || seconds === null) return '—';
+    const m = Math.floor(seconds / 60);
+    const s = seconds % 60;
+    return `${m} phút ${s} giây`;
+  };
+
+  const handleToggle = (examId: string) => {
+    if (expandedExamId === examId) {
+      setExpandedExamId(null);
+    } else {
+      setExpandedExamId(examId);
+      onLoadAttempts();
+    }
+  };
+
   return (
-    <div className="space-y-1.5">
-      {summary.per_exam.map((exam) => (
-        <div
-          key={exam.exam_id}
-          className="flex items-center gap-3 p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700"
-        >
-          <div className="min-w-0 flex-1">
-            <div className="flex items-center gap-2 flex-wrap">
-              <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
-                {exam.exam_title}
-              </p>
-              <PassBadge passed={exam.passed} />
-            </div>
-            <div className="flex items-center gap-2 mt-1.5">
-              <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
-                <div
-                  className={`h-full rounded-full ${
-                    exam.passed ? 'bg-emerald-500' : 'bg-red-500'
-                  }`}
-                  style={{ width: `${scorePercent(exam.best_score)}%` }}
-                />
+    <div className="space-y-2">
+      {summary.per_exam.map((exam) => {
+        const isExpanded = expandedExamId === exam.exam_id;
+        const examAttempts = attempts.filter((a) => a.exam_id === exam.exam_id);
+
+        return (
+          <div
+            key={exam.exam_id}
+            className="rounded-xl border border-slate-200 dark:border-slate-700 overflow-hidden bg-white dark:bg-slate-800"
+          >
+            {/* Exam card header / trigger */}
+            <button
+              type="button"
+              onClick={() => handleToggle(exam.exam_id)}
+              className="w-full flex items-center gap-3 p-3 hover:bg-slate-50 dark:hover:bg-slate-700/40 text-left transition-colors cursor-pointer"
+            >
+              {isExpanded ? (
+                <ChevronDown className="w-4 h-4 text-slate-400 shrink-0" />
+              ) : (
+                <ChevronRight className="w-4 h-4 text-slate-400 shrink-0" />
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="flex items-center gap-2 flex-wrap">
+                  <p className="text-xs font-bold text-slate-900 dark:text-slate-100 truncate">
+                    {exam.exam_title}
+                  </p>
+                  <PassBadge passed={exam.passed} />
+                </div>
+                <div className="flex items-center gap-2 mt-1.5">
+                  <div className="h-1.5 flex-1 rounded-full bg-slate-200 dark:bg-slate-700 overflow-hidden">
+                    <div
+                      className={`h-full rounded-full ${
+                        exam.passed ? 'bg-emerald-500' : 'bg-red-500'
+                      }`}
+                      style={{ width: `${scorePercent(exam.best_score)}%` }}
+                    />
+                  </div>
+                  <span className="text-[10px] text-slate-400 shrink-0">
+                    {exam.attempts} lần làm • lần cuối{' '}
+                    {new Date(exam.last_taken_at).toLocaleDateString('vi-VN')}
+                  </span>
+                </div>
               </div>
-              <span className="text-[10px] text-slate-400 shrink-0">
-                {exam.attempts} lần làm • lần cuối{' '}
-                {new Date(exam.last_taken_at).toLocaleDateString('vi-VN')}
-              </span>
-            </div>
+              <div className="text-right shrink-0">
+                <span className={`text-base font-black ${scoreColor(exam.best_score)}`}>
+                  {exam.best_score}
+                </span>
+                <span className="text-[10px] text-slate-400 block">/ {EXAM_SCORE_MAX}</span>
+              </div>
+            </button>
+
+            {/* Expanded attempts log list */}
+            {isExpanded && (
+              <div className="p-3 bg-slate-50 dark:bg-slate-900 border-t border-slate-200 dark:border-slate-700 space-y-1.5">
+                <p className="text-[10px] font-black text-slate-400 uppercase tracking-wider mb-2">
+                  Lịch sử làm bài thi này:
+                </p>
+                {loadingAttempts && examAttempts.length === 0 ? (
+                  <div className="flex items-center gap-2 text-slate-400 text-xs py-2 px-1">
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" /> Đang tải lịch sử...
+                  </div>
+                ) : examAttempts.length === 0 ? (
+                  <p className="text-xs text-slate-400 py-2 px-1">Không tìm thấy chi tiết lần thi nào.</p>
+                ) : (
+                  examAttempts.map((attempt, index) => (
+                    <div
+                      key={attempt.id}
+                      className="flex items-center justify-between gap-3 p-2.5 rounded-lg bg-white dark:bg-slate-800 border border-slate-200/60 dark:border-slate-750"
+                    >
+                      <div className="min-w-0">
+                        <p className="text-xs font-bold text-slate-800 dark:text-slate-200">
+                          Lần {examAttempts.length - index}: {attempt.correct_count}/{attempt.total_questions} câu đúng
+                        </p>
+                        <p className="text-[10px] text-slate-400 mt-0.5">
+                          Thời gian làm: {formatDuration(attempt.duration_seconds)} •{' '}
+                          {new Date(attempt.created_at).toLocaleString('vi-VN')}
+                        </p>
+                      </div>
+                      <div className="flex items-center gap-2 shrink-0">
+                        <span className={`text-xs font-black ${scoreColor(attempt.score)}`}>
+                          {attempt.score}
+                        </span>
+                        <PassBadge passed={attempt.passed} />
+                      </div>
+                    </div>
+                  ))
+                )}
+              </div>
+            )}
           </div>
-          <div className="text-right shrink-0">
-            <span className={`text-base font-black ${scoreColor(exam.best_score)}`}>
-              {exam.best_score}
-            </span>
-            <span className="text-[10px] text-slate-400 block">/ {EXAM_SCORE_MAX}</span>
-          </div>
-        </div>
-      ))}
+        );
+      })}
     </div>
   );
 };
@@ -172,6 +253,28 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
   // `overview` đã kèm sẵn điểm từng đề của mọi Thực tập sinh (một truy vấn gom nhóm
   // ở server), nên bấm mở chỉ là xổ ra — không cần gọi thêm API.
   const [expandedId, setExpandedId] = useState<number | null>(null);
+
+  const [attemptsByUser, setAttemptsByUser] = useState<Record<number, ApiExamAttempt[]>>({});
+  const [loadingAttemptsUserIds, setLoadingAttemptsUserIds] = useState<Record<number, boolean>>({});
+
+  const loadAttempts = (userId: number) => {
+    if (attemptsByUser[userId] || loadingAttemptsUserIds[userId]) return;
+
+    setLoadingAttemptsUserIds((prev) => ({ ...prev, [userId]: true }));
+    const promise =
+      mySummary && mySummary.user_id === userId
+        ? examAttemptsApi.mine({ page: 1, size: 100 })
+        : examAttemptsApi.forUser(userId, { page: 1, size: 100 });
+
+    promise
+      .then((res) => {
+        setAttemptsByUser((prev) => ({ ...prev, [userId]: res.items }));
+      })
+      .catch(() => {})
+      .finally(() => {
+        setLoadingAttemptsUserIds((prev) => ({ ...prev, [userId]: false }));
+      });
+  };
 
   const load = () => {
     if (!tokenStore.isAuthenticated()) {
@@ -363,7 +466,12 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
 
                             {isOpen && (
                               <div className="p-3 bg-slate-50/60 dark:bg-slate-900/40 border-t border-slate-200 dark:border-slate-700">
-                                <PerExamList summary={intern} />
+                                <PerExamList
+                                  summary={intern}
+                                  attempts={attemptsByUser[intern.user_id] || []}
+                                  loadingAttempts={!!loadingAttemptsUserIds[intern.user_id]}
+                                  onLoadAttempts={() => loadAttempts(intern.user_id)}
+                                />
                               </div>
                             )}
                           </div>
@@ -385,7 +493,12 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                     summary={mySummary}
                     label={isMentorOrAdmin ? 'Điểm TB của bạn' : 'Điểm trung bình'}
                   />
-                  <PerExamList summary={mySummary} />
+                  <PerExamList
+                    summary={mySummary}
+                    attempts={attemptsByUser[mySummary.user_id] || []}
+                    loadingAttempts={!!loadingAttemptsUserIds[mySummary.user_id]}
+                    onLoadAttempts={() => loadAttempts(mySummary.user_id)}
+                  />
                 </div>
               )}
             </>
