@@ -268,40 +268,51 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
-  // Load scores and saved sessions on mount
-  useEffect(() => {
-    if (currentUser) {
-      const scoreKey = `gimasys_exam_scores_${currentUser.email}`;
-      const savedScore = localStorage.getItem(scoreKey);
-      if (savedScore) {
-        try {
-          setBestScores(JSON.parse(savedScore));
-        } catch {
-          setBestScores({});
-        }
-      } else {
-        setBestScores({});
-      }
+  // Bài đang làm dở được lưu ở máy (server không có khái niệm "bài thi tạm"), nên
+  // khoá phải gắn với ID TÀI KHOẢN, không phải email.
+  //
+  // Trước đây khoá là email. Xoá tài khoản rồi đăng nhập lại bằng đúng email đó sẽ
+  // sinh ra một tài khoản MỚI (id mới, `auth_service.delete_self` chỉ đặt `deleted_at`
+  // và đổi tên email cũ) — nhưng trình duyệt vẫn khớp khoá cũ, nên bài thi và điểm
+  // của tài khoản đã xoá hiện lại trên tài khoản mới, trong khi Mentor xem qua API
+  // thì không thấy gì. Đó chính là chỗ dữ liệu lệch nhau.
+  const sessionKey = currentUser ? `gimasys_exam_saved_u${currentUser.id}` : null;
 
-      const saveKey = `gimasys_exam_saved_${currentUser.email}`;
-      const savedSession = localStorage.getItem(saveKey);
-      if (savedSession) {
-        try {
-          setSavedSessions(JSON.parse(savedSession));
-        } catch {
-          setSavedSessions({});
-        }
-      } else {
-        setSavedSessions({});
-      }
+  // Load saved sessions on mount
+  useEffect(() => {
+    // Dọn các khoá kiểu cũ (theo email) một lần: chúng không thuộc về tài khoản nào
+    // xác định được nữa và chỉ còn khả năng làm dữ liệu lẫn sang tài khoản khác.
+    // Điểm (`gimasys_exam_scores_*`) bỏ hẳn — giờ chỉ đọc từ server.
+    // Nhận ra khoá kiểu cũ bằng dấu '@': khoá mới là `..._u<id>` nên không thể có
+    // '@', còn khoá cũ luôn có vì nó ghép email vào.
+    // `Object.keys` trả về bản chụp nên xoá trong lúc lặp là an toàn.
+    Object.keys(localStorage)
+      .filter(
+        (k) =>
+          k.startsWith('gimasys_exam_scores_') ||
+          (k.startsWith('gimasys_exam_saved_') && k.includes('@'))
+      )
+      .forEach((k) => localStorage.removeItem(k));
+
+    if (!sessionKey) return;
+    const savedSession = localStorage.getItem(sessionKey);
+    try {
+      setSavedSessions(savedSession ? JSON.parse(savedSession) : {});
+    } catch {
+      setSavedSessions({});
     }
-  }, [currentUser]);
+  }, [sessionKey]);
 
-  // Điểm thật lấy từ SERVER (`GET /exam-attempts/me/summary`) — nhờ vậy đổi máy vẫn
-  // thấy đúng điểm và Mentor xem được điểm của Thực tập sinh. localStorage ở trên chỉ
-  // còn là bộ đệm hiển thị tạm trong lúc chờ API / khi ngoại tuyến.
-  useEffect(() => {
-    if (!tokenStore.isAuthenticated()) return;
+  // Điểm CHỈ lấy từ SERVER (`GET /exam-attempts/me/summary`) — không đệm ở máy nữa.
+  // Server là nguồn sự thật duy nhất: đổi máy vẫn thấy đúng điểm, Mentor xem được
+  // điểm của Thực tập sinh, và điểm không bao giờ sống lâu hơn tài khoản.
+  // Ngoại tuyến thì để trống chứ không hiện điểm cũ — thà không có số còn hơn hiện
+  // một con số không ai kiểm chứng được.
+  const reloadBestScores = React.useCallback(() => {
+    if (!tokenStore.isAuthenticated()) {
+      setBestScores({});
+      return;
+    }
     examAttemptsApi
       .mySummary()
       .then((summary) => {
@@ -309,11 +320,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
         summary.per_exam.forEach((e) => {
           fromServer[e.exam_id] = e.best_score;
         });
-        // Gộp thay vì ghi đè: giữ lại điểm chỉ có cục bộ (bài nộp lúc mất mạng).
-        setBestScores((prev) => ({ ...prev, ...fromServer }));
+        setBestScores(fromServer);
       })
-      .catch(() => {/* ngoại tuyến: dùng bộ đệm localStorage */});
-  }, [currentUser]);
+      .catch(() => {/* ngoại tuyến: giữ nguyên những gì đang hiện */});
+  }, []);
+
+  useEffect(reloadBestScores, [reloadBestScores, currentUser]);
 
   // Timer countdown
   useEffect(() => {
@@ -359,7 +371,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   };
 
   const handleSaveAndExit = () => {
-    if (!currentExam || !currentUser) return;
+    if (!currentExam || !sessionKey) return;
 
     const session: SavedSession = {
       examId: currentExam.id,
@@ -371,26 +383,24 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       date: new Date().toISOString()
     };
 
-    const saveKey = `gimasys_exam_saved_${currentUser.email}`;
     const newSessions = {
       ...savedSessions,
       [currentExam.id]: session
     };
 
     setSavedSessions(newSessions);
-    localStorage.setItem(saveKey, JSON.stringify(newSessions));
+    localStorage.setItem(sessionKey, JSON.stringify(newSessions));
 
     setExamState('select');
     setCurrentExam(null);
   };
 
   const clearSavedSession = (examId: string) => {
-    if (!currentUser) return;
-    const saveKey = `gimasys_exam_saved_${currentUser.email}`;
+    if (!sessionKey) return;
     const newSessions = { ...savedSessions };
     delete newSessions[examId];
     setSavedSessions(newSessions);
-    localStorage.setItem(saveKey, JSON.stringify(newSessions));
+    localStorage.setItem(sessionKey, JSON.stringify(newSessions));
   };
 
   const handleSelectOption = (questionId: number, optionKey: string, multiSelect: boolean) => {
@@ -442,20 +452,19 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       }
     });
 
-    // Thang điểm chuẩn hoá 100..1000, đỗ >= 720. Công thức dùng chung với backend
-    // (examScaledScore trong services/api.ts) để hai bên không lệch nhau.
+    // Thang điểm chuẩn hoá 0..1000, đỗ khi đúng >= 80% số câu. Công thức dùng chung
+    // với backend (examScaledScore trong services/api.ts) để hai bên không lệch nhau.
     const score = examScaledScore(correctCount, currentExam.questions.length);
 
     // Only update best score in Exam Mode
     if (mode === 'exam') {
-      const scoreKey = `gimasys_exam_scores_${currentUser.email}`;
-      const newBestScores = {
-        ...bestScores,
-        [currentExam.id]: Math.max(bestScores[currentExam.id] || 0, score)
-      };
-
-      setBestScores(newBestScores);
-      localStorage.setItem(scoreKey, JSON.stringify(newBestScores));
+      // Cập nhật lạc quan để màn kết quả hiện ngay điểm vừa thi; con số chính thức
+      // đến từ server ở `reloadBestScores()` bên dưới. KHÔNG ghi localStorage:
+      // điểm chỉ được sống trong database, không sống trong trình duyệt.
+      setBestScores((prev) => ({
+        ...prev,
+        [currentExam.id]: Math.max(prev[currentExam.id] || 0, score),
+      }));
 
       // Gửi kết quả lên server để Mentor xem được và điểm không mất khi đổi máy.
       // Server tự tính lại điểm từ số câu đúng nên client không "tự cho điểm".
@@ -470,10 +479,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             correct_count: correctCount,
             duration_seconds: Math.max(0, currentExam.duration * 60 - timeLeft),
           })
+          // Lấy lại từ server để bảng điểm khớp đúng dữ liệu đã lưu.
+          .then(reloadBestScores)
           .catch(() =>
             // Không chặn màn kết quả: điểm vẫn hiện, chỉ cảnh báo là chưa đồng bộ.
             setSubmitError(
-              'Không lưu được kết quả lên hệ thống (lỗi kết nối). Điểm này chỉ hiện trên máy bạn — Mentor sẽ không thấy.'
+              'Không lưu được kết quả lên hệ thống (lỗi kết nối). Điểm này chỉ hiện tạm trên màn hình — Mentor sẽ không thấy, và tải lại trang là mất. Vui lòng thi lại khi có mạng.'
             )
           );
       }

@@ -50,7 +50,7 @@ const scoreColor = (score: number) =>
     ? 'text-emerald-600 dark:text-emerald-400'
     : 'text-red-600 dark:text-red-400';
 
-/** Vị trí của điểm trên thang 100..1000, dùng cho chiều dài thanh tiến độ. */
+/** Vị trí của điểm trên thang 0..1000, dùng cho chiều dài thanh tiến độ. */
 const scorePercent = (score: number) =>
   Math.max(
     0,

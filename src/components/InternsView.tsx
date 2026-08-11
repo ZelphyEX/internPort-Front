@@ -18,7 +18,7 @@ import {
   Trash2,
   UserX
 } from 'lucide-react';
-import { Intern, Department, InternStatus, UserRole } from '../types';
+import { Intern, InternStatus, UserRole } from '../types';
 import { canManageInterns } from '../services/permissions';
 
 interface InternsViewProps {
@@ -39,7 +39,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
   searchTerm: externalSearch
 }) => {
   const [internalSearch, setInternalSearch] = useState('');
-  const [selectedDept, setSelectedDept] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
   const [viewMode, setViewMode] = useState<'grid' | 'table'>('grid');
 
@@ -70,16 +69,13 @@ export const InternsView: React.FC<InternsViewProps> = ({
     const matchesSearch =
       !query ||
       intern.name.toLowerCase().includes(query) ||
-      intern.email.toLowerCase().includes(query) ||
-      intern.mentor.toLowerCase().includes(query) ||
-      (intern.university && intern.university.toLowerCase().includes(query));
+      intern.email.toLowerCase().includes(query);
 
-    const matchesDept = selectedDept === 'ALL' || intern.department === selectedDept;
     const matchesStatus = selectedStatus === 'ALL'
       ? intern.status !== 'Removed'
       : intern.status === selectedStatus;
 
-    return matchesSearch && matchesDept && matchesStatus;
+    return matchesSearch && matchesStatus;
   });
 
   const getStatusBadge = (status: InternStatus) => {
@@ -125,27 +121,17 @@ export const InternsView: React.FC<InternsViewProps> = ({
             type="text"
             value={internalSearch}
             onChange={(e) => setInternalSearch(e.target.value)}
-            placeholder="Tìm theo tên, email, mentor, trường..."
+            placeholder="Tìm theo tên hoặc email..."
             className="w-full pl-9 pr-4 py-2 text-xs bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500 focus:bg-white transition-all"
           />
         </div>
 
         {/* Dropdowns */}
         <div className="flex flex-wrap items-center gap-2">
-          
-          {/* Dept Dropdown */}
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="px-3 py-2 text-xs font-medium bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-700 rounded-xl focus:outline-none focus:ring-2 focus:ring-blue-500"
-          >
-            <option value="ALL">Tất cả Khối Kỹ thuật</option>
-            <option value="Java Back-End">Java Back-End</option>
-            <option value="React Front-End">React Front-End</option>
-            <option value="Cloud & DevOps">Cloud & DevOps</option>
-            <option value="Salesforce / ERP">Salesforce / ERP</option>
-            <option value="AI & Data Science">AI & Data Science</option>
-          </select>
+
+          {/* Ô lọc "Khối Kỹ thuật" đã bỏ cùng cột `users.department` (migration
+              f1c6b83ad74e): không có chỗ nào để gán khối cho một người, nên bộ lọc
+              chỉ có hai kết quả — "Tất cả" hoặc rỗng. */}
 
           {/* Status Dropdown */}
           <select
@@ -233,9 +219,9 @@ export const InternsView: React.FC<InternsViewProps> = ({
                 </div>
 
                 {/* Đã bỏ khỏi thẻ: dòng chức danh ("Thực tập sinh Java Back-End"),
-                    ô "Khối:" và dòng "Dự án:" — cả ba đều suy ra từ `department`
-                    (không còn được điền ở đâu) hoặc từ dữ liệu mẫu. Thay bằng email
-                    để vẫn nhận ra được người trong thẻ. */}
+                    ô "Khối:" và dòng "Dự án:" — cả ba đều suy ra từ Khối kỹ thuật,
+                    thứ đã bị xoá khỏi bảng `users` (migration f1c6b83ad74e) vì không
+                    có chỗ nào để chọn. Thay bằng email để vẫn nhận ra được người. */}
 
               </div>
 
@@ -273,7 +259,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
               <thead className="bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 font-bold uppercase tracking-wider">
                 <tr>
                   <th className="p-4">Thực tập sinh</th>
-                  <th className="p-4">Khối Kỹ thuật</th>
                   <th className="p-4">Trạng thái</th>
                   <th className="p-4">Lộ trình học tập</th>
                   <th className="p-4">Điểm</th>
@@ -300,7 +285,6 @@ export const InternsView: React.FC<InternsViewProps> = ({
                         </div>
                       </div>
                     </td>
-                    <td className="p-4 font-semibold text-slate-800 dark:text-slate-200">{intern.department}</td>
                     <td className="p-4">
                       <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getStatusBadge(intern.status)}`}>
                         {intern.status}

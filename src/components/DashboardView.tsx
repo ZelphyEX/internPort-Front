@@ -367,14 +367,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       )}
 
-      {/* Grid: Department Distribution & Pending Reports Queue - Chỉ Admin/Mentor cần xem tổng quan cả nhóm, Intern không cần */}
+      {/* Grid: Thực tập sinh Tiêu biểu & Báo cáo Chờ Duyệt — chỉ Admin/Mentor cần xem
+          tổng quan cả nhóm, Intern không cần */}
       {currentRole !== 'INTERN' && (
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* Left Column: Department Distribution & Top Interns */}
+        {/* Left Column: Top Interns */}
         <div className="space-y-6 lg:col-span-2">
 
-          {/* Khối "Phân bổ Theo Khối Kỹ thuật" đã bỏ theo yêu cầu. */}
+          {/* Khối "Phân bổ Theo Khối Kỹ thuật" đã bỏ theo yêu cầu; cột
+              `users.department` mà nó dựa vào cũng đã xoá (migration f1c6b83ad74e). */}
 
           {/* Featured Active Interns List */}
           <div className="bg-white dark:bg-slate-800 rounded-2xl p-6 border border-slate-200 dark:border-slate-700 shadow-2xs">
@@ -412,8 +414,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                         {intern.score}
                       </span>
                     </div>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{intern.department}</p>
-                    <p className="text-[11px] text-slate-400 truncate">{intern.department}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{intern.email}</p>
                   </div>
                 </div>
               ))}
@@ -446,7 +447,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                     <div className="flex items-center justify-between text-xs font-bold text-slate-900 dark:text-slate-100">
                       <span>{report.internName}</span>
                       <span className="text-[10px] text-amber-700 bg-amber-100 px-1.5 py-0.5 rounded">
-                        {report.department}
+                        {report.date}
                       </span>
                     </div>
                     <p className="text-xs text-slate-600 dark:text-slate-400 line-clamp-2 leading-relaxed">

@@ -30,20 +30,14 @@ import type {
 const DEFAULT_AVATAR =
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&q=80&w=300';
 
-// Backend dùng "Salesforce/ERP" (không khoảng trắng), FE dùng "Salesforce / ERP" — phải map qua lại.
+// Backend dùng "Salesforce/ERP" (không khoảng trắng), FE dùng "Salesforce / ERP" —
+// nên vẫn cần bảng map. Giờ chỉ còn Dự án dùng (`projects.department`); người thì
+// không còn khối kỹ thuật nữa (xem type `Department` trong types.ts).
 const API_DEPARTMENT_TO_FE: Record<ApiDepartment, Department> = {
   'Java Back-End': 'Java Back-End',
   'React Front-End': 'React Front-End',
   'Cloud & DevOps': 'Cloud & DevOps',
   'Salesforce/ERP': 'Salesforce / ERP',
-  'AI & Data Science': 'AI & Data Science',
-};
-
-export const FE_DEPARTMENT_TO_API: Record<Department, ApiDepartment> = {
-  'Java Back-End': 'Java Back-End',
-  'React Front-End': 'React Front-End',
-  'Cloud & DevOps': 'Cloud & DevOps',
-  'Salesforce / ERP': 'Salesforce/ERP',
   'AI & Data Science': 'AI & Data Science',
 };
 
@@ -69,12 +63,10 @@ export function apiUserToAuthUser(u: ApiUser): AuthUser {
 
 /**
  * ApiUser (server, role INTERN) -> Intern (frontend danh sách thực tập sinh).
- * GET /users giờ đã trả đủ field hồ sơ intern (department/mentor/score/...).
  * project/projectId/skills vẫn để trống — các trường này đến từ resource
  * Projects/Roadmap riêng (xem projectsApi/assignmentsApi), không thuộc User.
  */
 export function apiUserToIntern(u: ApiUser): Intern {
-  const department = u.department ? API_DEPARTMENT_TO_FE[u.department] : 'Java Back-End';
   return {
     id: String(u.id),
     name: u.full_name,
@@ -83,8 +75,6 @@ export function apiUserToIntern(u: ApiUser): Intern {
     // chuỗi rỗng vì kiểu `Intern` ở FE còn dùng các trường này ở dữ liệu mẫu.
     phone: '',
     avatar: u.avatar_url || DEFAULT_AVATAR,
-    department,
-    roleTitle: `Thực tập sinh ${department}`,
     mentor: '',
     mentorEmail: '',
     startDate: '',
@@ -248,17 +238,12 @@ export function apiTaskToTaskItem(t: ApiTask): TaskItem {
 
 // ---- Daily Report ---------------------------------------------------------------
 
-/**
- * ApiDailyReport (server) -> DailyReport (frontend). Backend không trả department
- * (chỉ có intern_id/intern_name) — bên gọi tự tra cứu từ danh sách Intern nếu cần,
- * truyền vào tham số thứ 2 (mặc định 'Java Back-End' nếu không tra được).
- */
-export function apiDailyReportToReport(r: ApiDailyReport, department: Department = 'Java Back-End'): DailyReport {
+/** ApiDailyReport (server) -> DailyReport (frontend). */
+export function apiDailyReportToReport(r: ApiDailyReport): DailyReport {
   return {
     id: String(r.id),
     internId: String(r.intern_id),
     internName: r.intern_name || '',
-    department,
     date: r.date,
     completedToday: r.completed_today,
     tomorrowPlan: r.tomorrow_plan || '',

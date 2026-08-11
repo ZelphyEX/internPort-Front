@@ -6,6 +6,14 @@ export type TaskStatus = 'To Do' | 'In Progress' | 'In Review' | 'Done' | 'Block
 
 export type TaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
+/**
+ * Khối kỹ thuật của một DỰ ÁN / một chặng lộ trình (`modules.track`).
+ *
+ * KHÔNG còn là thuộc tính của con người: cột `users.department` đã bị bỏ khỏi
+ * database (migration `f1c6b83ad74e`) vì portal không có chỗ nào để chọn nó, nên
+ * mọi tài khoản thật đều rỗng và frontend phải mặc định thành 'Java Back-End' —
+ * hiện ra một chuyên ngành bịa cho tất cả mọi người.
+ */
 export type Department = 'Java Back-End' | 'React Front-End' | 'Cloud & DevOps' | 'Salesforce / ERP' | 'AI & Data Science';
 
 export interface InternSkill {
@@ -20,8 +28,6 @@ export interface Intern {
   email: string;
   phone: string;
   avatar: string;
-  department: Department;
-  roleTitle: string; // e.g. "Thực tập sinh Java Spring"
   mentor: string;
   mentorEmail: string;
   startDate: string;
@@ -34,8 +40,8 @@ export interface Intern {
   githubUrl?: string;
   skills: InternSkill[];
   bio?: string;
-  university?: string;
-  major?: string;
+  // Trường / Ngành / Khối kỹ thuật đã bỏ khỏi cả database và giao diện
+  // (migration d5c8a2e64f19, e7a4b1d09c53, f1c6b83ad74e).
   completedTasksCount?: number;
   totalTasksCount?: number;
 }
@@ -76,7 +82,6 @@ export interface DailyReport {
   id: string;
   internId: string;
   internName: string;
-  department: Department;
   date: string;
   completedToday: string;
   tomorrowPlan: string;
@@ -130,7 +135,7 @@ export interface AuthUser {
   name: string;
   email: string;
   role: UserRole;
-  department?: Department;
+  /** Chức danh theo VAI TRÒ (Quản trị viên / Mentor / Thực tập sinh), không phải khối kỹ thuật. */
   roleTitle: string;
   avatar: string;
   internId?: string; // If role is INTERN, links to Intern record

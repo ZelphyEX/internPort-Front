@@ -109,11 +109,10 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
   const handleChangePasswordSubmit = () => {
     setPasswordError('');
 
-    const savedPassword = localStorage.getItem(`gimasys_pwd_${currentUser.email.toLowerCase()}`);
-    if (savedPassword && savedPassword !== currentPassword) {
-      setPasswordError('Mật khẩu hiện tại không đúng.');
-      return;
-    }
+    // Mật khẩu hiện tại do SERVER đối chiếu (POST /auth/change-password trả 400 nếu
+    // sai). Không kiểm ở client nữa: bản cũ so với `gimasys_pwd_<email>` trong
+    // localStorage — tức là lưu mật khẩu thô trên máy, và còn dính sang tài khoản
+    // khác dùng lại cùng email.
     if (newPassword.length < 6) {
       setPasswordError('Mật khẩu mới phải có ít nhất 6 ký tự.');
       return;
@@ -282,7 +281,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
               <span>{currentUser.email}</span>
               <span>•</span>
               <Building className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-              <span>{currentUser.department || 'Gimasys Tech'}</span>
+              <span>Gimasys Tech</span>
             </div>
 
             <div className="flex items-center gap-2">
@@ -428,7 +427,7 @@ export const SettingsView: React.FC<SettingsViewProps> = ({
                 <span>•</span>
                 <span className="flex items-center gap-1">
                   <Building className="w-3 h-3 text-slate-400" />
-                  <span>{currentUser.department || 'Gimasys Tech'}</span>
+                  <span>Gimasys Tech</span>
                 </span>
               </p>
             </div>

@@ -287,8 +287,8 @@ export interface ApiUser {
   avatar_url?: string | null;
   // Hồ sơ Intern — chỉ có ý nghĩa khi role === 'INTERN', đều optional/nullable.
   // Đã bỏ khỏi bảng users ở backend: phone / university / mentor_id / start_date /
-  // end_date (migration d5c8a2e64f19) và major (migration e7a4b1d09c53).
-  department?: ApiDepartment | null;
+  // end_date (migration d5c8a2e64f19), major (e7a4b1d09c53) và department — Khối kỹ
+  // thuật (f1c6b83ad74e). Khối kỹ thuật giờ chỉ còn là thuộc tính của Dự án/chặng.
   bio?: string | null;
   github_url?: string | null;
   score?: number | null;
@@ -872,11 +872,10 @@ export const usersApi = {
     return request<ApiUser>(`/users/${id}`);
   },
 
-  /** PATCH /users/{id}/profile — Cập nhật hồ sơ Intern (department/bio/score...). Quyền: MENTOR. */
+  /** PATCH /users/{id}/profile — Cập nhật hồ sơ Intern (bio/github/score...). Quyền: MENTOR. */
   updateProfile(
     id: number,
     payload: Partial<{
-      department: ApiDepartment;
       bio: string;
       github_url: string;
       score: number;
@@ -957,7 +956,7 @@ export const roleRequestsApi = {
 export const examAttemptsApi = {
   /**
    * POST /exam-attempts — Nộp kết quả một lần thi ở **chế độ thi**.
-   * Không gửi `score`: server tự tính từ số câu đúng theo thang 100..1000.
+   * Không gửi `score`: server tự tính từ số câu đúng theo thang 0..1000.
    */
   submit(payload: {
     exam_id: string;

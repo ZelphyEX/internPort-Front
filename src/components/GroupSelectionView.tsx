@@ -410,9 +410,7 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
                                     />
                                     <div className="min-w-0">
                                       <p className="text-xs font-bold text-slate-100 truncate">{i.name}</p>
-                                      <p className="text-[11px] text-slate-400 truncate">
-                                        {i.email} · {i.department}
-                                      </p>
+                                      <p className="text-[11px] text-slate-400 truncate">{i.email}</p>
                                     </div>
                                   </label>
                                 );

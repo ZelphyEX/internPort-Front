@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { X, FileSpreadsheet } from 'lucide-react';
-import { DailyReport, Intern, Department, AuthUser } from '../types';
+import { DailyReport, AuthUser } from '../types';
 
 interface AddReportModalProps {
   isOpen: boolean;
   onClose: () => void;
-  interns: Intern[];
   onAddReport: (report: DailyReport) => void;
   /** Người đang đăng nhập — LUÔN là tác giả của báo cáo (xem ghi chú bên dưới). */
   currentUser: AuthUser | null;
@@ -14,7 +13,6 @@ interface AddReportModalProps {
 export const AddReportModal: React.FC<AddReportModalProps> = ({
   isOpen,
   onClose,
-  interns,
   onAddReport,
   currentUser
 }) => {
@@ -24,13 +22,11 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
   //   - Backend BỎ QUA `intern_id` trong body POST /daily-reports — tác giả luôn là
   //     người trong token. Chọn tên người khác chỉ làm dữ liệu hiển thị ở máy lệch
   //     với dữ liệu đã lưu trên server (reload là mất).
-  //   - Với tài khoản INTERN, danh sách `interns` không được tải (GET /users cần
+  //   - Với tài khoản INTERN, danh sách Thực tập sinh không được tải (GET /users cần
   //     quyền MENTOR) nên ô chọn hiện toàn dữ liệu demo, thậm chí không có tên mình.
   // Nay tác giả cố định là tài khoản đang đăng nhập.
   const authorId = currentUser?.internId || currentUser?.id || '';
   const authorName = currentUser?.name || 'Tôi';
-  const authorDepartment: Department =
-    interns.find(i => i.id === authorId)?.department || ('Java Back-End' as Department);
 
   const [completedToday, setCompletedToday] = useState('');
   const [tomorrowPlan, setTomorrowPlan] = useState('');
@@ -45,7 +41,6 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
       id: `REP-${String(Math.floor(Math.random() * 900) + 100)}`,
       internId: authorId,
       internName: authorName,
-      department: authorDepartment,
       date: new Date().toISOString().split('T')[0],
       completedToday,
       tomorrowPlan: tomorrowPlan || 'Tiếp tục hoàn thiện các công việc trong Sprint.',

@@ -59,6 +59,30 @@ import {
   apiDailyReportToReport,
 } from './services/mappers';
 
+/**
+ * Xoá mọi dữ liệu của phiên/tài khoản vừa rời khỏi máy này.
+ *
+ * Vì sao cần: các khoá `gimasys_*` không gắn với tài khoản nào. Nếu chỉ xoá
+ * `gimasys_current_user` như trước thì danh sách Thực tập sinh / dự án / task /
+ * báo cáo / tài liệu của người trước vẫn nằm nguyên đó, và người đăng nhập sau
+ * (kể cả tài khoản mới tạo lại bằng đúng email cũ) sẽ thấy chúng loé lên trước khi
+ * API trả dữ liệu thật — dữ liệu hiển thị không khớp database.
+ *
+ * Chỉ dọn bộ đệm; giao diện tự nạp lại từ server ngay sau khi đăng nhập.
+ *
+ * Hai khoá được giữ lại:
+ *   - `gimasys_theme`: thiết lập của máy (sáng/tối), không phải dữ liệu tài khoản.
+ *   - `gimasys_session_ended`: lời nhắn "phiên đã hết hạn" mà màn Đăng nhập đọc
+ *     một lần rồi tự xoá. Dọn nó ở đây thì người dùng bị đá ra mà không hiểu vì sao.
+ */
+const KEEP_ON_SIGN_OUT = new Set(['gimasys_theme', 'gimasys_session_ended']);
+
+function clearAccountScopedCache(): void {
+  Object.keys(localStorage)
+    .filter((k) => k.startsWith('gimasys_') && !KEEP_ON_SIGN_OUT.has(k))
+    .forEach((k) => localStorage.removeItem(k));
+}
+
 export default function App() {
   // Auth State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
@@ -66,7 +90,7 @@ export default function App() {
     // portal sẽ loé lên một nhịp rồi mới bị đá về màn đăng nhập.
     if (isSessionExpired()) {
       endSession();
-      localStorage.removeItem('gimasys_current_user');
+      clearAccountScopedCache();
       return null;
     }
     const savedUser = localStorage.getItem('gimasys_current_user');
@@ -91,7 +115,7 @@ export default function App() {
   useEffect(() => {
     setUnauthorizedHandler(() => {
       setCurrentUser(null);
-      localStorage.removeItem('gimasys_current_user');
+      clearAccountScopedCache();
     });
   }, []);
 
@@ -203,11 +227,13 @@ export default function App() {
   const handleLogout = () => {
     // Thu hồi refresh token phía server (nếu đang đăng nhập bằng backend thật).
     // Không chặn UI: dù API lỗi vẫn xóa phiên cục bộ và về màn đăng nhập.
+    // Gọi API TRƯỚC khi dọn bộ đệm — `request()` đọc token ngay lúc dựng header,
+    // nên lệnh dọn phía dưới không kịp cắt mất token của lần gọi này.
     if (tokenStore.isAuthenticated()) {
       authApi.logout().catch(() => {/* offline: bỏ qua, vẫn xóa cục bộ */});
     }
     setCurrentUser(null);
-    localStorage.removeItem('gimasys_current_user');
+    clearAccountScopedCache();
   };
 
   // Cập nhật Tên & Ảnh đại diện của tài khoản đang đăng nhập.
@@ -238,22 +264,27 @@ export default function App() {
     localStorage.setItem('gimasys_current_user', JSON.stringify(updatedUser));
   };
 
-  // Đổi mật khẩu. Online: POST /auth/change-password (đặc tả cần cả mật khẩu cũ).
-  // Offline/demo: lưu cục bộ theo email để đối chiếu khi đăng nhập lại.
+  // Đổi mật khẩu — chỉ đi qua POST /auth/change-password (server kiểm mật khẩu cũ).
+  //
+  // Trước đây nhánh ngoại tuyến ghi `gimasys_pwd_<email>` = mật khẩu THÔ vào
+  // localStorage. Hai vấn đề: (1) mật khẩu nằm rõ ràng trên đĩa, ai mở DevTools cũng
+  // đọc được; (2) khoá theo email nên tài khoản bị xoá rồi tạo lại bằng đúng email đó
+  // vẫn nhận mật khẩu cũ — trong khi database chẳng có gì tương ứng.
   const handleChangePassword = async (oldPassword: string, newPassword: string) => {
     if (!currentUser) return;
-    if (tokenStore.isAuthenticated()) {
-      try {
-        await authApi.changePassword({ old_password: oldPassword, new_password: newPassword });
-        return;
-      } catch (err) {
-        if (err instanceof ApiError) {
-          alert(err.detail || 'Đổi mật khẩu thất bại.');
-          return;
-        }
-      }
+    if (!tokenStore.isAuthenticated()) {
+      alert('Cần kết nối tới hệ thống để đổi mật khẩu. Vui lòng thử lại sau.');
+      return;
     }
-    localStorage.setItem(`gimasys_pwd_${currentUser.email.toLowerCase()}`, newPassword);
+    try {
+      await authApi.changePassword({ old_password: oldPassword, new_password: newPassword });
+    } catch (err) {
+      alert(
+        err instanceof ApiError
+          ? err.detail || 'Đổi mật khẩu thất bại.'
+          : 'Không kết nối được tới hệ thống. Mật khẩu chưa được đổi.'
+      );
+    }
   };
 
   const handleDeleteAccount = async () => {
@@ -269,11 +300,13 @@ export default function App() {
         }
       }
     } else {
-      localStorage.removeItem(`gimasys_pwd_${currentUser.email.toLowerCase()}`);
       alert('Tài khoản của bạn đã được xóa cục bộ.');
     }
     setCurrentUser(null);
-    localStorage.removeItem('gimasys_current_user');
+    // Dọn sạch bộ đệm: đăng nhập lại bằng đúng email này sẽ tạo một tài khoản MỚI
+    // (id mới) nên không được để nó thừa hưởng bất cứ dữ liệu nào của tài khoản cũ —
+    // đó chính là lý do điểm thi cũ từng hiện lại trên tài khoản vừa tạo.
+    clearAccountScopedCache();
   };
 
   // Persistent States
@@ -314,13 +347,6 @@ export default function App() {
     reloadPendingMentorCount();
     reloadRoleRequestCount();
   }, [reloadPendingMentorCount, reloadRoleRequestCount]);
-
-  // Tham chiếu tới interns mới nhất để tra cứu department khi map Daily Report,
-  // không đưa vào dependency của useEffect tải dữ liệu (tránh gọi lại API liên tục).
-  const internsRef = React.useRef<Intern[]>(interns);
-  useEffect(() => {
-    internsRef.current = interns;
-  }, [interns]);
 
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('gimasys_projects');
@@ -429,14 +455,7 @@ export default function App() {
 
     dailyReportsApi
       .list({ size: 100 })
-      .then((res) =>
-        setReports(
-          res.items.map((r) => {
-            const dept = internsRef.current.find((i) => i.id === String(r.intern_id))?.department;
-            return apiDailyReportToReport(r, dept);
-          })
-        )
-      )
+      .then((res) => setReports(res.items.map(apiDailyReportToReport)))
       .catch(() => {/* offline hoặc lỗi API: giữ nguyên dữ liệu mock/local */});
   }, [currentUser, currentRole]);
 
@@ -987,7 +1006,6 @@ export default function App() {
       <AddReportModal
         isOpen={isAddReportOpen}
         onClose={() => setIsAddReportOpen(false)}
-        interns={interns}
         onAddReport={handleAddReport}
         currentUser={currentUser}
       />

@@ -193,7 +193,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
                     <div>
                       <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">{rep.internName}</h3>
                       <p className="text-xs text-slate-500 dark:text-slate-400 font-medium">
-                        Khối {rep.department} • {rep.date} ({rep.hoursLogged}h làm việc)
+                        {rep.date} ({rep.hoursLogged}h làm việc)
                       </p>
                     </div>
                   </div>

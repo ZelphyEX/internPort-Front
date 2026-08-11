@@ -78,8 +78,6 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
     try {
       const payload = {
         name: intern.name,
-        role: intern.roleTitle,
-        department: intern.department,
         mentor: intern.mentor,
         score: intern.score,
         attendanceRate: intern.attendanceRate,
@@ -108,7 +106,7 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
       setAiReport({
         overallScore: intern.score,
         strengths: [
-          'Nắm vững kiến thức nền tảng về ' + intern.department,
+          'Nắm vững kiến thức nền tảng trong Lộ trình Đào tạo được giao',
           'Thái độ học hỏi chủ động, nộp báo cáo hằng ngày đều đặn',
           'Hoàn thành ' + completedTasksCount + '/' + internTasks.length + ' công việc đúng cam kết'
         ],
@@ -116,7 +114,7 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
           'Cần rèn luyện thêm về Unit Test coverage',
           'Tăng cường trao đổi với Mentor khi gặp blockers phức tạp'
         ],
-        technicalAssessment: `Thực tập sinh ${intern.name} thể hiện năng lực kỹ thuật rất tốt trong khối ${intern.department}. Code sạch, tuân thủ quy chuẩn Gimasys.`,
+        technicalAssessment: `Thực tập sinh ${intern.name} thể hiện năng lực kỹ thuật rất tốt. Code sạch, tuân thủ quy chuẩn Gimasys.`,
         attitudeAssessment: 'Nhiệt tình, đi làm đúng giờ (Chuyên cần ' + intern.attendanceRate + '%), giao tiếp hòa đồng với các thành viên trong dự án.',
         hiringRecommendation: 'Khuyến nghị nhận chính thức',
         actionPlan: [
@@ -159,17 +157,17 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
               alt={intern.name}
               className="w-20 h-20 rounded-2xl object-cover border-2 border-white/20 shadow-lg"
             />
+            {/* Trước đây ở đây có ô "Java Back-End" và dòng chức danh "Thực tập sinh
+                Java Back-End". Cả hai đều bịa: Khối kỹ thuật không có chỗ nào để chọn
+                nên mọi tài khoản đều rỗng, frontend tự mặc định thành 'Java Back-End'.
+                Cột đã bỏ khỏi database (migration f1c6b83ad74e); chỗ này giờ hiện
+                email — thứ luôn có thật và giúp phân biệt người trùng tên. */}
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-blue-500/30 text-blue-200 border border-blue-400/30">
-                  {intern.department}
-                </span>
-                <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">
-                  {intern.status}
-                </span>
-              </div>
+              <span className="text-xs font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/30 text-emerald-200 border border-emerald-400/30">
+                {intern.status}
+              </span>
               <h2 className="text-2xl font-extrabold text-white tracking-tight">{intern.name}</h2>
-              <p className="text-xs text-slate-300 font-medium">{intern.roleTitle}</p>
+              <p className="text-xs text-slate-300 font-medium">{intern.email}</p>
             </div>
           </div>
         </div>
@@ -274,10 +272,9 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
           <div className="grid grid-cols-1 gap-6">
 
             {/* Left Info: Liên hệ.
-                Đã bỏ khỏi khối này: SĐT, Trường, Mentor hướng dẫn, Thời gian thực tập
-                (cùng cột trong CSDL — migration d5c8a2e64f19), Ngành (e7a4b1d09c53),
-                và Định hướng (chỉ bỏ hiển thị, cột `department` vẫn còn vì báo cáo
-                ngày và dự án đang dùng). */}
+                Đã bỏ khỏi khối này CÙNG VỚI cột trong CSDL: SĐT, Trường, Mentor hướng
+                dẫn, Thời gian thực tập (migration d5c8a2e64f19), Ngành (e7a4b1d09c53)
+                và Định hướng / Khối kỹ thuật (f1c6b83ad74e). Chỉ còn email. */}
             <div className="bg-slate-50 dark:bg-slate-900 p-4 rounded-2xl border border-slate-200 dark:border-slate-700 space-y-3">
               <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">Thông tin Liên hệ</h4>
 
