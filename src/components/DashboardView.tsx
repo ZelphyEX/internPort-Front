@@ -15,7 +15,17 @@ import {
   Calendar
 } from 'lucide-react';
 import { Intern, Project, TaskItem, DailyReport, UserRole, AuthUser } from '../types';
-import { tokenStore, dashboardApi, ApiDashboardMe, ApiDashboardOverview } from '../services/api';
+import {
+  tokenStore,
+  dashboardApi,
+  examAttemptsApi,
+  ApiDashboardMe,
+  ApiDashboardOverview,
+  ApiExamSummary,
+  ApiExamOverview,
+  EXAM_SCORE_MAX,
+} from '../services/api';
+import { ExamScoresModal } from './ExamScoresModal';
 
 interface DashboardViewProps {
   interns: Intern[];
@@ -63,6 +73,37 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       dashboardApi.overview().then(setOverviewDashboard).catch(() => {/* giữ số tính tại chỗ */});
     }
   }, [currentRole]);
+
+  // "Điểm Năng lực TB" = điểm bài thi Anthropic Mock Exam (thang 100–1000).
+  //   * INTERN         -> trung bình điểm tốt nhất mỗi đề của CHÍNH MÌNH.
+  //   * MENTOR / ADMIN -> trung bình của toàn bộ Thực tập sinh.
+  // Chỉ tính bài làm ở chế độ thi; luyện tập không được ghi nhận.
+  const [examSummary, setExamSummary] = useState<ApiExamSummary | null>(null);
+  const [examOverview, setExamOverview] = useState<ApiExamOverview | null>(null);
+  const [isExamScoresOpen, setIsExamScoresOpen] = useState(false);
+
+  useEffect(() => {
+    if (!tokenStore.isAuthenticated()) return;
+    if (currentRole === 'INTERN') {
+      examAttemptsApi.mySummary().then(setExamSummary).catch(() => {/* ngoại tuyến */});
+    } else {
+      examAttemptsApi.overview().then(setExamOverview).catch(() => {/* ngoại tuyến */});
+    }
+  }, [currentRole]);
+
+  const examAvgScore =
+    currentRole === 'INTERN'
+      ? examSummary?.avg_score ?? null
+      : examOverview?.avg_score ?? null;
+
+  const examScoreCaption =
+    currentRole === 'INTERN'
+      ? examSummary && examSummary.exams_taken > 0
+        ? `${examSummary.exams_passed}/${examSummary.exams_taken} đề đã đạt — xem chi tiết`
+        : 'Chưa thi bài nào ở chế độ thi — xem chi tiết'
+      : examOverview && examOverview.interns_with_attempts > 0
+      ? `${examOverview.interns_with_attempts}/${examOverview.interns_total} thực tập sinh đã thi — xem bảng điểm`
+      : 'Chưa có thực tập sinh nào thi — xem bảng điểm';
 
   // Statistics Calculations
   const totalInterns = interns.length;
@@ -229,10 +270,21 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
         )}
 
-        {/* Card 3: Avg Performance Score */}
-        <div 
-          onClick={() => currentRole !== 'INTERN' && onNavigateTab('interns')}
-          className={`bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md transition-all group ${currentRole !== 'INTERN' ? 'cursor-pointer' : ''}`}
+        {/* Card 3: Điểm Năng lực TB = điểm Anthropic Mock Exam (thang 100–1000).
+            INTERN: điểm TB các bài thi của chính mình.
+            MENTOR/ADMIN: điểm TB của toàn bộ Thực tập sinh.
+            Bấm vào để xem điểm từng bài thi (ExamScoresModal). */}
+        <div
+          role="button"
+          tabIndex={0}
+          onClick={() => setIsExamScoresOpen(true)}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setIsExamScoresOpen(true);
+            }
+          }}
+          className="bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md transition-all group cursor-pointer focus:outline-none focus:ring-2 focus:ring-purple-500"
         >
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Điểm Năng lực TB</span>
@@ -242,11 +294,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
           <div className="flex items-baseline gap-2">
             <span className="text-3xl font-extrabold text-slate-900 dark:text-slate-100">
-              {overviewDashboard ? overviewDashboard.avg_score.toFixed(1) : avgScore}
+              {examAvgScore !== null ? examAvgScore.toFixed(1) : '—'}
             </span>
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">/ 10 điểm</span>
+            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">
+              / {EXAM_SCORE_MAX} điểm
+            </span>
           </div>
-          <p className="text-xs text-emerald-600 font-medium mt-2">Xếp loại Xuất sắc & Giỏi</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 font-medium mt-2 flex items-center gap-1">
+            <span>{examScoreCaption}</span>
+            <ChevronRight className="w-3.5 h-3.5 shrink-0" />
+          </p>
         </div>
 
         {/* Card 4: Tasks Completed */}
@@ -497,6 +554,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
       </div>
+      )}
+
+      {/* Bảng điểm Anthropic Mock Exam — mở từ thẻ "Điểm Năng lực TB" */}
+      {isExamScoresOpen && (
+        <ExamScoresModal
+          currentRole={currentRole}
+          onClose={() => setIsExamScoresOpen(false)}
+        />
       )}
 
     </div>

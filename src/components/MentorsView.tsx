@@ -314,7 +314,7 @@ export const MentorsView: React.FC<MentorsViewProps> = ({ currentRole, onQueueCh
             Quản lý Mentor
           </h1>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-            Duyệt yêu cầu chuyển vai trò, duyệt tài khoản Mentor mới và xem danh sách Mentor
+            Duyệt yêu cầu chuyển vai trò và xem danh sách Mentor
             ({all.length} tài khoản
             {pending.length > 0 ? `, ${pending.length} tài khoản chờ duyệt` : ''}
             {requests.length > 0 ? `, ${requests.length} yêu cầu chuyển vai trò` : ''})
@@ -365,20 +365,19 @@ export const MentorsView: React.FC<MentorsViewProps> = ({ currentRole, onQueueCh
             )}
           </div>
 
-          {/* 2. Tài khoản Mentor mới, chưa được duyệt */}
-          <div className="space-y-2.5">
-            <h3 className="text-xs font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
-              <Clock className="w-4 h-4" />
-              <span>Tài khoản Mentor chờ duyệt ({pending.length})</span>
-            </h3>
-            {pending.length === 0 ? (
-              <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-6 text-center text-xs text-slate-400">
-                Không có tài khoản Mentor nào đang chờ duyệt.
-              </div>
-            ) : (
-              pending.map((u) => renderRow(u, true))
-            )}
-          </div>
+          {/* 2. Tài khoản chờ duyệt — chỉ hiện khi thực sự có.
+              Từ khi bỏ luật "tên miền quyết định vai trò", không tài khoản mới nào
+              sinh ra ở trạng thái chờ duyệt nữa, nên khối này thường rỗng; hiện một
+              ô trống vĩnh viễn chỉ làm rối. Vẫn giữ để xử lý được tài khoản cũ. */}
+          {pending.length > 0 && (
+            <div className="space-y-2.5">
+              <h3 className="text-xs font-extrabold text-amber-700 dark:text-amber-400 uppercase tracking-wider flex items-center gap-1.5">
+                <Clock className="w-4 h-4" />
+                <span>Tài khoản chờ duyệt ({pending.length})</span>
+              </h3>
+              {pending.map((u) => renderRow(u, true))}
+            </div>
+          )}
 
           {/* 3. Mentor đã duyệt */}
           <div className="space-y-2.5">

@@ -320,9 +320,12 @@ export interface ApiGoogleProfile {
   email: string;
   full_name: string;
   avatar_url?: string | null;
-  /** Vai trò sẽ được cấp, suy ra từ tên miền email (FE không chọn được). */
+  /**
+   * Vai trò sẽ được cấp (FE không chọn được). Hiện luôn là `INTERN`: muốn lên
+   * MENTOR thì gửi yêu cầu chuyển vai trò sau khi vào portal.
+   */
   assigned_role: ApiRole;
-  /** true = tài khoản tạo ra phải chờ Admin duyệt (tên miền của Mentor). */
+  /** true = tài khoản tạo ra phải chờ Admin duyệt. Luồng hiện tại luôn false. */
   needs_admin_approval: boolean;
 }
 
@@ -339,16 +342,82 @@ export interface ApiGoogleAuthResult {
   signup_ticket?: string | null;
 }
 
-/** Hồ sơ người dùng phải điền khi tạo tài khoản mới (email lấy từ signup_ticket). */
+/**
+ * Dữ liệu tạo tài khoản mới. **Chỉ cần họ tên** — email lấy từ `signup_ticket` đã
+ * ký, vai trò do server quyết định (luôn INTERN). Hồ sơ chi tiết (SĐT, trường,
+ * ngành, đơn vị) Mentor bổ sung sau qua `usersApi.updateProfile`.
+ */
 export interface GoogleSignupPayload {
   signup_ticket: string;
   full_name: string;
-  phone: string;
-  department: ApiDepartment;
-  /** Bắt buộc với Thực tập sinh, không cần với Mentor. */
-  university?: string;
-  major?: string;
-  github_url?: string;
+}
+
+// ---- Điểm thi thử Anthropic Mock Exam -------------------------------------
+
+/**
+ * Thang điểm chuẩn hoá của bài thi thử. PHẢI khớp `app/services/exam_service.py`
+ * bên backend — server là nơi tính điểm chính thức, hằng số ở đây chỉ để hiển thị
+ * (thanh tiến độ, màu đỗ/không đỗ) mà không phải chờ gọi API.
+ */
+export const EXAM_SCORE_MIN = 100;
+export const EXAM_SCORE_MAX = 1000;
+export const EXAM_PASSING_SCORE = 720;
+
+/** Quy đổi số câu đúng sang thang 100..1000 (cùng công thức với backend). */
+export function examScaledScore(correctCount: number, totalQuestions: number): number {
+  if (totalQuestions <= 0) return EXAM_SCORE_MIN;
+  const ratio = Math.min(1, Math.max(0, correctCount / totalQuestions));
+  return Math.round(EXAM_SCORE_MIN + ratio * (EXAM_SCORE_MAX - EXAM_SCORE_MIN));
+}
+
+/** Một lần làm bài ở chế độ thi. */
+export interface ApiExamAttempt {
+  id: number;
+  user_id: number;
+  exam_id: string;
+  exam_title: string;
+  exam_code?: string | null;
+  total_questions: number;
+  correct_count: number;
+  score: number;
+  passed: boolean;
+  duration_seconds?: number | null;
+  created_at: string;
+}
+
+/** Kết quả tốt nhất của một người ở một đề. */
+export interface ApiExamBest {
+  exam_id: string;
+  exam_title: string;
+  exam_code?: string | null;
+  best_score: number;
+  passed: boolean;
+  attempts: number;
+  last_taken_at: string;
+}
+
+/**
+ * Tổng hợp điểm của MỘT người. `avg_score` là trung bình điểm TỐT NHẤT của mỗi đề
+ * (làm lại nhiều lần không kéo trung bình xuống); `null` nếu chưa thi bài nào.
+ */
+export interface ApiExamSummary {
+  user_id: number;
+  full_name?: string | null;
+  email?: string | null;
+  avg_score?: number | null;
+  best_score?: number | null;
+  exams_taken: number;
+  exams_passed: number;
+  attempts_count: number;
+  per_exam: ApiExamBest[];
+}
+
+/** Tổng hợp cho Mentor/Admin: điểm trung bình toàn bộ Thực tập sinh. */
+export interface ApiExamOverview {
+  avg_score?: number | null;
+  interns_with_attempts: number;
+  interns_total: number;
+  interns: ApiExamSummary[];
 }
 
 // ---- Yêu cầu chuyển vai trò ----------------------------------------------
@@ -667,9 +736,8 @@ export const authApi = {
   },
 
   /**
-   * POST /auth/google/complete — Bước 2: tạo tài khoản từ hồ sơ vừa nhập.
-   * Vai trò do tên miền email quyết định (server tự suy ra, FE không gửi lên).
-   * Tài khoản Mentor tạo ra ở trạng thái chờ duyệt nên response KHÔNG có token.
+   * POST /auth/google/complete — Bước 2: tạo tài khoản (chỉ cần họ tên).
+   * Vai trò do server quyết định (luôn INTERN), FE không gửi lên.
    */
   async completeGoogleSignup(payload: GoogleSignupPayload): Promise<ApiGoogleAuthResult> {
     const data = await request<ApiGoogleAuthResult>('/auth/google/complete', {
@@ -840,6 +908,57 @@ export const roleRequestsApi = {
   /** PATCH /role-requests/{id}/reject — Từ chối, vai trò giữ nguyên. Quyền: ADMIN. */
   reject(id: number) {
     return request<ApiRoleRequest>(`/role-requests/${id}/reject`, { method: 'PATCH' });
+  },
+};
+
+// ============================================================================
+// 3c. Điểm thi thử Anthropic Mock Exam
+// ============================================================================
+
+export const examAttemptsApi = {
+  /**
+   * POST /exam-attempts — Nộp kết quả một lần thi ở **chế độ thi**.
+   * Không gửi `score`: server tự tính từ số câu đúng theo thang 100..1000.
+   */
+  submit(payload: {
+    exam_id: string;
+    exam_title: string;
+    exam_code?: string;
+    total_questions: number;
+    correct_count: number;
+    duration_seconds?: number;
+  }) {
+    return request<ApiExamAttempt>('/exam-attempts', { method: 'POST', body: payload });
+  },
+
+  /** GET /exam-attempts/me — Lịch sử làm bài của mình, mới nhất trước. */
+  mine(params?: { page?: number; size?: number }) {
+    return request<Paginated<ApiExamAttempt>>('/exam-attempts/me', { query: params });
+  },
+
+  /** GET /exam-attempts/me/summary — Điểm TB + điểm tốt nhất từng đề của mình. */
+  mySummary() {
+    return request<ApiExamSummary>('/exam-attempts/me/summary');
+  },
+
+  /**
+   * GET /exam-attempts/overview — Điểm TB toàn bộ Thực tập sinh + bảng điểm từng
+   * người. Quyền: MENTOR trở lên.
+   */
+  overview() {
+    return request<ApiExamOverview>('/exam-attempts/overview');
+  },
+
+  /** GET /users/{id}/exam-attempts — Lịch sử làm bài của một người. Quyền: MENTOR. */
+  forUser(userId: number, params?: { page?: number; size?: number }) {
+    return request<Paginated<ApiExamAttempt>>(`/users/${userId}/exam-attempts`, {
+      query: params,
+    });
+  },
+
+  /** GET /users/{id}/exam-attempts/summary — Điểm từng đề của một người. Quyền: MENTOR. */
+  summaryForUser(userId: number) {
+    return request<ApiExamSummary>(`/users/${userId}/exam-attempts/summary`);
   },
 };
 

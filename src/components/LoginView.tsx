@@ -312,7 +312,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-200">@edu.gimasys.com</p>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Thực tập sinh — dùng được portal ngay sau khi điền hồ sơ.
+                    Sinh viên thực tập — điền hồ sơ (có Trường, Ngành) là vào được ngay.
                   </p>
                 </div>
               </div>
@@ -322,16 +322,18 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 <div className="min-w-0">
                   <p className="text-xs font-bold text-slate-200">@gimasys.com</p>
                   <p className="text-[11px] text-slate-400 leading-relaxed">
-                    Mentor — tài khoản cần Quản trị viên duyệt trước khi vào được.
+                    Nhân viên Gimasys — cũng vào được ngay, không phải chờ duyệt.
                   </p>
                 </div>
               </div>
             </div>
 
             <p className="text-[11px] text-slate-500 leading-relaxed">
-              Gmail cá nhân hoặc email ngoài hai tên miền trên sẽ bị từ chối. Vai trò được
-              cấp theo tên miền email; sau khi vào portal bạn có thể gửi yêu cầu chuyển vai
-              trò trong mục <strong className="text-slate-400">Cài đặt</strong>.
+              Gmail cá nhân hoặc email ngoài hai tên miền trên sẽ bị từ chối. Mọi tài khoản
+              mới đều bắt đầu với vai trò <strong className="text-slate-400">Thực tập
+              sinh</strong>; nếu bạn là Mentor, vào portal rồi mở mục{' '}
+              <strong className="text-slate-400">Cài đặt</strong> để gửi yêu cầu chuyển vai
+              trò cho Quản trị viên duyệt.
             </p>
           </div>
 

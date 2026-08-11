@@ -21,6 +21,12 @@ import {
   Save
 } from 'lucide-react';
 import { AuthUser } from '../types';
+import {
+  tokenStore,
+  examAttemptsApi,
+  examScaledScore,
+  EXAM_PASSING_SCORE,
+} from '../services/api';
 
 // Import Claude Developer (dev)
 import dev1 from '../data/CF.tests/exams/exam_dev_1.json';
@@ -250,6 +256,8 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   // Paused states
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [savedSessions, setSavedSessions] = useState<Record<string, SavedSession>>({});
+  // Khác null = nộp bài xong nhưng không đẩy được kết quả lên server.
+  const [submitError, setSubmitError] = useState<string | null>(null);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
 
@@ -280,6 +288,24 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
         setSavedSessions({});
       }
     }
+  }, [currentUser]);
+
+  // Điểm thật lấy từ SERVER (`GET /exam-attempts/me/summary`) — nhờ vậy đổi máy vẫn
+  // thấy đúng điểm và Mentor xem được điểm của Thực tập sinh. localStorage ở trên chỉ
+  // còn là bộ đệm hiển thị tạm trong lúc chờ API / khi ngoại tuyến.
+  useEffect(() => {
+    if (!tokenStore.isAuthenticated()) return;
+    examAttemptsApi
+      .mySummary()
+      .then((summary) => {
+        const fromServer: Record<string, number> = {};
+        summary.per_exam.forEach((e) => {
+          fromServer[e.exam_id] = e.best_score;
+        });
+        // Gộp thay vì ghi đè: giữ lại điểm chỉ có cục bộ (bài nộp lúc mất mạng).
+        setBestScores((prev) => ({ ...prev, ...fromServer }));
+      })
+      .catch(() => {/* ngoại tuyến: dùng bộ đệm localStorage */});
   }, [currentUser]);
 
   // Timer countdown
@@ -409,7 +435,9 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       }
     });
 
-    const score = Math.round((correctCount / currentExam.questions.length) * 1000);
+    // Thang điểm chuẩn hoá 100..1000, đỗ >= 720. Công thức dùng chung với backend
+    // (examScaledScore trong services/api.ts) để hai bên không lệch nhau.
+    const score = examScaledScore(correctCount, currentExam.questions.length);
 
     // Only update best score in Exam Mode
     if (mode === 'exam') {
@@ -418,9 +446,30 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
         ...bestScores,
         [currentExam.id]: Math.max(bestScores[currentExam.id] || 0, score)
       };
-      
+
       setBestScores(newBestScores);
       localStorage.setItem(scoreKey, JSON.stringify(newBestScores));
+
+      // Gửi kết quả lên server để Mentor xem được và điểm không mất khi đổi máy.
+      // Server tự tính lại điểm từ số câu đúng nên client không "tự cho điểm".
+      if (tokenStore.isAuthenticated()) {
+        setSubmitError(null);
+        examAttemptsApi
+          .submit({
+            exam_id: currentExam.id,
+            exam_title: currentExam.title,
+            exam_code: currentExam.code,
+            total_questions: currentExam.questions.length,
+            correct_count: correctCount,
+            duration_seconds: Math.max(0, currentExam.duration * 60 - timeLeft),
+          })
+          .catch(() =>
+            // Không chặn màn kết quả: điểm vẫn hiện, chỉ cảnh báo là chưa đồng bộ.
+            setSubmitError(
+              'Không lưu được kết quả lên hệ thống (lỗi kết nối). Điểm này chỉ hiện trên máy bạn — Mentor sẽ không thấy.'
+            )
+          );
+      }
     }
 
     // Clear saved session on exam completion
@@ -496,7 +545,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EXAMS_DATA.filter(e => e.code === 'Claude Foundation').map((exam) => {
                 const bestScore = bestScores[exam.id];
-                const isPassed = bestScore >= 720;
+                const isPassed = bestScore >= EXAM_PASSING_SCORE;
                 const savedSession = savedSessions[exam.id];
 
                 return (
@@ -604,7 +653,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EXAMS_DATA.filter(e => e.code === 'Claude Developer').map((exam) => {
                 const bestScore = bestScores[exam.id];
-                const isPassed = bestScore >= 720;
+                const isPassed = bestScore >= EXAM_PASSING_SCORE;
                 const savedSession = savedSessions[exam.id];
 
                 return (
@@ -712,7 +761,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
               {EXAMS_DATA.filter(e => e.code === 'Claude Professional').map((exam) => {
                 const bestScore = bestScores[exam.id];
-                const isPassed = bestScore >= 720;
+                const isPassed = bestScore >= EXAM_PASSING_SCORE;
                 const savedSession = savedSessions[exam.id];
 
                 return (
@@ -1054,8 +1103,8 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       }
     });
 
-    const score = Math.round((correctCount / currentExam.questions.length) * 1000);
-    const isPassed = score >= 720;
+    const score = examScaledScore(correctCount, currentExam.questions.length);
+    const isPassed = score >= EXAM_PASSING_SCORE;
 
     return (
       <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12">
@@ -1079,9 +1128,18 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               <span>{isPassed ? 'ĐẠT (PASS)' : 'KHÔNG ĐẠT (FAIL)'}</span>
             </div>
             <p className="text-xs text-slate-500 dark:text-slate-400 leading-relaxed pt-2 font-medium">
-              Bạn làm chính xác <strong>{correctCount} / {currentExam.questions.length}</strong> câu hỏi. Điểm thi yêu cầu để đạt chứng chỉ là từ <strong>720 điểm</strong> trở lên.
+              Bạn làm chính xác <strong>{correctCount} / {currentExam.questions.length}</strong> câu hỏi. Thang điểm <strong>100 – 1000</strong>, cần từ <strong>{EXAM_PASSING_SCORE} điểm</strong> trở lên để đạt.
               {mode === 'practice' && <span className="block mt-1.5 text-blue-500 font-bold">Chế độ Luyện tập không ghi đè Điểm cao nhất trong hồ sơ thi thật.</span>}
             </p>
+
+            {/* Nộp bài xong nhưng chưa đẩy được lên server: phải nói rõ, nếu không
+                người dùng tưởng điểm đã được ghi nhận và Mentor sẽ thấy. */}
+            {submitError && (
+              <p className="text-[11px] font-bold text-amber-700 dark:text-amber-300 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2 text-left">
+                <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+                <span>{submitError}</span>
+              </p>
+            )}
           </div>
 
           {/* Result Options */}
