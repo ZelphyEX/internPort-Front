@@ -1014,17 +1014,27 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                 const isSelected = currentAnswers.includes(choice.key);
                 const isCorrect = currentQuestion.correct.includes(choice.key);
 
-                // Option styling depending on practice mode checked answers
+                // Style theo trạng thái. LUẬT: chỉ đổi MÀU, không đổi thứ gì ảnh
+                // hưởng tới bố cục.
+                //
+                // Bản cũ thêm `font-bold` khi chọn. Chữ đậm rộng hơn chữ thường nên
+                // cả đoạn văn bản dồn lại rồi xuống dòng khác đi — bấm một phát là
+                // đáp án dài ra/ngắn lại, cao lên/thấp xuống, các đáp án bên dưới bị
+                // đẩy theo. Rất khó theo dõi khi đang cân nhắc giữa các phương án.
+                //
+                // Độ đậm giờ cố định (`font-medium` ở className bên dưới). Dấu hiệu
+                // đã chọn: nền + viền + `ring` (ring vẽ đè, không chiếm chỗ nên không
+                // xê dịch gì) + ô vuông/tròn đã tô đậm ở bên phải.
                 let optionStyle = 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-700 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-slate-700/50';
                 if (isSelected) {
-                  optionStyle = 'bg-blue-50/70 dark:bg-blue-900/20 border-blue-500 text-blue-700 dark:text-blue-300 font-bold';
+                  optionStyle = 'bg-blue-50 dark:bg-blue-900/25 border-blue-500 text-blue-800 dark:text-blue-200 ring-1 ring-blue-500/40';
                 }
 
                 if (isAnswerChecked) {
                   if (isCorrect) {
-                    optionStyle = 'bg-green-50/50 dark:bg-green-950/20 border-green-500 text-green-700 dark:text-green-300 font-bold';
+                    optionStyle = 'bg-green-50 dark:bg-green-950/25 border-green-500 text-green-800 dark:text-green-200 ring-1 ring-green-500/40';
                   } else if (isSelected) {
-                    optionStyle = 'bg-red-50/50 dark:bg-red-950/20 border-red-500 text-red-700 dark:text-red-300 font-bold';
+                    optionStyle = 'bg-red-50 dark:bg-red-950/25 border-red-500 text-red-800 dark:text-red-200 ring-1 ring-red-500/40';
                   } else {
                     optionStyle = 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 dark:text-slate-500 opacity-60';
                   }
@@ -1035,10 +1045,19 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                     key={choice.key}
                     disabled={isAnswerChecked}
                     onClick={() => handleSelectOption(currentQuestion.number, choice.key, currentQuestion.multiSelect)}
-                    className={`w-full text-left px-5 py-4 rounded-2xl border text-xs sm:text-sm transition-all flex items-start justify-between gap-3 cursor-pointer disabled:cursor-not-allowed ${optionStyle}`}
+                    className={`w-full text-left px-5 py-4 rounded-2xl border text-xs sm:text-sm font-medium transition-colors flex items-start justify-between gap-3 cursor-pointer disabled:cursor-not-allowed ${optionStyle}`}
                   >
                     <div className="flex gap-2.5 items-start">
-                      <span className="font-extrabold text-blue-600 dark:text-blue-400 shrink-0">{choice.key}.</span>
+                      {/* Chữ cái A./B./C. lấy luôn màu của cả dòng khi dòng đã có
+                          màu trạng thái, để không còn cảnh chữ cái xanh dương nằm
+                          trên nền xanh lá / nền đã làm mờ. */}
+                      <span
+                        className={`font-extrabold shrink-0 ${
+                          isSelected || isAnswerChecked ? '' : 'text-blue-600 dark:text-blue-400'
+                        }`}
+                      >
+                        {choice.key}.
+                      </span>
                       <span className="leading-relaxed">{choice.text}</span>
                     </div>
                     <div className="pt-0.5">
@@ -1260,24 +1279,27 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                     const isOptionCorrect = correctAns.includes(choice.key);
                     const isOptionChosen = userAns.includes(choice.key);
                     
+                    // Cùng luật với danh sách lúc làm bài: chỉ đổi màu, độ đậm giữ
+                    // nguyên `font-medium` — nếu không, các dòng trong cùng một câu
+                    // sẽ dài ngắn khác nhau chỉ vì dòng đúng được in đậm.
                     let cardClass = 'border-slate-100 dark:border-slate-700 text-slate-600 dark:text-slate-400';
                     let bulletClass = 'border-slate-300 text-slate-400 dark:text-slate-600';
-                    
+
                     if (isOptionCorrect) {
-                      cardClass = 'bg-green-50/40 dark:bg-green-900/10 border-green-200 dark:border-green-800/30 text-green-700 dark:text-green-300 font-bold';
+                      cardClass = 'bg-green-50/40 dark:bg-green-900/10 border-green-200 dark:border-green-800/30 text-green-700 dark:text-green-300';
                       bulletClass = 'border-green-500 bg-green-500 text-white';
                     } else if (isOptionChosen) {
-                      cardClass = 'bg-red-50/40 dark:bg-red-950/10 border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300 font-bold';
+                      cardClass = 'bg-red-50/40 dark:bg-red-950/10 border-red-200 dark:border-red-900/30 text-red-700 dark:text-red-300';
                       bulletClass = 'border-red-500 bg-red-500 text-white';
                     }
 
                     return (
-                      <div 
-                        key={choice.key} 
-                        className={`px-4 py-3.5 rounded-xl border text-xs sm:text-sm flex items-start justify-between gap-3 ${cardClass}`}
+                      <div
+                        key={choice.key}
+                        className={`px-4 py-3.5 rounded-xl border text-xs sm:text-sm font-medium flex items-start justify-between gap-3 ${cardClass}`}
                       >
                         <div className="flex gap-2.5 items-start">
-                          <span className="font-extrabold text-slate-500 shrink-0">{choice.key}.</span>
+                          <span className="font-extrabold shrink-0">{choice.key}.</span>
                           <span className="leading-relaxed">{choice.text}</span>
                         </div>
                         <div className="pt-0.5">
