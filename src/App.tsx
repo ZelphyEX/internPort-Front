@@ -332,21 +332,32 @@ export default function App() {
       .catch(() => {/* không phải Admin (403) hoặc offline: bỏ qua badge */});
   }, []);
 
-  const reloadPendingMentorCount = React.useCallback(() => {
+  // Tải lại CẢ HAI danh sách người dùng, không chỉ con số badge.
+  //
+  // Admin giờ đổi được vai trò một tài khoản qua lại giữa Mentor và Thực tập sinh
+  // (`PATCH /users/{id}/role`). Đổi xong thì người đó phải biến mất khỏi danh sách
+  // cũ và hiện ra ở danh sách mới — nếu chỉ nạp lại mỗi con số thì trang Thực tập
+  // sinh vẫn còn tên người vừa lên Mentor cho tới lần tải trang sau.
+  const reloadUserLists = React.useCallback(() => {
     if (!tokenStore.isAuthenticated()) return;
     usersApi
+      .list({ size: 100, role: 'INTERN' })
+      .then((res) => setInterns(res.items.map(apiUserToIntern)))
+      .catch(() => {/* offline: giữ danh sách đang hiển thị */});
+    usersApi
       .list({ size: 100, role: 'MENTOR' })
-      .then((res) =>
-        setPendingMentorCount(res.items.filter((u) => u.status === 'PENDING').length)
-      )
+      .then((res) => {
+        setMentors(res.items.filter((u) => u.status === 'ACTIVE').map(apiUserToAuthUser));
+        setPendingMentorCount(res.items.filter((u) => u.status === 'PENDING').length);
+      })
       .catch(() => {/* offline: giữ số đang hiển thị */});
   }, []);
 
-  // Gọi sau khi Admin duyệt/từ chối ở tab Mentor để badge khớp lại ngay.
+  // Gọi sau khi Admin duyệt/từ chối/đổi vai trò ở tab Mentor để mọi thứ khớp lại ngay.
   const reloadAdminQueues = React.useCallback(() => {
-    reloadPendingMentorCount();
+    reloadUserLists();
     reloadRoleRequestCount();
-  }, [reloadPendingMentorCount, reloadRoleRequestCount]);
+  }, [reloadUserLists, reloadRoleRequestCount]);
 
   const [projects, setProjects] = useState<Project[]>(() => {
     const saved = localStorage.getItem('gimasys_projects');

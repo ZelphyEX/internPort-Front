@@ -885,6 +885,19 @@ export const usersApi = {
     return request<ApiUser>(`/users/${id}/profile`, { method: 'PATCH', body: payload });
   },
 
+  /**
+   * PATCH /users/{id}/role — Đổi vai trò một tài khoản: INTERN <-> MENTOR. Quyền: ADMIN.
+   *
+   * Đây là đường Admin tự tay đặt vai trò cho người khác, khác `roleRequestsApi`
+   * (người dùng tự xin rồi Admin duyệt). Yêu cầu chuyển vai trò đang chờ của người
+   * đó (nếu có) được server đóng luôn, nên hàng đợi không kẹt lại bản ghi cũ.
+   *
+   * 400 nếu đổi vai trò chính mình / đích đã mang vai trò đó; 403 nếu đích là ADMIN.
+   */
+  setRole(id: number, role: 'INTERN' | 'MENTOR') {
+    return request<ApiUser>(`/users/${id}/role`, { method: 'PATCH', body: { role } });
+  },
+
   /** PATCH /users/{id}/lock — Khóa tài khoản. Quyền: MENTOR. */
   lock(id: number) {
     return request<ApiUser>(`/users/${id}/lock`, { method: 'PATCH' });
