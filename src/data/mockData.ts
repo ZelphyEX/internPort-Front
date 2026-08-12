@@ -424,7 +424,7 @@ export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {
     id: 'DOC-CCAF-01',
     title: 'Bộ Giáo Trình Đào Tạo Chứng Chỉ CCA-F (Cloud Certified Associate - Foundation) 2025',
-    category: 'CCA-F Certificate',
+    categories: ['CCA-F Certificate'],
     author: 'Gimasys Cloud Academy & Google Cloud Mentors',
     updatedAt: '2025-02-20',
     fileType: 'PDF',
@@ -436,7 +436,7 @@ export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {
     id: 'DOC-CCAF-02',
     title: 'Bộ 150 Câu Hỏi Ôn Luyện & Đề Thi Mẫu Mock Exam CCA-F (Kèm Đáp Án Chi Tiết)',
-    category: 'CCA-F Certificate',
+    categories: ['CCA-F Certificate'],
     author: 'Chuyên gia Đào tạo Gimasys',
     updatedAt: '2025-03-01',
     fileType: 'PDF',
@@ -448,7 +448,7 @@ export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {
     id: 'DOC-CCAF-03',
     title: 'Sổ Tay Hướng Dẫn Thực Hành Qwiklabs Hands-on Labs Cho Học Viên CCA-F',
-    category: 'CCA-F Certificate',
+    categories: ['CCA-F Certificate'],
     author: 'Trần Tuấn Anh - Technical Lead',
     updatedAt: '2025-03-05',
     fileType: 'DOCX',
@@ -460,7 +460,7 @@ export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {
     id: 'DOC-01',
     title: 'Quy chuẩn Viết Code & Git Workflow Gimasys 2025',
-    category: 'Coding Standard',
+    categories: ['Coding Standard'],
     author: 'Trần Tuấn Anh - Technical Board',
     updatedAt: '2025-01-10',
     fileType: 'PDF',
@@ -472,7 +472,7 @@ export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {
     id: 'DOC-02',
     title: 'Sổ tay Thực tập sinh Gimasys & Quy trình Onboarding',
-    category: 'Onboarding',
+    categories: ['Onboarding'],
     author: 'Phạm Thu Trang - HR Department',
     updatedAt: '2025-01-02',
     fileType: 'SLIDE',
@@ -484,7 +484,7 @@ export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {
     id: 'DOC-03',
     title: 'Tài liệu Thiết kế Kiến trúc Enterprise Spring Boot Microservices',
-    category: 'Architecture',
+    categories: ['Architecture'],
     author: 'Nguyễn Minh Tuấn - Chief Architect',
     updatedAt: '2025-02-14',
     fileType: 'DOCX',
@@ -496,7 +496,7 @@ export const DOCUMENT_RESOURCES: DocumentResource[] = [
   {
     id: 'DOC-04',
     title: 'Template Slide Báo cáo Bảo vệ Thực tập Gimasys',
-    category: 'Template',
+    categories: ['Template'],
     author: 'Training Committee',
     updatedAt: '2025-02-28',
     fileType: 'SLIDE',

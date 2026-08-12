@@ -497,10 +497,10 @@ export interface ApiDocument {
   content_url: string;
   type: ApiDocType;
   /**
-   * Metadata Thư viện Tài liệu — backend lưu thật từ migration a92f4c17be60.
-   * `null` với tài liệu tạo trước đó; mapper sẽ suy ngược từ `type`.
+   * Metadata Thư viện Tài liệu — backend lưu thật từ migration a92f4c17be60,
+   * đổi sang mảng (một tài liệu nhiều danh mục) ở c5165ac2fbcd.
    */
-  category?: string | null;
+  categories: string[];
   /** Định dạng thật: PDF | DOCX | SLIDE | MD (`type` chỉ có 4 giá trị, không đủ). */
   file_type?: string | null;
   file_size_bytes?: number | null;
@@ -1095,8 +1095,8 @@ export const documentsApi = {
     description: string;
     content_url: string;
     type: ApiDocType;
-    /** Danh mục Thư viện — PHẢI gửi, nếu không tải lại trang là mất. */
-    category?: string;
+    /** Danh mục Thư viện (0 hoặc nhiều) — PHẢI gửi, nếu không tải lại trang là mất. */
+    categories?: string[];
     /** Định dạng thật (PDF/DOCX/SLIDE/MD) — `type` không biểu diễn đủ. */
     file_type?: string;
     file_size_bytes?: number;
@@ -1120,7 +1120,8 @@ export const documentsApi = {
       description: string;
       content_url: string;
       type: ApiDocType;
-      category: string;
+      /** Gửi mảng (kể cả []) để gán lại toàn bộ danh mục của tài liệu. */
+      categories: string[];
       file_type: string;
       file_size_bytes: number;
       tag_ids: number[];

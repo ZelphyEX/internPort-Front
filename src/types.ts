@@ -93,10 +93,25 @@ export interface DailyReport {
   createdAt: string;
 }
 
+/** Tên một danh mục Thư viện Tài liệu — danh sách đầy đủ ở `DOC_CATEGORIES`
+ * trong `KnowledgeBaseView.tsx`. `| string` để không chặn dữ liệu cũ/lạ từ
+ * server (danh mục là chuỗi tự do, không phải enum). */
+export type DocumentCategory =
+  | 'Coding Standard'
+  | 'Onboarding'
+  | 'Architecture'
+  | 'Template'
+  | 'AI'
+  | 'API Docs'
+  | 'CCA-F Certificate'
+  | 'CCDV-F Certificate'
+  | string;
+
 export interface DocumentResource {
   id: string;
   title: string;
-  category: 'Coding Standard' | 'Onboarding' | 'Architecture' | 'Template' | 'AI' | 'API Docs' | 'CCA-F Certificate' | 'CCDV-F Certificate' | string;
+  /** Một tài liệu thuộc được NHIỀU danh mục cùng lúc — mảng rỗng = chưa gán. */
+  categories: DocumentCategory[];
   author: string;
   updatedAt: string;
   /** Suy ra từ đuôi file lúc tải lên, không cho người dùng tự chọn. */

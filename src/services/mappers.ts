@@ -112,9 +112,10 @@ const FE_FILETYPES: DocumentResource['fileType'][] = ['PDF', 'DOCX', 'SLIDE', 'M
 /**
  * ApiDocument (server) -> DocumentResource (frontend).
  *
- * Backend giờ lưu thẳng `category` / `file_type` / `file_size_bytes` (migration
- * a92f4c17be60). Trước đây ba thứ này không được lưu ở đâu cả:
- *   * `category` lấy tạm từ tag đầu tiên, không có tag thì rơi về "API Docs" —
+ * Backend giờ lưu thẳng `categories` / `file_type` / `file_size_bytes` (migration
+ * a92f4c17be60, `categories` đổi sang mảng ở c5165ac2fbcd). Trước đây ba thứ này
+ * không được lưu ở đâu cả:
+ *   * danh mục lấy tạm từ tag đầu tiên, không có tag thì rơi về "API Docs" —
  *     nên tải lại trang là mọi tài liệu đều thành "API Docs";
  *   * `fileType` suy từ `type` (chỉ 4 giá trị) nên DOCX và MD lẫn vào nhau;
  *   * `fileSize` luôn hiện "—".
@@ -126,7 +127,7 @@ export function apiDocumentToResource(d: ApiDocument): DocumentResource {
   return {
     id: String(d.id),
     title: d.title || '',
-    category: d.category || 'Onboarding',
+    categories: d.categories || [],
     author: 'Gimasys',
     updatedAt: d.created_at,
     fileType: FE_FILETYPES.includes(storedFileType)

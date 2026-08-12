@@ -736,7 +736,7 @@ export default function App() {
           type: feFileTypeToApiType(newDoc.fileType),
           // Trước đây bốn field dưới đây KHÔNG được gửi, nên tải lại trang là mất
           // danh mục (rơi về "API Docs"), mất dung lượng, và DOCX/MD lẫn vào nhau.
-          category: newDoc.category,
+          categories: newDoc.categories,
           file_type: newDoc.fileType,
           file_size_bytes: newDoc.fileSizeBytes,
           tag_names: newDoc.tags,
@@ -768,7 +768,7 @@ export default function App() {
       await documentsApi.update(Number(docId), {
         ...(patch.title !== undefined ? { title: patch.title } : {}),
         ...(patch.description !== undefined ? { description: patch.description } : {}),
-        ...(patch.category !== undefined ? { category: patch.category } : {}),
+        ...(patch.categories !== undefined ? { categories: patch.categories } : {}),
         ...(patch.tags !== undefined ? { tag_names: patch.tags } : {}),
         // Ba field dưới chỉ có khi người dùng chọn file mới.
         ...(patch.contentUrl !== undefined ? { content_url: patch.contentUrl } : {}),

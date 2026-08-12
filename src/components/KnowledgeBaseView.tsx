@@ -16,7 +16,7 @@ import {
   UploadCloud,
   Loader2
 } from 'lucide-react';
-import { DocumentResource, UserRole } from '../types';
+import { DocumentCategory, DocumentResource, UserRole } from '../types';
 import { canManageContent } from '../services/permissions';
 import { documentsApi, tokenStore, ApiError } from '../services/api';
 // Dùng chung với mapper để chuỗi dung lượng lúc tải lên và lúc đọc lại từ server
@@ -56,7 +56,9 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
   const [isAddingDoc, setIsAddingDoc] = useState(false);
   const [editingDocId, setEditingDocId] = useState<string | null>(null);
   const [newDocTitle, setNewDocTitle] = useState('');
-  const [newDocCategory, setNewDocCategory] = useState<DocumentResource['category']>('Onboarding');
+  // Một tài liệu gán được NHIỀU danh mục — mảng rỗng hợp lệ (chưa phân loại),
+  // khác với trước đây luôn ép về 'Onboarding' khi chưa chọn gì.
+  const [newDocCategories, setNewDocCategories] = useState<DocumentCategory[]>([]);
   const [newDocAuthor, setNewDocAuthor] = useState('');
   const [newDocDescription, setNewDocDescription] = useState('');
   const [newDocTags, setNewDocTags] = useState('');
@@ -80,7 +82,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
     setIsAddingDoc(false);
     setEditingDocId(null);
     setNewDocTitle('');
-    setNewDocCategory('Onboarding');
+    setNewDocCategories([]);
     setNewDocAuthor('');
     setNewDocDescription('');
     setNewDocTags('');
@@ -97,7 +99,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
     setEditingDocId(doc.id);
     setIsAddingDoc(true);
     setNewDocTitle(doc.title);
-    setNewDocCategory(doc.category);
+    setNewDocCategories(doc.categories);
     setNewDocAuthor(doc.author);
     setNewDocDescription(doc.description);
     setNewDocTags(doc.tags.join(', '));
@@ -156,7 +158,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
 
       const common = {
         title: newDocTitle.trim(),
-        category: newDocCategory,
+        categories: newDocCategories,
         author: newDocAuthor.trim() || 'Gimasys Team',
         description: newDocDescription.trim() || 'Tài liệu nội bộ Gimasys.',
         tags: parsedTags(),
@@ -201,7 +203,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
 
   // Nguồn duy nhất cho cả thanh lọc và ô chọn danh mục lúc tải lên — thêm/bớt ở đây
   // là cả hai chỗ đổi theo, không còn lệch nhau.
-  const DOC_CATEGORIES: DocumentResource['category'][] = [
+  const DOC_CATEGORIES: DocumentCategory[] = [
     'CCA-F Certificate',
     'CCDV-F Certificate',
     'Coding Standard',
@@ -213,7 +215,9 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
   const categories = ['ALL', ...DOC_CATEGORIES];
 
   const filteredDocs = documents.filter((doc) => {
-    const matchesCategory = selectedCategory === 'ALL' || doc.category === selectedCategory;
+    // Tab lọc vẫn chọn MỘT danh mục tại một thời điểm (thu hẹp danh sách xem),
+    // nhưng khớp nếu tài liệu có danh mục đó TRONG SỐ nhiều danh mục đã gán.
+    const matchesCategory = selectedCategory === 'ALL' || doc.categories.includes(selectedCategory);
     const matchesSearch = 
       !searchTerm ||
       doc.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -304,17 +308,46 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
               />
             </div>
 
-            <div>
-              <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">Danh Mục</label>
-              <select
-                value={newDocCategory}
-                onChange={(e) => setNewDocCategory(e.target.value as DocumentResource['category'])}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 rounded-xl focus:ring-2 focus:ring-blue-500 text-slate-900 dark:text-slate-100"
-              >
-                {DOC_CATEGORIES.map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+            {/* Chọn nhiều danh mục — cùng kiểu giao diện với ô "Thêm thực tập
+                sinh vào nhóm" (GroupSelectionView): danh sách checkbox, dòng
+                đã chọn tô nền/viền xanh dương thay vì chỉ tích ô vuông, để
+                nhìn lướt cũng biết ngay đã chọn những gì. */}
+            <div className="md:col-span-2">
+              <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">
+                Danh Mục {newDocCategories.length > 0 && `(${newDocCategories.length} đã chọn)`}
+              </label>
+              <div className="max-h-40 overflow-y-auto space-y-1 pr-1 border border-blue-300 dark:border-blue-800 rounded-xl p-2 bg-white dark:bg-slate-900">
+                {DOC_CATEGORIES.map((c) => {
+                  const picked = newDocCategories.includes(c);
+                  return (
+                    <label
+                      key={c}
+                      className={`flex items-center gap-2.5 px-3 py-2 rounded-xl border cursor-pointer transition-colors ${
+                        picked
+                          ? 'bg-blue-600/10 dark:bg-blue-600/20 border-blue-500'
+                          : 'bg-slate-50 dark:bg-slate-800 border-slate-200 dark:border-slate-700 hover:border-slate-300 dark:hover:border-slate-600'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={picked}
+                        onChange={() =>
+                          setNewDocCategories((prev) =>
+                            prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]
+                          )
+                        }
+                        className="accent-blue-600"
+                      />
+                      <span className="text-xs font-bold text-slate-800 dark:text-slate-100">{c}</span>
+                    </label>
+                  );
+                })}
+              </div>
+              {newDocCategories.length === 0 && (
+                <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
+                  Chưa chọn danh mục nào — tài liệu sẽ không hiện trong bộ lọc theo danh mục.
+                </p>
+              )}
             </div>
 
             {/* Chọn file: định dạng & dung lượng suy ra từ chính file, không nhập tay */}
@@ -481,7 +514,12 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
                 <span className={`text-[10px] font-bold px-2 py-0.5 rounded-full border ${getFileTypeBadge(doc.fileType)}`}>
                   {doc.fileType} • {doc.fileSize}
                 </span>
-                <span className="text-[11px] font-bold text-slate-400">{doc.category}</span>
+                <span
+                  className="text-[11px] font-bold text-slate-400 truncate max-w-[50%]"
+                  title={doc.categories.join(', ')}
+                >
+                  {doc.categories.length > 0 ? doc.categories.join(', ') : 'Chưa phân loại'}
+                </span>
               </div>
 
               <h3 className="font-extrabold text-slate-900 dark:text-slate-100 text-base leading-snug">{doc.title}</h3>
@@ -545,7 +583,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
             <div className="space-y-3 text-xs text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-900 p-4 rounded-xl border border-slate-200 dark:border-slate-700">
               <p><strong>Định dạng file:</strong> {previewDoc.fileType} ({previewDoc.fileSize})</p>
               <p><strong>Tác giả:</strong> {previewDoc.author}</p>
-              <p><strong>Danh mục:</strong> {previewDoc.category}</p>
+              <p><strong>Danh mục:</strong> {previewDoc.categories.length > 0 ? previewDoc.categories.join(', ') : 'Chưa phân loại'}</p>
               <p><strong>Mô tả chi tiết:</strong> {previewDoc.description}</p>
             </div>
 
