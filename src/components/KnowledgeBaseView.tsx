@@ -203,6 +203,7 @@ export const KnowledgeBaseView: React.FC<KnowledgeBaseViewProps> = ({ documents,
   // là cả hai chỗ đổi theo, không còn lệch nhau.
   const DOC_CATEGORIES: DocumentResource['category'][] = [
     'CCA-F Certificate',
+    'CCDV-F Certificate',
     'Coding Standard',
     'Onboarding',
     'Architecture',

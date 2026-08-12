@@ -96,7 +96,7 @@ export interface DailyReport {
 export interface DocumentResource {
   id: string;
   title: string;
-  category: 'Coding Standard' | 'Onboarding' | 'Architecture' | 'Template' | 'AI' | 'API Docs' | 'CCA-F Certificate' | string;
+  category: 'Coding Standard' | 'Onboarding' | 'Architecture' | 'Template' | 'AI' | 'API Docs' | 'CCA-F Certificate' | 'CCDV-F Certificate' | string;
   author: string;
   updatedAt: string;
   /** Suy ra từ đuôi file lúc tải lên, không cho người dùng tự chọn. */
