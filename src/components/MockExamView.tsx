@@ -22,6 +22,7 @@ import {
   History,
   LayoutGrid,
   X,
+  Flag,
 } from 'lucide-react';
 import { AuthUser } from '../types';
 import {
@@ -139,6 +140,8 @@ interface SavedSession {
   currentQuestionIndex: number;
   selectedAnswers: Record<number, string[]>;
   checkedQuestions: Record<number, boolean>;
+  /** Câu đánh dấu để xem lại — người dùng tự đặt, không liên quan đúng/sai. */
+  flaggedQuestions: Record<number, boolean>;
   timeLeft: number;
   date: string;
 }
@@ -213,6 +216,106 @@ const ScenarioQuestionBlock: React.FC<{ question: Question; compact?: boolean }>
     </div>
   );
 };
+
+type QuestionNavStatus = 'unanswered' | 'answered' | 'correct' | 'incorrect';
+
+/**
+ * Trạng thái của một câu để tô màu trong bảng điều hướng. "correct"/"incorrect"
+ * chỉ có ý nghĩa ở chế độ luyện tập (đã bấm Check đáp án) — Thi thật không cho
+ * biết đúng/sai giữa chừng nên chỉ dừng ở "answered".
+ */
+function getQuestionNavStatus(
+  q: Question,
+  selectedAnswers: Record<number, string[]>,
+  checkedQuestions: Record<number, boolean>,
+  mode: 'practice' | 'exam'
+): QuestionNavStatus {
+  const userAns = selectedAnswers[q.number] || [];
+  const isChecked = mode === 'practice' && !!checkedQuestions[q.number];
+  if (isChecked) {
+    const correctAns = q.correct || [];
+    const isCorrect =
+      userAns.length === correctAns.length && userAns.every((v) => correctAns.includes(v));
+    return isCorrect ? 'correct' : 'incorrect';
+  }
+  return userAns.length > 0 ? 'answered' : 'unanswered';
+}
+
+const QUESTION_NAV_STYLE: Record<QuestionNavStatus, string> = {
+  unanswered:
+    'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400',
+  answered:
+    'bg-blue-50 dark:bg-blue-950/30 border-blue-400 dark:border-blue-700 text-blue-700 dark:text-blue-300',
+  correct:
+    'bg-green-50 dark:bg-green-950/30 border-green-400 dark:border-green-700 text-green-700 dark:text-green-300',
+  incorrect:
+    'bg-red-50 dark:bg-red-950/30 border-red-400 dark:border-red-700 text-red-700 dark:text-red-300',
+};
+
+/**
+ * Danh sách 1 cột các câu hỏi để nhảy tới câu bất kỳ + đánh dấu xem lại — dùng
+ * chung cho cả sidebar cố định bên phải (desktop) lẫn bảng xổ xuống (mobile, màn
+ * hẹp không đủ chỗ cho sidebar). Câu đang xem có viền xanh nổi bật ("sáng lên").
+ */
+const QuestionNavList: React.FC<{
+  questions: Question[];
+  currentIndex: number;
+  selectedAnswers: Record<number, string[]>;
+  checkedQuestions: Record<number, boolean>;
+  flaggedQuestions: Record<number, boolean>;
+  mode: 'practice' | 'exam';
+  onJump: (index: number) => void;
+  onToggleFlag: (questionNumber: number) => void;
+}> = ({
+  questions,
+  currentIndex,
+  selectedAnswers,
+  checkedQuestions,
+  flaggedQuestions,
+  mode,
+  onJump,
+  onToggleFlag,
+}) => (
+  <div className="space-y-1.5">
+    {questions.map((q, idx) => {
+      const status = getQuestionNavStatus(q, selectedAnswers, checkedQuestions, mode);
+      const flagged = !!flaggedQuestions[q.number];
+      const isCurrent = idx === currentIndex;
+
+      return (
+        <div
+          key={q.number}
+          className={`flex items-center gap-1 rounded-xl border pl-1 pr-1.5 py-1 transition-colors ${
+            QUESTION_NAV_STYLE[status]
+          } ${
+            isCurrent
+              ? 'ring-2 ring-blue-600 ring-offset-1 ring-offset-white dark:ring-offset-slate-800'
+              : ''
+          }`}
+        >
+          <button
+            type="button"
+            onClick={() => onJump(idx)}
+            className="flex-1 flex items-center gap-2 text-left cursor-pointer py-0.5 min-w-0"
+          >
+            <span className="w-5 h-5 rounded-lg bg-black/5 dark:bg-white/10 flex items-center justify-center text-[10px] font-black shrink-0">
+              {idx + 1}
+            </span>
+            <span className="text-[10px] font-bold truncate">Câu {idx + 1}</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => onToggleFlag(q.number)}
+            title={flagged ? 'Bỏ đánh dấu xem lại' : 'Đánh dấu để xem lại sau'}
+            className="shrink-0 p-1 rounded-lg hover:bg-black/10 dark:hover:bg-white/10 cursor-pointer"
+          >
+            <Flag className={`w-3.5 h-3.5 ${flagged ? 'fill-amber-500 text-amber-500' : 'text-current opacity-30'}`} />
+          </button>
+        </div>
+      );
+    })}
+  </div>
+);
 
 const EXAMS_DATA: Exam[] = [
   // Claude Developer
@@ -380,7 +483,9 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   const [mode, setMode] = useState<'practice' | 'exam'>('practice');
   const [showInstantExplanation, setShowInstantExplanation] = useState<boolean>(false);
   const [checkedQuestions, setCheckedQuestions] = useState<Record<number, boolean>>({});
-  
+  // Câu đánh dấu xem lại — độc lập với đã làm/đã check, áp dụng cho cả hai chế độ.
+  const [flaggedQuestions, setFlaggedQuestions] = useState<Record<number, boolean>>({});
+
   // Paused states
   const [isPaused, setIsPaused] = useState<boolean>(false);
   const [savedSessions, setSavedSessions] = useState<Record<string, SavedSession>>({});
@@ -484,6 +589,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     setCurrentQuestionIndex(0);
     setSelectedAnswers({});
     setCheckedQuestions({});
+    setFlaggedQuestions({});
     setShowInstantExplanation(false);
     setTimeLeft(exam.duration * 60);
     setIsPaused(false);
@@ -496,6 +602,8 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     setCurrentQuestionIndex(session.currentQuestionIndex);
     setSelectedAnswers(session.selectedAnswers);
     setCheckedQuestions(session.checkedQuestions);
+    // `|| {}`: phiên lưu từ trước khi có tính năng đánh dấu sẽ không có field này.
+    setFlaggedQuestions(session.flaggedQuestions || {});
     setTimeLeft(session.timeLeft);
     setIsPaused(false);
     setShowInstantExplanation(false);
@@ -503,9 +611,10 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   };
 
   /**
-   * Ghi tiến độ hiện tại (câu đang ở, đã chọn gì, đã check đáp án chưa, còn bao
-   * nhiêu thời gian) xuống localStorage. Tách riêng khỏi `handleSaveAndExit` để
-   * effect tự lưu bên dưới dùng lại được, không copy 2 lần cùng một logic.
+   * Ghi tiến độ hiện tại (câu đang ở, đã chọn gì, đã check đáp án chưa, đã đánh
+   * dấu câu nào, còn bao nhiêu thời gian) xuống localStorage. Tách riêng khỏi
+   * `handleSaveAndExit` để effect tự lưu bên dưới dùng lại được, không copy 2 lần
+   * cùng một logic.
    *
    * Đọc `timeLeftRef.current` thay vì `timeLeft` trực tiếp: hàm này đổi danh tính
    * (identity) mỗi khi một trong các state phụ thuộc đổi — nếu `timeLeft` cũng nằm
@@ -520,6 +629,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       currentQuestionIndex,
       selectedAnswers,
       checkedQuestions,
+      flaggedQuestions,
       timeLeft: timeLeftRef.current,
       date: new Date().toISOString(),
     };
@@ -529,7 +639,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       localStorage.setItem(sessionKey, JSON.stringify(next));
       return next;
     });
-  }, [currentExam, sessionKey, mode, currentQuestionIndex, selectedAnswers, checkedQuestions]);
+  }, [currentExam, sessionKey, mode, currentQuestionIndex, selectedAnswers, checkedQuestions, flaggedQuestions]);
 
   // Tự động lưu tiến độ mỗi khi có gì đổi trong lúc đang làm bài — KHÔNG chờ người
   // dùng bấm "Lưu & Thoát" nữa.
@@ -586,6 +696,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       [questionId]: true
     }));
     setShowInstantExplanation(true);
+  };
+
+  // Đánh dấu câu để xem lại sau — không liên quan đúng/sai, chỉ là ghi chú riêng
+  // của người làm bài. Áp dụng cho cả Luyện tập lẫn Thi thật.
+  const toggleFlag = (questionId: number) => {
+    setFlaggedQuestions((prev) => ({ ...prev, [questionId]: !prev[questionId] }));
   };
 
   const handleAutoSubmit = () => {
@@ -1074,9 +1190,11 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     const isAnswerChecked = mode === 'practice' && checkedQuestions[currentQuestion.number];
 
     return (
-      <div className="max-w-3xl mx-auto space-y-6 animate-fadeIn pb-12 relative">
-        
-        {/* Timed test pause overlay */}
+      <div className="max-w-6xl mx-auto pb-12 relative animate-fadeIn">
+
+        {/* Timed test pause overlay — che cả cột chính lẫn sidebar câu hỏi bên
+            phải, vì tạm dừng nghĩa là ẩn HẾT nội dung đề, không riêng gì câu
+            đang xem. */}
         {isPaused && (
           <div className="absolute inset-0 bg-slate-900/95 dark:bg-slate-950/98 backdrop-blur-md rounded-3xl flex flex-col items-center justify-center p-6 text-center z-50 space-y-4 min-h-[400px]">
             <div className="w-16 h-16 bg-blue-500/20 text-blue-400 rounded-full flex items-center justify-center border border-blue-500/30">
@@ -1096,6 +1214,11 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
           </div>
         )}
 
+        {/* Cột chính (trái) + sidebar chọn câu (phải, cố định — chỉ đủ chỗ từ
+            màn hình lớn trở lên). Màn hẹp dùng bảng xổ xuống ở dưới thay thế. */}
+        <div className="lg:grid lg:grid-cols-[1fr_260px] lg:items-start gap-6">
+        <div className="space-y-6 min-w-0">
+
         {/* Status Bar */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
           {/* Nhóm nút quản lý phiên làm bài. Tiến độ giờ TỰ ĐỘNG lưu liên tục (xem
@@ -1112,9 +1235,11 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               <span className="hidden sm:inline">Lưu & Thoát</span>
             </button>
 
+            {/* Chỉ hiện ở màn hẹp — từ `lg` trở lên đã có sidebar câu hỏi cố định
+                bên phải rồi, hiện thêm nút này nữa là thừa. */}
             <button
               onClick={() => setShowQuestionNav((s) => !s)}
-              className={`px-3 py-1.5 border font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
+              className={`lg:hidden px-3 py-1.5 border font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
                 showQuestionNav
                   ? 'bg-blue-600 border-blue-600 text-white'
                   : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
@@ -1168,13 +1293,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
           </div>
         </div>
 
-        {/* Bảng chọn nhanh câu hỏi — nhảy tới câu bất kỳ thay vì chỉ Tiếp tục/Quay
-            lại tuần tự. Màu sắc: xanh dương = đang xem, xanh lá/đỏ = đã check đáp
-            án đúng/sai (chỉ có ý nghĩa ở chế độ luyện tập), viền xanh = đã chọn đáp
-            án nhưng chưa check, trắng = chưa động vào. */}
+        {/* Bảng chọn câu — bản màn hẹp, xổ ra/thu vào bằng nút "Danh sách câu
+            hỏi". Từ `lg` trở lên đã có sidebar cố định bên phải (xem cuối khối
+            lg:grid) nên khối này tự ẩn qua nút bấm ở trên (lg:hidden). */}
         {showQuestionNav && (
-          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 space-y-3 animate-fadeIn">
-            <div className="flex items-center justify-between">
+          <div className="lg:hidden bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 space-y-3 animate-fadeIn max-h-[60vh] overflow-y-auto">
+            <div className="flex items-center justify-between sticky top-0 bg-white dark:bg-slate-800 pb-1 -mt-1 pt-1">
               <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
                 Chọn câu để làm ({totalQuestions} câu)
               </span>
@@ -1185,52 +1309,20 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                 <X className="w-4 h-4" />
               </button>
             </div>
-            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
-              {currentExam.questions.map((q, idx) => {
-                const answered = (selectedAnswers[q.number] || []).length > 0;
-                const checked = mode === 'practice' && checkedQuestions[q.number];
-                const isCorrectAnswer =
-                  checked &&
-                  (() => {
-                    const userAns = selectedAnswers[q.number] || [];
-                    const correctAns = q.correct || [];
-                    return (
-                      userAns.length === correctAns.length &&
-                      userAns.every((v) => correctAns.includes(v))
-                    );
-                  })();
-
-                let cellStyle =
-                  'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-400';
-                if (answered) {
-                  cellStyle =
-                    'bg-blue-50 dark:bg-blue-950/30 border-blue-400 dark:border-blue-700 text-blue-700 dark:text-blue-300';
-                }
-                if (checked) {
-                  cellStyle = isCorrectAnswer
-                    ? 'bg-green-50 dark:bg-green-950/30 border-green-400 dark:border-green-700 text-green-700 dark:text-green-300'
-                    : 'bg-red-50 dark:bg-red-950/30 border-red-400 dark:border-red-700 text-red-700 dark:text-red-300';
-                }
-                if (idx === currentQuestionIndex) {
-                  cellStyle += ' ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800 ring-blue-600';
-                }
-
-                return (
-                  <button
-                    key={q.number}
-                    onClick={() => {
-                      setCurrentQuestionIndex(idx);
-                      setShowInstantExplanation(false);
-                      setShowQuestionNav(false);
-                    }}
-                    className={`aspect-square rounded-xl border text-xs font-bold flex items-center justify-center transition-colors cursor-pointer ${cellStyle}`}
-                    title={`Câu ${idx + 1}${answered ? ' — đã chọn đáp án' : ' — chưa làm'}`}
-                  >
-                    {idx + 1}
-                  </button>
-                );
-              })}
-            </div>
+            <QuestionNavList
+              questions={currentExam.questions}
+              currentIndex={currentQuestionIndex}
+              selectedAnswers={selectedAnswers}
+              checkedQuestions={checkedQuestions}
+              flaggedQuestions={flaggedQuestions}
+              mode={mode}
+              onJump={(idx) => {
+                setCurrentQuestionIndex(idx);
+                setShowInstantExplanation(false);
+                setShowQuestionNav(false);
+              }}
+              onToggleFlag={toggleFlag}
+            />
           </div>
         )}
 
@@ -1252,10 +1344,25 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
 
           {/* Question Text */}
           <div className="space-y-4">
-            <div className="flex items-center gap-2">
+            <div className="flex items-center justify-between gap-2">
               <span className="text-[10px] px-2 py-0.5 rounded font-black bg-slate-100 dark:bg-slate-700 text-slate-600 dark:text-slate-300 uppercase border border-slate-200 dark:border-slate-600">
                 {currentQuestion.multiSelect ? 'Nhiều lựa chọn (Multiple Response)' : 'Một lựa chọn (Single Choice)'}
               </span>
+              {/* Đánh dấu xem lại ngay tại câu đang xem — không phải mở sidebar
+                  mới đánh dấu được. Áp dụng cả hai chế độ. */}
+              <button
+                type="button"
+                onClick={() => toggleFlag(currentQuestion.number)}
+                title={flaggedQuestions[currentQuestion.number] ? 'Bỏ đánh dấu xem lại' : 'Đánh dấu câu này để xem lại sau'}
+                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-[10px] font-bold border transition-colors cursor-pointer ${
+                  flaggedQuestions[currentQuestion.number]
+                    ? 'bg-amber-50 dark:bg-amber-950/30 border-amber-300 dark:border-amber-800 text-amber-700 dark:text-amber-400'
+                    : 'bg-white dark:bg-slate-800 border-slate-200 dark:border-slate-700 text-slate-400 hover:text-amber-600 hover:border-amber-300'
+                }`}
+              >
+                <Flag className={`w-3.5 h-3.5 ${flaggedQuestions[currentQuestion.number] ? 'fill-amber-500 text-amber-500' : ''}`} />
+                <span className="hidden sm:inline">{flaggedQuestions[currentQuestion.number] ? 'Đã đánh dấu' : 'Đánh dấu'}</span>
+              </button>
             </div>
             <ScenarioQuestionBlock question={currentQuestion} />
 
@@ -1391,6 +1498,32 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               )}
             </div>
           </div>
+        </div>
+
+        </div>
+        {/* Sidebar câu hỏi — cố định, cuộn riêng, chỉ hiện từ `lg` trở lên (xem
+            khối lg:hidden phía trên cho màn hẹp). "sticky" để danh sách luôn
+            trong tầm tay dù cột chính bên trái dài hơn (đề + giải thích dài). */}
+        <aside className="hidden lg:flex lg:flex-col gap-3 sticky top-6 bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 max-h-[calc(100vh-3rem)]">
+          <span className="shrink-0 text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+            Câu hỏi ({totalQuestions})
+          </span>
+          <div className="flex-1 min-h-0 overflow-y-auto pr-1 -mr-1">
+            <QuestionNavList
+              questions={currentExam.questions}
+              currentIndex={currentQuestionIndex}
+              selectedAnswers={selectedAnswers}
+              checkedQuestions={checkedQuestions}
+              flaggedQuestions={flaggedQuestions}
+              mode={mode}
+              onJump={(idx) => {
+                setCurrentQuestionIndex(idx);
+                setShowInstantExplanation(false);
+              }}
+              onToggleFlag={toggleFlag}
+            />
+          </div>
+        </aside>
         </div>
       </div>
     );
