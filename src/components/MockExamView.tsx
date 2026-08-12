@@ -186,9 +186,12 @@ const ScenarioQuestionBlock: React.FC<{ question: Question; compact?: boolean }>
             Câu hỏi
           </span>
         </div>
+        {/* Cùng cỡ chữ/độ đậm/độ giãn dòng với đoạn "Tình huống" ở trên — chỉ khác
+            màu chữ (xanh dương thay vì hổ phách) để vẫn phân biệt được hai khối
+            mà không lệch kiểu chữ giữa hai phần của cùng một câu hỏi. */}
         <p
-          className={`font-extrabold text-slate-900 dark:text-slate-100 leading-snug whitespace-pre-line ${
-            compact ? 'text-sm' : 'text-base md:text-lg'
+          className={`text-blue-900/90 dark:text-blue-100/80 leading-relaxed whitespace-pre-line ${
+            compact ? 'text-[11px]' : 'text-sm'
           }`}
         >
           {questionText}
