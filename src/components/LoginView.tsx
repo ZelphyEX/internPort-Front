@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 
 import {
   Building2,
@@ -16,6 +16,7 @@ import {
   ChevronDown,
   Clock,
   X,
+  ShieldAlert,
 } from 'lucide-react';
 import { GoogleLogin } from '@react-oauth/google';
 import { AuthUser } from '../types';
@@ -77,9 +78,55 @@ const emailFromGoogleCredential = (credential: string): string => {
   }
 };
 
+/**
+ * Phát hiện khi ô "Đăng nhập bằng Google" không hiện ra được. Hay gặp ở Firefox
+ * (chế độ Chống theo dõi Nâng cao mặc định chặn cookie bên thứ ba của
+ * accounts.google.com) hoặc khi có tiện ích chặn quảng cáo/tracker — Chrome mặc
+ * định không chặn cookie kiểu này nên không gặp vấn đề tương tự. Đây là giới hạn
+ * ở phía trình duyệt/tiện ích của người dùng, code ở đây không "sửa" được, chỉ
+ * phát hiện ra để hiện hướng dẫn thay vì để ô đăng nhập trống mà không rõ vì sao.
+ *
+ * Hai cách phát hiện, vì mỗi kiểu chặn để lại dấu vết khác nhau:
+ *   1. Script `accounts.google.com/gsi/client` bị chặn hẳn (tường lửa/lưới quảng
+ *      cáo) -> `GoogleOAuthProvider.onScriptLoadError` bắn ra (xem main.tsx),
+ *      lan tới đây qua sự kiện `window` vì Provider nằm ở gốc app, ngoài LoginView.
+ *   2. Script tải được nhưng khung `<iframe>` bên trong bị chặn không cho vẽ ra
+ *      (im lặng, KHÔNG bắn lỗi nào) -> sau một khoảng chờ hợp lý, kiểm tra thẳng
+ *      trong DOM xem `renderButton()` đã chèn được `<iframe>` nào vào ô chứa
+ *      chưa; quá giờ mà vẫn không có thì coi như bị chặn.
+ */
+function useGoogleScriptBlocked(containerRef: React.RefObject<HTMLDivElement | null>, enabled: boolean) {
+  const [blocked, setBlocked] = useState(false);
+
+  useEffect(() => {
+    if (!enabled) return;
+
+    const onScriptError = () => setBlocked(true);
+    window.addEventListener('gimasys:google-script-error', onScriptError);
+
+    const timer = window.setTimeout(() => {
+      if (!containerRef.current?.querySelector('iframe')) {
+        setBlocked(true);
+      }
+    }, 3500);
+
+    return () => {
+      window.removeEventListener('gimasys:google-script-error', onScriptError);
+      window.clearTimeout(timer);
+    };
+  }, [containerRef, enabled]);
+
+  return blocked;
+}
+
 export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
   const [error, setError] = useState('');
   const [isBusy, setIsBusy] = useState(false);
+
+  // Ô chứa nút Google — cần ref để dò xem `renderButton()` có vẽ được gì vào đây
+  // không (xem useGoogleScriptBlocked ở trên).
+  const googleButtonRef = useRef<HTMLDivElement>(null);
+  const googleBlocked = useGoogleScriptBlocked(googleButtonRef, IS_GOOGLE_CONFIGURED);
 
   // Vì sao vừa bị đá ra đây (phiên hết hạn / token hỏng). Đọc trong effect chứ
   // không trong useState initializer: StrictMode gọi initializer hai lần, lần thứ
@@ -255,7 +302,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
 
           {/* Nút Google — cách duy nhất để vào hệ thống */}
           <div className="space-y-3">
-            <div className="flex justify-center min-h-[44px] items-center">
+            <div ref={googleButtonRef} className="flex justify-center min-h-[44px] items-center">
               {!IS_GOOGLE_CONFIGURED ? (
                 <p className="text-[11px] font-bold text-amber-300 bg-amber-950/30 border border-amber-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
@@ -296,6 +343,40 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
                 <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
                 <span>{error}</span>
               </p>
+            )}
+
+            {/* Không thấy nút Google hiện ra. Đây là giới hạn phía trình duyệt/tiện
+                ích của người dùng (thường là Firefox chặn cookie bên thứ ba của
+                accounts.google.com, hoặc extension chặn quảng cáo) — không phải lỗi
+                đăng nhập nên không dùng chung khối `error` ở trên. Xem
+                useGoogleScriptBlocked(). */}
+            {googleBlocked && !isBusy && (
+              <div className="text-[11px] text-amber-200 bg-amber-950/25 border border-amber-800/50 rounded-xl px-3 py-2.5 space-y-2">
+                <p className="font-bold flex items-start gap-2">
+                  <ShieldAlert className="w-4 h-4 shrink-0 mt-px text-amber-400" />
+                  <span>
+                    Không thấy ô đăng nhập Google ở trên? Trình duyệt (thường là Firefox ở
+                    chế độ &quot;Chống theo dõi Nâng cao&quot;) hoặc một tiện ích chặn quảng
+                    cáo có thể đang chặn Google hiện nút đăng nhập — Chrome/Edge mặc định
+                    không gặp vấn đề này.
+                  </span>
+                </p>
+                <ul className="list-disc pl-5 space-y-1 text-amber-200/90">
+                  <li>
+                    Bấm biểu tượng khiên cạnh thanh địa chỉ → tắt Chống theo dõi Nâng cao cho
+                    trang này → tải lại trang.
+                  </li>
+                  <li>Hoặc tạm tắt tiện ích chặn quảng cáo/tracker cho trang này rồi tải lại.</li>
+                  <li>Hoặc dùng Chrome/Edge nếu hai cách trên không tiện.</li>
+                </ul>
+                <button
+                  type="button"
+                  onClick={() => window.location.reload()}
+                  className="text-amber-300 font-bold hover:text-amber-200 underline underline-offset-2 cursor-pointer"
+                >
+                  Tải lại trang
+                </button>
+              </div>
             )}
           </div>
 
