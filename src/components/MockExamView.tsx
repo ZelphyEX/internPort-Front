@@ -19,7 +19,9 @@ import {
   Pause,
   Play,
   Save,
-  History
+  History,
+  LayoutGrid,
+  X,
 } from 'lucide-react';
 import { AuthUser } from '../types';
 import {
@@ -374,8 +376,18 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   // Khác null = nộp bài xong nhưng không đẩy được kết quả lên server.
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isScoresOpen, setIsScoresOpen] = useState<boolean>(false);
+  // Bảng chọn nhanh câu hỏi (nhảy tới câu bất kỳ) — đóng mặc định vì đề có thể tới
+  // 63 câu, hiện sẵn choán hết màn hình.
+  const [showQuestionNav, setShowQuestionNav] = useState<boolean>(false);
 
   const timerRef = useRef<NodeJS.Timeout | null>(null);
+  // Đồng hồ đếm ngược đổi mỗi giây — đọc qua ref thay vì đưa `timeLeft` thẳng vào
+  // dependency của effect tự lưu bên dưới, để KHÔNG ghi localStorage mỗi giây một
+  // lần (lãng phí, và với đề 120 phút là 7200 lần ghi cho một lượt thi).
+  const timeLeftRef = useRef(timeLeft);
+  useEffect(() => {
+    timeLeftRef.current = timeLeft;
+  }, [timeLeft]);
 
   // Bài đang làm dở được lưu ở máy (server không có khái niệm "bài thi tạm"), nên
   // khoá phải gắn với ID TÀI KHOẢN, không phải email.
@@ -479,7 +491,16 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     setExamState('quiz');
   };
 
-  const handleSaveAndExit = () => {
+  /**
+   * Ghi tiến độ hiện tại (câu đang ở, đã chọn gì, đã check đáp án chưa, còn bao
+   * nhiêu thời gian) xuống localStorage. Tách riêng khỏi `handleSaveAndExit` để
+   * effect tự lưu bên dưới dùng lại được, không copy 2 lần cùng một logic.
+   *
+   * Đọc `timeLeftRef.current` thay vì `timeLeft` trực tiếp: hàm này đổi danh tính
+   * (identity) mỗi khi một trong các state phụ thuộc đổi — nếu `timeLeft` cũng nằm
+   * trong đó thì đổi danh tính mỗi giây, kéo effect tự lưu chạy lại mỗi giây.
+   */
+  const persistCurrentSession = React.useCallback(() => {
     if (!currentExam || !sessionKey) return;
 
     const session: SavedSession = {
@@ -488,18 +509,34 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
       currentQuestionIndex,
       selectedAnswers,
       checkedQuestions,
-      timeLeft,
-      date: new Date().toISOString()
+      timeLeft: timeLeftRef.current,
+      date: new Date().toISOString(),
     };
 
-    const newSessions = {
-      ...savedSessions,
-      [currentExam.id]: session
-    };
+    setSavedSessions((prev) => {
+      const next = { ...prev, [currentExam.id]: session };
+      localStorage.setItem(sessionKey, JSON.stringify(next));
+      return next;
+    });
+  }, [currentExam, sessionKey, mode, currentQuestionIndex, selectedAnswers, checkedQuestions]);
 
-    setSavedSessions(newSessions);
-    localStorage.setItem(sessionKey, JSON.stringify(newSessions));
+  // Tự động lưu tiến độ mỗi khi có gì đổi trong lúc đang làm bài — KHÔNG chờ người
+  // dùng bấm "Lưu & Thoát" nữa.
+  //
+  // Trước đây chỉ lưu khi bấm đúng nút đó. Nhưng tab "Thi thử" nằm trong App.tsx
+  // dạng `{activeTab === 'mock_exam' && <MockExamView .../>}` — bấm sang tính năng
+  // khác là NGẮT HẲN component này, xoá sạch state trong bộ nhớ ngay lập tức. Ai
+  // đang làm dở mà bấm sang tab khác (không cố ý bấm "Lưu & Thoát") thì mất trắng
+  // tiến độ, quay lại đề là phải làm lại từ đầu — đúng lỗi được báo. Lưu liên tục
+  // vào localStorage thì dù bị ngắt kiểu gì (chuyển tab, đóng trình duyệt, mất
+  // điện) tiến độ tới thời điểm đó vẫn còn, lần sau mở lại đề vẫn thấy "Làm tiếp".
+  useEffect(() => {
+    if (examState !== 'quiz') return;
+    persistCurrentSession();
+  }, [examState, persistCurrentSession]);
 
+  const handleSaveAndExit = () => {
+    persistCurrentSession();
     setExamState('select');
     setCurrentExam(null);
   };
@@ -1041,21 +1078,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
         )}
 
         {/* Status Bar */}
-        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-xs flex items-center justify-between gap-4">
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => {
-                if (window.confirm('Bạn có chắc muốn thoát? Kết quả thi hiện tại sẽ bị hủy nếu không lưu.')) {
-                  handleBackToSelect();
-                }
-              }}
-              className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-700 text-slate-500 dark:text-slate-400 rounded-lg cursor-pointer"
-              title="Thoát không lưu"
-            >
-              <ArrowLeft className="w-4 h-4" />
-            </button>
-
-            {/* Save & Exit Button */}
+        <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-5 shadow-xs flex flex-wrap items-center justify-between gap-3">
+          {/* Nhóm nút quản lý phiên làm bài. Tiến độ giờ TỰ ĐỘNG lưu liên tục (xem
+              effect gọi persistCurrentSession phía trên) nên không còn khái niệm
+              "thoát mà không lưu" nữa — chỉ còn một đường thoát duy nhất, luôn giữ
+              lại tiến độ để làm tiếp sau. */}
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={handleSaveAndExit}
               className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1"
@@ -1063,6 +1091,37 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             >
               <Save className="w-3.5 h-3.5 text-blue-500" />
               <span className="hidden sm:inline">Lưu & Thoát</span>
+            </button>
+
+            <button
+              onClick={() => setShowQuestionNav((s) => !s)}
+              className={`px-3 py-1.5 border font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1 ${
+                showQuestionNav
+                  ? 'bg-blue-600 border-blue-600 text-white'
+                  : 'border-slate-200 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-300'
+              }`}
+              title="Nhảy nhanh tới một câu bất kỳ thay vì làm tuần tự"
+            >
+              <LayoutGrid className={`w-3.5 h-3.5 ${showQuestionNav ? '' : 'text-blue-500'}`} />
+              <span className="hidden sm:inline">Danh sách câu hỏi</span>
+            </button>
+
+            <button
+              onClick={() => {
+                if (
+                  currentExam &&
+                  window.confirm(
+                    'Làm lại từ đầu? Mọi đáp án đã chọn và tiến độ đã lưu của đề này sẽ bị xoá.'
+                  )
+                ) {
+                  handleStartExam(currentExam);
+                }
+              }}
+              className="px-3 py-1.5 border border-slate-200 dark:border-slate-700 hover:bg-red-50 dark:hover:bg-red-950/30 hover:border-red-300 dark:hover:border-red-900 hover:text-red-600 dark:hover:text-red-400 text-slate-700 dark:text-slate-300 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1"
+              title="Xoá hết đáp án đã chọn và làm lại đề này từ câu 1"
+            >
+              <RotateCcw className="w-3.5 h-3.5" />
+              <span className="hidden sm:inline">Làm lại từ đầu</span>
             </button>
           </div>
 
@@ -1089,6 +1148,72 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             )}
           </div>
         </div>
+
+        {/* Bảng chọn nhanh câu hỏi — nhảy tới câu bất kỳ thay vì chỉ Tiếp tục/Quay
+            lại tuần tự. Màu sắc: xanh dương = đang xem, xanh lá/đỏ = đã check đáp
+            án đúng/sai (chỉ có ý nghĩa ở chế độ luyện tập), viền xanh = đã chọn đáp
+            án nhưng chưa check, trắng = chưa động vào. */}
+        {showQuestionNav && (
+          <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-4 space-y-3 animate-fadeIn">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+                Chọn câu để làm ({totalQuestions} câu)
+              </span>
+              <button
+                onClick={() => setShowQuestionNav(false)}
+                className="p-1 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 dark:hover:bg-slate-700 cursor-pointer"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="grid grid-cols-6 sm:grid-cols-8 md:grid-cols-10 gap-2">
+              {currentExam.questions.map((q, idx) => {
+                const answered = (selectedAnswers[q.number] || []).length > 0;
+                const checked = mode === 'practice' && checkedQuestions[q.number];
+                const isCorrectAnswer =
+                  checked &&
+                  (() => {
+                    const userAns = selectedAnswers[q.number] || [];
+                    const correctAns = q.correct || [];
+                    return (
+                      userAns.length === correctAns.length &&
+                      userAns.every((v) => correctAns.includes(v))
+                    );
+                  })();
+
+                let cellStyle =
+                  'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-700 text-slate-500 dark:text-slate-400 hover:border-blue-400';
+                if (answered) {
+                  cellStyle =
+                    'bg-blue-50 dark:bg-blue-950/30 border-blue-400 dark:border-blue-700 text-blue-700 dark:text-blue-300';
+                }
+                if (checked) {
+                  cellStyle = isCorrectAnswer
+                    ? 'bg-green-50 dark:bg-green-950/30 border-green-400 dark:border-green-700 text-green-700 dark:text-green-300'
+                    : 'bg-red-50 dark:bg-red-950/30 border-red-400 dark:border-red-700 text-red-700 dark:text-red-300';
+                }
+                if (idx === currentQuestionIndex) {
+                  cellStyle += ' ring-2 ring-offset-1 ring-offset-white dark:ring-offset-slate-800 ring-blue-600';
+                }
+
+                return (
+                  <button
+                    key={q.number}
+                    onClick={() => {
+                      setCurrentQuestionIndex(idx);
+                      setShowInstantExplanation(false);
+                      setShowQuestionNav(false);
+                    }}
+                    className={`aspect-square rounded-xl border text-xs font-bold flex items-center justify-center transition-colors cursor-pointer ${cellStyle}`}
+                    title={`Câu ${idx + 1}${answered ? ' — đã chọn đáp án' : ' — chưa làm'}`}
+                  >
+                    {idx + 1}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
 
         {/* Quiz Body */}
         <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-3xl p-6 md:p-8 shadow-sm space-y-6">
@@ -1212,10 +1337,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
 
             <div className="flex items-center gap-2">
               {mode === 'practice' && !isAnswerChecked && (
+                // Không bắt buộc chọn đáp án trước — bấm ngay để xem đáp án đúng
+                // là gì cũng là một cách luyện tập hợp lệ (vd. xem trước rồi đọc
+                // lại đề để hiểu vì sao), không có lý do gì phải khoá nút lại.
                 <button
-                  disabled={currentAnswers.length === 0}
                   onClick={() => handleCheckAnswer(currentQuestion.number)}
-                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 disabled:opacity-40 disabled:cursor-not-allowed font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
+                  className="px-4 py-2 bg-slate-100 dark:bg-slate-700 hover:bg-slate-200 dark:hover:bg-slate-600 text-slate-800 dark:text-slate-200 font-extrabold text-xs rounded-xl transition-all cursor-pointer flex items-center gap-1.5"
                 >
                   <Eye className="w-3.5 h-3.5" />
                   <span>Check đáp án</span>
