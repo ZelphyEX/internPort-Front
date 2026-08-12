@@ -840,6 +840,29 @@ export default function App() {
     setSelectedIntern(prev => (prev && prev.id === internId ? { ...prev, status: 'Removed' } : prev));
   };
 
+  // [ADMIN] Chuyển một Thực tập sinh thành Mentor — nút tương ứng nằm ở InternsView
+  // (tab "Thực tập sinh"); chiều ngược lại nằm ở MentorsView (tab "Quản lý Mentor").
+  // Mỗi tab chỉ đảm nhiệm chiều đổi vai trò xuất phát TỪ danh sách của chính nó.
+  const [promotingInternId, setPromotingInternId] = useState<string | null>(null);
+  const handlePromoteToMentor = async (internId: string, internName: string) => {
+    const numericId = Number(internId);
+    if (!tokenStore.isAuthenticated() || !Number.isInteger(numericId) || String(numericId) !== internId) {
+      alert(`"${internName}" là dữ liệu demo cục bộ, chưa hỗ trợ đổi vai trò.`);
+      return;
+    }
+    setPromotingInternId(internId);
+    try {
+      await usersApi.setRole(numericId, 'MENTOR');
+      // Người này rời danh sách Thực tập sinh và (ở lần tải sau) xuất hiện bên
+      // Mentor — nạp lại cả hai danh sách để trang khớp ngay, không đợi F5.
+      reloadUserLists();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Chuyển vai trò thất bại.');
+    } finally {
+      setPromotingInternId(null);
+    }
+  };
+
   const pendingReportsCount = reports.filter(r => r.status === 'Pending').length;
 
   if (!currentUser) {
@@ -927,6 +950,8 @@ export default function App() {
               onSelectIntern={setSelectedIntern}
               onDeleteIntern={handleDeleteIntern}
               onKickIntern={handleKickIntern}
+              onPromoteToMentor={currentRole === 'ADMIN' ? handlePromoteToMentor : undefined}
+              promotingId={promotingInternId}
               currentRole={currentRole}
               searchTerm={globalSearch}
             />

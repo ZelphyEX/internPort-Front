@@ -4,6 +4,8 @@ import {
   Plus,
   X,
   Trash2,
+  Pencil,
+  Check,
   ChevronRight,
   Users as UsersIcon,
   UserMinus,
@@ -28,6 +30,7 @@ import {
   ApiAssignedRoadmap,
   ApiAssignedRoadmapDetail,
   ApiDepartment,
+  API_DEPARTMENTS,
 } from '../services/api';
 
 interface RoadmapViewProps {
@@ -38,13 +41,7 @@ interface RoadmapViewProps {
   documents: DocumentResource[];
 }
 
-const DEPARTMENT_OPTIONS: ApiDepartment[] = [
-  'Java Back-End',
-  'React Front-End',
-  'Cloud & DevOps',
-  'Salesforce/ERP',
-  'AI & Data Science',
-];
+const DEPARTMENT_OPTIONS = API_DEPARTMENTS;
 
 // ============================================================================
 // Thẻ "khoá học" (Module) + danh sách bài học — phong cách mượn từ tab Skilljar cũ.
@@ -280,6 +277,12 @@ const MentorRoadmapView: React.FC<{
   const [newRoadmapTitle, setNewRoadmapTitle] = useState('');
   const [newRoadmapDesc, setNewRoadmapDesc] = useState('');
 
+  // Sửa tên/mô tả lộ trình đang mở (PATCH /roadmaps/{id}).
+  const [isEditingRoadmap, setIsEditingRoadmap] = useState(false);
+  const [editRoadmapTitle, setEditRoadmapTitle] = useState('');
+  const [editRoadmapDesc, setEditRoadmapDesc] = useState('');
+  const [savingRoadmap, setSavingRoadmap] = useState(false);
+
   const [isAddingModule, setIsAddingModule] = useState(false);
   const [newModuleTitle, setNewModuleTitle] = useState('');
   const [newModuleTrack, setNewModuleTrack] = useState<ApiDepartment>('Java Back-End');
@@ -330,6 +333,9 @@ const MentorRoadmapView: React.FC<{
       setAssignments([]);
       setShowLearners(false);
     }
+    // Chuyển sang lộ trình khác thì đóng form sửa của lộ trình cũ — không để form
+    // sửa "Lộ trình A" còn mở lửng lơ trong lúc trang đang hiện "Lộ trình B".
+    setIsEditingRoadmap(false);
   }, [selectedId]);
 
   const handleCreateRoadmap = async () => {
@@ -354,6 +360,32 @@ const MentorRoadmapView: React.FC<{
       loadRoadmaps();
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Xoá lộ trình thất bại.');
+    }
+  };
+
+  const startEditRoadmap = () => {
+    if (!detail) return;
+    setEditRoadmapTitle(detail.title);
+    setEditRoadmapDesc(detail.description || '');
+    setIsEditingRoadmap(true);
+  };
+
+  const handleUpdateRoadmap = async () => {
+    if (!selectedId || !editRoadmapTitle.trim()) return;
+    setSavingRoadmap(true);
+    try {
+      await roadmapsApi.update(selectedId, {
+        title: editRoadmapTitle.trim(),
+        description: editRoadmapDesc.trim(),
+      });
+      setIsEditingRoadmap(false);
+      loadDetail(selectedId);
+      // Tên cũng hiện ở danh sách bên trái — nạp lại để khớp ngay, không đợi F5.
+      loadRoadmaps();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Sửa lộ trình thất bại.');
+    } finally {
+      setSavingRoadmap(false);
     }
   };
 
@@ -566,6 +598,7 @@ const MentorRoadmapView: React.FC<{
               track: openModule.track,
               week_number: openModule.week_number,
               duration_text: openModule.duration_text,
+              key_skills: openModule.key_skills,
               start_date: openModule.start_date,
               end_date: openModule.end_date,
               lessons: (openModule.documents || []).map((d) => ({
@@ -585,26 +618,73 @@ const MentorRoadmapView: React.FC<{
 
         {detail && !openModule && (
           <>
-            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4 flex items-center justify-between">
-              <div>
-                <h3 className="font-extrabold text-slate-800 dark:text-slate-100">{detail.title}</h3>
-                {detail.description && <p className="text-xs text-slate-400 mt-0.5">{detail.description}</p>}
-              </div>
-              {/* Một nút mở panel "Thành viên khoá học" gồm CẢ danh sách người đang
-                  học VÀ khối gán — giống nút "Thành viên (N)" ở màn Dự án & Kanban.
-                  Trước đây chỉ có nút "Gán lộ trình" nên gán xong không có chỗ nào
-                  xem lại ai đang theo lộ trình này. */}
-              <button
-                onClick={() => setShowLearners((s) => !s)}
-                className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
-                  showLearners
-                    ? 'bg-blue-600 text-white border-blue-600'
-                    : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-200'
-                }`}
-              >
-                <UsersIcon className="w-3.5 h-3.5" />
-                <span>Thành viên khoá học ({assignments.length})</span>
-              </button>
+            <div className="bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 p-4">
+              {isEditingRoadmap ? (
+                <div className="space-y-2">
+                  <input
+                    value={editRoadmapTitle}
+                    onChange={(e) => setEditRoadmapTitle(e.target.value)}
+                    placeholder="Tên lộ trình"
+                    className="w-full px-2.5 py-1.5 text-sm font-bold border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900"
+                  />
+                  <textarea
+                    value={editRoadmapDesc}
+                    onChange={(e) => setEditRoadmapDesc(e.target.value)}
+                    placeholder="Mô tả (tuỳ chọn)"
+                    rows={2}
+                    className="w-full px-2.5 py-1.5 text-xs border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleUpdateRoadmap}
+                      disabled={savingRoadmap || !editRoadmapTitle.trim()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold cursor-pointer"
+                    >
+                      {savingRoadmap ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                      Lưu
+                    </button>
+                    <button
+                      onClick={() => setIsEditingRoadmap(false)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 text-xs font-bold cursor-pointer"
+                    >
+                      Huỷ
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0">
+                    <h3 className="font-extrabold text-slate-800 dark:text-slate-100 truncate">{detail.title}</h3>
+                    {detail.description && <p className="text-xs text-slate-400 mt-0.5">{detail.description}</p>}
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    {!readOnly && (
+                      <button
+                        onClick={startEditRoadmap}
+                        title="Sửa tên/mô tả lộ trình"
+                        className="p-2 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/40 cursor-pointer"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                    )}
+                    {/* Một nút mở panel "Thành viên khoá học" gồm CẢ danh sách người
+                        đang học VÀ khối gán — giống nút "Thành viên (N)" ở màn Dự án
+                        & Kanban. Trước đây chỉ có nút "Gán lộ trình" nên gán xong
+                        không có chỗ nào xem lại ai đang theo lộ trình này. */}
+                    <button
+                      onClick={() => setShowLearners((s) => !s)}
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-bold border transition-colors cursor-pointer ${
+                        showLearners
+                          ? 'bg-blue-600 text-white border-blue-600'
+                          : 'bg-slate-100 dark:bg-slate-700 text-slate-700 dark:text-slate-200 border-slate-200 dark:border-slate-600 hover:bg-slate-200'
+                      }`}
+                    >
+                      <UsersIcon className="w-3.5 h-3.5" />
+                      <span>Thành viên khoá học ({assignments.length})</span>
+                    </button>
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* Panel "Thành viên khoá học": danh sách người đang theo lộ trình +

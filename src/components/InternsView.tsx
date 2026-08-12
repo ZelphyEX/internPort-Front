@@ -16,7 +16,9 @@ import {
   ExternalLink,
   ChevronRight,
   Trash2,
-  UserX
+  UserX,
+  ArrowLeftRight,
+  Loader2,
 } from 'lucide-react';
 import { Intern, InternStatus, UserRole } from '../types';
 import { canManageInterns } from '../services/permissions';
@@ -26,6 +28,10 @@ interface InternsViewProps {
   onSelectIntern: (intern: Intern) => void;
   onDeleteIntern?: (internId: string) => void;
   onKickIntern?: (internId: string) => void;
+  /** [ADMIN] Chuyển tài khoản này thành Mentor. Không truyền = ẩn nút (vd. đang xem demo cục bộ). */
+  onPromoteToMentor?: (internId: string, internName: string) => void;
+  /** Id đang xử lý đổi vai trò — vô hiệu hoá nút + hiện spinner trong lúc chờ API. */
+  promotingId?: string | null;
   currentRole: UserRole;
   searchTerm: string;
 }
@@ -35,6 +41,8 @@ export const InternsView: React.FC<InternsViewProps> = ({
   onSelectIntern,
   onDeleteIntern,
   onKickIntern,
+  onPromoteToMentor,
+  promotingId,
   currentRole,
   searchTerm: externalSearch
 }) => {
@@ -60,6 +68,21 @@ export const InternsView: React.FC<InternsViewProps> = ({
       if (!confirmed) return;
       onKickIntern(internId);
     }
+  };
+
+  // [ADMIN] Đổi vai trò tài khoản này thành Mentor — chiều ngược lại nằm ở tab
+  // "Quản lý Mentor" (mỗi tab chỉ quản lý vai trò của chính nó, không gộp chung).
+  const handlePromoteClick = (e: React.MouseEvent, internId: string, internName: string) => {
+    e.stopPropagation();
+    if (!onPromoteToMentor) return;
+    const confirmed = window.confirm(
+      `Chuyển "${internName}" từ Thực tập sinh sang Mentor?\n\n` +
+        'Sau khi chuyển, người này sẽ QUẢN LÝ ĐƯỢC Thực tập sinh khác: xem hồ sơ, gán ' +
+        'lộ trình & dự án, giao task và duyệt báo cáo ngày.\n\n' +
+        'Vai trò đổi ngay lập tức. Bạn có thể chuyển ngược lại ở tab "Quản lý Mentor".'
+    );
+    if (!confirmed) return;
+    onPromoteToMentor(internId, internName);
   };
 
   const query = (externalSearch || internalSearch).toLowerCase().trim();
@@ -186,6 +209,21 @@ export const InternsView: React.FC<InternsViewProps> = ({
               onClick={() => onSelectIntern(intern)}
               className="relative bg-white dark:bg-slate-800 rounded-2xl p-5 border border-slate-200 dark:border-slate-700 shadow-2xs hover:shadow-md hover:border-blue-300 transition-all cursor-pointer flex flex-col justify-between group"
             >
+              {isAdmin && onPromoteToMentor && (
+                <button
+                  type="button"
+                  disabled={promotingId === intern.id}
+                  onClick={(e) => handlePromoteClick(e, intern.id, intern.name)}
+                  title="Chuyển thành Mentor"
+                  className="absolute top-3 right-11 p-1.5 rounded-lg text-slate-300 hover:text-indigo-600 hover:bg-indigo-50 dark:hover:bg-indigo-950/40 disabled:opacity-50 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer z-10"
+                >
+                  {promotingId === intern.id ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <ArrowLeftRight className="w-3.5 h-3.5" />
+                  )}
+                </button>
+              )}
               {((isAdmin && onDeleteIntern) || (isMentor && onKickIntern)) && (
                 <button
                   type="button"
@@ -313,6 +351,20 @@ export const InternsView: React.FC<InternsViewProps> = ({
                         >
                           Chi tiết
                         </button>
+                        {isAdmin && onPromoteToMentor && (
+                          <button
+                            disabled={promotingId === intern.id}
+                            onClick={(e) => handlePromoteClick(e, intern.id, intern.name)}
+                            title="Chuyển thành Mentor"
+                            className="p-1.5 rounded-xl bg-indigo-50 dark:bg-indigo-950/30 hover:bg-indigo-100 dark:hover:bg-indigo-950/60 text-indigo-500 hover:text-indigo-600 disabled:opacity-50 transition-colors cursor-pointer"
+                          >
+                            {promotingId === intern.id ? (
+                              <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                            ) : (
+                              <ArrowLeftRight className="w-3.5 h-3.5" />
+                            )}
+                          </button>
+                        )}
                         {((isAdmin && onDeleteIntern) || (isMentor && onKickIntern)) && (
                           <button
                             onClick={(e) => handleRemoveClick(e, intern.id, intern.name)}

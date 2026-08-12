@@ -3,6 +3,8 @@ import {
   ChevronLeft,
   Plus,
   Trash2,
+  Pencil,
+  Check,
   ExternalLink,
   MessageSquare,
   FileText,
@@ -22,6 +24,7 @@ import {
   ApiModuleDocument,
   ApiLessonAttachment,
   ApiDepartment,
+  API_DEPARTMENTS,
 } from '../services/api';
 import { LessonCommentThread } from './LessonCommentThread';
 
@@ -55,6 +58,7 @@ export interface PanelModule {
   track?: ApiDepartment | null;
   week_number?: number | null;
   duration_text?: string | null;
+  key_skills?: string[] | null;
   start_date?: string | null;
   end_date?: string | null;
   lessons: PanelLesson[];
@@ -126,9 +130,22 @@ export const ModuleDetailPanel: React.FC<ModuleDetailPanelProps> = ({
   const [attachingTo, setAttachingTo] = useState<number | null>(null);
   const [attachDocId, setAttachDocId] = useState('');
 
-  // Sửa hạn chặng học
-  const [isEditingDeadline, setIsEditingDeadline] = useState(false);
-  const [deadline, setDeadline] = useState(module.end_date || '');
+  // Sửa tên/link một bài học đã có
+  const [editingLessonId, setEditingLessonId] = useState<number | null>(null);
+  const [editLessonTitle, setEditLessonTitle] = useState('');
+  const [editLessonUrl, setEditLessonUrl] = useState('');
+
+  // Sửa thông tin chặng học (tên, mô tả, khối, tuần, thời lượng, kỹ năng, hạn).
+  // Gộp chung một form thay vì tách riêng "sửa hạn" như trước — mọi field trong
+  // PATCH /modules/{id} đều có chỗ sửa, không chỉ mỗi ngày hạn.
+  const [isEditingModule, setIsEditingModule] = useState(false);
+  const [editTitle, setEditTitle] = useState(module.title);
+  const [editDescription, setEditDescription] = useState(module.description || '');
+  const [editTrack, setEditTrack] = useState<ApiDepartment | ''>(module.track || '');
+  const [editWeek, setEditWeek] = useState(module.week_number != null ? String(module.week_number) : '');
+  const [editDuration, setEditDuration] = useState(module.duration_text || '');
+  const [editSkills, setEditSkills] = useState((module.key_skills || []).join(', '));
+  const [editEndDate, setEditEndDate] = useState(module.end_date || '');
 
   const handleCreateLesson = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -159,6 +176,29 @@ export const ModuleDetailPanel: React.FC<ModuleDetailPanelProps> = ({
       onChanged();
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Xoá bài học thất bại.');
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const startEditLesson = (lesson: PanelLesson) => {
+    setEditingLessonId(lesson.module_document_id);
+    setEditLessonTitle(lesson.title);
+    setEditLessonUrl(lesson.content_url || '');
+  };
+
+  const handleSaveLesson = async (moduleDocumentId: number) => {
+    if (!editLessonTitle.trim() || !editLessonUrl.trim()) return;
+    setBusy(true);
+    try {
+      await moduleDocumentsApi.update(moduleDocumentId, {
+        title: editLessonTitle.trim(),
+        content_url: editLessonUrl.trim(),
+      });
+      setEditingLessonId(null);
+      onChanged();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Sửa bài học thất bại.');
     } finally {
       setBusy(false);
     }
@@ -195,14 +235,37 @@ export const ModuleDetailPanel: React.FC<ModuleDetailPanelProps> = ({
     }
   };
 
-  const handleSaveDeadline = async () => {
+  const startEditModule = () => {
+    setEditTitle(module.title);
+    setEditDescription(module.description || '');
+    setEditTrack(module.track || '');
+    setEditWeek(module.week_number != null ? String(module.week_number) : '');
+    setEditDuration(module.duration_text || '');
+    setEditSkills((module.key_skills || []).join(', '));
+    setEditEndDate(module.end_date || '');
+    setIsEditingModule(true);
+  };
+
+  const handleSaveModule = async () => {
+    if (!editTitle.trim()) return;
     setBusy(true);
     try {
-      await modulesApi.update(module.id, { end_date: deadline || null });
-      setIsEditingDeadline(false);
+      await modulesApi.update(module.id, {
+        title: editTitle.trim(),
+        description: editDescription.trim(),
+        track: editTrack || undefined,
+        week_number: editWeek.trim() ? Number(editWeek) : undefined,
+        duration_text: editDuration.trim(),
+        key_skills: editSkills
+          .split(',')
+          .map((s) => s.trim())
+          .filter(Boolean),
+        end_date: editEndDate || null,
+      });
+      setIsEditingModule(false);
       onChanged();
     } catch (err) {
-      alert(err instanceof ApiError ? err.detail : 'Cập nhật hạn chặng học thất bại.');
+      alert(err instanceof ApiError ? err.detail : 'Sửa chặng học thất bại.');
     } finally {
       setBusy(false);
     }
@@ -222,67 +285,146 @@ export const ModuleDetailPanel: React.FC<ModuleDetailPanelProps> = ({
 
       {/* Đầu trang chặng học */}
       <div className="bg-slate-900 text-white rounded-2xl p-5 space-y-3">
-        <div className="flex items-center gap-2 text-amber-400 font-extrabold text-[11px] uppercase tracking-wider">
-          <GraduationCap className="w-4 h-4" /> Chặng học
-        </div>
-        <h2 className="text-lg font-black">{module.title}</h2>
-        {module.description && <p className="text-xs text-slate-300">{module.description}</p>}
-
-        <div className="flex items-center gap-2 flex-wrap">
-          {module.week_number != null && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">
-              Tuần {module.week_number}
-            </span>
-          )}
-          {module.track && (
-            <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 uppercase">
-              {module.track}
-            </span>
-          )}
-          {module.duration_text && (
-            <span className="text-[11px] text-slate-300">{module.duration_text}</span>
-          )}
-          <ModuleDeadlineChip endDate={module.end_date} />
-          <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-slate-200">
-            {doneCount}/{module.lessons.length} bài học
-          </span>
-        </div>
-
-        {/* Mentor đặt hạn cho chặng học */}
-        {!readOnly && (
-          <div className="pt-2 border-t border-slate-700">
-            {isEditingDeadline ? (
-              <div className="flex items-center gap-2 flex-wrap">
-                <input
-                  type="date"
-                  value={deadline}
-                  onChange={(e) => setDeadline(e.target.value)}
-                  className="px-2.5 py-1.5 text-xs rounded-lg bg-slate-800 border border-slate-700 text-white"
-                />
-                <button
-                  onClick={handleSaveDeadline}
-                  disabled={busy}
-                  className="px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white text-xs font-bold"
-                >
-                  Lưu hạn
-                </button>
-                <button
-                  onClick={() => { setIsEditingDeadline(false); setDeadline(module.end_date || ''); }}
-                  className="text-slate-400 hover:text-white"
-                >
-                  <X className="w-4 h-4" />
-                </button>
-              </div>
-            ) : (
-              <button
-                onClick={() => setIsEditingDeadline(true)}
-                className="text-[11px] font-bold text-blue-300 hover:text-blue-200 inline-flex items-center gap-1.5"
-              >
-                <CalendarDays className="w-3.5 h-3.5" />
-                {module.end_date ? `Đổi hạn (${module.end_date})` : 'Đặt hạn hoàn thành chặng học'}
-              </button>
-            )}
+        <div className="flex items-center justify-between gap-2">
+          <div className="flex items-center gap-2 text-amber-400 font-extrabold text-[11px] uppercase tracking-wider">
+            <GraduationCap className="w-4 h-4" /> Chặng học
           </div>
+          {!readOnly && !isEditingModule && (
+            <button
+              onClick={startEditModule}
+              title="Sửa thông tin chặng học"
+              className="p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-white/10 cursor-pointer"
+            >
+              <Pencil className="w-4 h-4" />
+            </button>
+          )}
+        </div>
+
+        {isEditingModule ? (
+          <div className="space-y-2.5 text-xs">
+            <div>
+              <label className="font-bold text-slate-300 block mb-1">Tên chặng học *</label>
+              <input
+                value={editTitle}
+                onChange={(e) => setEditTitle(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white font-bold"
+              />
+            </div>
+            <div>
+              <label className="font-bold text-slate-300 block mb-1">Mô tả</label>
+              <textarea
+                value={editDescription}
+                onChange={(e) => setEditDescription(e.target.value)}
+                rows={2}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white"
+              />
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <label className="font-bold text-slate-300 block mb-1">Khối kỹ thuật</label>
+                <select
+                  value={editTrack}
+                  onChange={(e) => setEditTrack(e.target.value as ApiDepartment)}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white"
+                >
+                  <option value="">— Không đặt —</option>
+                  {API_DEPARTMENTS.map((d) => (
+                    <option key={d} value={d}>
+                      {d}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div>
+                <label className="font-bold text-slate-300 block mb-1">Tuần thứ mấy</label>
+                <input
+                  type="number"
+                  min={1}
+                  value={editWeek}
+                  onChange={(e) => setEditWeek(e.target.value)}
+                  className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white"
+                />
+              </div>
+            </div>
+            <div>
+              <label className="font-bold text-slate-300 block mb-1">Thời lượng (VD: 2 tuần)</label>
+              <input
+                value={editDuration}
+                onChange={(e) => setEditDuration(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white"
+              />
+            </div>
+            <div>
+              <label className="font-bold text-slate-300 block mb-1">Kỹ năng chính, cách nhau bởi dấu phẩy</label>
+              <input
+                value={editSkills}
+                onChange={(e) => setEditSkills(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white"
+              />
+            </div>
+            <div>
+              <label className="font-bold text-slate-300 block mb-1">
+                Hạn hoàn thành chặng học (hiển thị &quot;còn N ngày&quot;)
+              </label>
+              <input
+                type="date"
+                value={editEndDate}
+                onChange={(e) => setEditEndDate(e.target.value)}
+                className="w-full px-2.5 py-1.5 rounded-lg bg-slate-800 border border-slate-700 text-white"
+              />
+            </div>
+            <div className="flex gap-2 pt-1">
+              <button
+                onClick={handleSaveModule}
+                disabled={busy || !editTitle.trim()}
+                className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold cursor-pointer"
+              >
+                {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                Lưu
+              </button>
+              <button
+                onClick={() => setIsEditingModule(false)}
+                className="px-3 py-1.5 rounded-lg bg-white/10 hover:bg-white/20 font-bold cursor-pointer"
+              >
+                Huỷ
+              </button>
+            </div>
+          </div>
+        ) : (
+          <>
+            <h2 className="text-lg font-black">{module.title}</h2>
+            {module.description && <p className="text-xs text-slate-300">{module.description}</p>}
+
+            <div className="flex items-center gap-2 flex-wrap">
+              {module.week_number != null && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-blue-600 text-white">
+                  Tuần {module.week_number}
+                </span>
+              )}
+              {module.track && (
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded bg-blue-950 text-blue-300 border border-blue-800 uppercase">
+                  {module.track}
+                </span>
+              )}
+              {module.duration_text && (
+                <span className="text-[11px] text-slate-300">{module.duration_text}</span>
+              )}
+              <ModuleDeadlineChip endDate={module.end_date} />
+              <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-white/10 text-slate-200">
+                {doneCount}/{module.lessons.length} bài học
+              </span>
+            </div>
+
+            {module.key_skills && module.key_skills.length > 0 && (
+              <div className="flex flex-wrap gap-1 pt-1">
+                {module.key_skills.map((s) => (
+                  <span key={s} className="text-[10px] font-bold px-1.5 py-0.5 rounded bg-white/10 text-slate-200">
+                    {s}
+                  </span>
+                ))}
+              </div>
+            )}
+          </>
         )}
       </div>
 
@@ -363,66 +505,109 @@ export const ModuleDetailPanel: React.FC<ModuleDetailPanelProps> = ({
             }`}
           >
             <div className="p-4 space-y-2.5">
-              <div className="flex items-center gap-2.5">
-                {onToggleLesson && (
+              {editingLessonId === lesson.module_document_id ? (
+                <div className="space-y-2 text-xs">
+                  <input
+                    value={editLessonTitle}
+                    onChange={(e) => setEditLessonTitle(e.target.value)}
+                    placeholder="Tên bài học"
+                    className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900 font-bold"
+                  />
+                  <input
+                    type="url"
+                    value={editLessonUrl}
+                    onChange={(e) => setEditLessonUrl(e.target.value)}
+                    placeholder="Link bài giảng"
+                    className="w-full px-2.5 py-1.5 border border-slate-200 dark:border-slate-700 rounded-lg bg-slate-50 dark:bg-slate-900"
+                  />
+                  <div className="flex gap-2">
+                    <button
+                      onClick={() => handleSaveLesson(lesson.module_document_id)}
+                      disabled={busy || !editLessonTitle.trim() || !editLessonUrl.trim()}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-emerald-600 hover:bg-emerald-500 disabled:opacity-50 text-white font-bold cursor-pointer"
+                    >
+                      {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Check className="w-3.5 h-3.5" />}
+                      Lưu
+                    </button>
+                    <button
+                      onClick={() => setEditingLessonId(null)}
+                      className="px-3 py-1.5 rounded-lg bg-slate-100 dark:bg-slate-700 font-bold cursor-pointer"
+                    >
+                      Huỷ
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex items-center gap-2.5">
+                  {onToggleLesson && (
+                    <button
+                      onClick={() => onToggleLesson(lesson.module_document_id, !!lesson.completed)}
+                      disabled={busyLessonId === lesson.module_document_id}
+                      title={lesson.completed ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu đã hoàn thành'}
+                      className="shrink-0"
+                    >
+                      {lesson.completed ? (
+                        <CheckCircle2 className="w-5 h-5 text-emerald-600" />
+                      ) : (
+                        <Circle className="w-5 h-5 text-slate-400" />
+                      )}
+                    </button>
+                  )}
+
+                  {/* Bấm vào TÊN bài học -> mở thẳng link bài giảng */}
+                  {lesson.content_url ? (
+                    <a
+                      href={lesson.content_url}
+                      target="_blank"
+                      rel="noreferrer"
+                      className={`flex-1 text-xs font-bold hover:underline inline-flex items-center gap-1.5 ${
+                        lesson.completed
+                          ? 'line-through text-slate-500 dark:text-slate-400'
+                          : 'text-blue-700 dark:text-blue-400'
+                      }`}
+                    >
+                      {lesson.title}
+                      <ExternalLink className="w-3.5 h-3.5 shrink-0" />
+                    </a>
+                  ) : (
+                    <span className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
+                      {lesson.title}
+                    </span>
+                  )}
+
                   <button
-                    onClick={() => onToggleLesson(lesson.module_document_id, !!lesson.completed)}
-                    disabled={busyLessonId === lesson.module_document_id}
-                    title={lesson.completed ? 'Bỏ đánh dấu hoàn thành' : 'Đánh dấu đã hoàn thành'}
-                    className="shrink-0"
+                    onClick={() =>
+                      setExpandedLessonId((id) =>
+                        id === lesson.module_document_id ? null : lesson.module_document_id
+                      )
+                    }
+                    title="Thảo luận"
+                    className="text-slate-400 hover:text-slate-600 shrink-0"
                   >
-                    {lesson.completed ? (
-                      <CheckCircle2 className="w-5 h-5 text-emerald-600" />
-                    ) : (
-                      <Circle className="w-5 h-5 text-slate-400" />
-                    )}
+                    <MessageSquare className="w-4 h-4" />
                   </button>
-                )}
 
-                {/* Bấm vào TÊN bài học -> mở thẳng link bài giảng */}
-                {lesson.content_url ? (
-                  <a
-                    href={lesson.content_url}
-                    target="_blank"
-                    rel="noreferrer"
-                    className={`flex-1 text-xs font-bold hover:underline inline-flex items-center gap-1.5 ${
-                      lesson.completed
-                        ? 'line-through text-slate-500 dark:text-slate-400'
-                        : 'text-blue-700 dark:text-blue-400'
-                    }`}
-                  >
-                    {lesson.title}
-                    <ExternalLink className="w-3.5 h-3.5 shrink-0" />
-                  </a>
-                ) : (
-                  <span className="flex-1 text-xs font-semibold text-slate-700 dark:text-slate-200">
-                    {lesson.title}
-                  </span>
-                )}
-
-                <button
-                  onClick={() =>
-                    setExpandedLessonId((id) =>
-                      id === lesson.module_document_id ? null : lesson.module_document_id
-                    )
-                  }
-                  title="Thảo luận"
-                  className="text-slate-400 hover:text-slate-600 shrink-0"
-                >
-                  <MessageSquare className="w-4 h-4" />
-                </button>
-
-                {!readOnly && (
-                  <button
-                    onClick={() => handleDeleteLesson(lesson)}
-                    disabled={busy}
-                    title="Xoá bài học"
-                    className="text-slate-300 hover:text-red-500 disabled:opacity-50 shrink-0"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
-                )}
-              </div>
+                  {!readOnly && (
+                    <>
+                      <button
+                        onClick={() => startEditLesson(lesson)}
+                        title="Sửa tên/link bài học"
+                        className="text-slate-300 hover:text-blue-500 shrink-0"
+                      >
+                        <Pencil className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleDeleteLesson(lesson)}
+                        disabled={busy}
+                        title="Xoá bài học"
+                        className="text-slate-300 hover:text-red-500 disabled:opacity-50 shrink-0"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    </>
+                  )}
+                </div>
+              )}
 
               {/* Tài liệu đính kèm — hiển thị NGAY DƯỚI bài học */}
               {(lesson.attachments || []).length > 0 && (

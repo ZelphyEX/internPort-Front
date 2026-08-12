@@ -278,6 +278,16 @@ export type ApiDepartment =
   | 'Salesforce/ERP'
   | 'AI & Data Science';
 
+/** Danh sách đủ giá trị `ApiDepartment` — dùng cho mọi dropdown chọn Khối kỹ thuật
+ * (chặng lộ trình, dự án). Giữ MỘT bản duy nhất để không lệch nhau giữa các nơi. */
+export const API_DEPARTMENTS: ApiDepartment[] = [
+  'Java Back-End',
+  'React Front-End',
+  'Cloud & DevOps',
+  'Salesforce/ERP',
+  'AI & Data Science',
+];
+
 export interface ApiUser {
   id: number;
   full_name: string;
