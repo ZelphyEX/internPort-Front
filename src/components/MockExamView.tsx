@@ -144,6 +144,17 @@ interface SavedSession {
 }
 
 /**
+ * Khoá lưu tiến độ = ĐỀ + CHẾ ĐỘ, không phải chỉ đề.
+ *
+ * Trước đây khoá chỉ là `examId`, nên Luyện tập và Thi thật của CÙNG một đề dùng
+ * chung một ô nhớ — làm dở đề X ở Luyện tập, rồi bấm sang Thi thật làm đề X là
+ * tiến độ Luyện tập bị ĐÈ MẤT ngay (auto-save ghi đè); quay lại Luyện tập thì ô
+ * nhớ giờ lại là của Thi thật, cứ thế đá qua đá lại. Tách theo `mode` để hai chế
+ * độ của cùng một đề độc lập hoàn toàn — làm dở cả hai cùng lúc không đụng nhau.
+ */
+const sessionSlotKey = (examId: string, mode: 'practice' | 'exam'): string => `${examId}::${mode}`;
+
+/**
  * Hiển thị một câu hỏi tách thành 2 khối rõ ràng: "Tình huống" (bối cảnh, có thể
  * không có) và "Câu hỏi" (điều thực sự được hỏi) — thay cho một đoạn văn dài gộp
  * cả hai, dễ đọc lướt mà bỏ sót câu hỏi thật nằm ở cuối.
@@ -514,7 +525,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     };
 
     setSavedSessions((prev) => {
-      const next = { ...prev, [currentExam.id]: session };
+      const next = { ...prev, [sessionSlotKey(currentExam.id, mode)]: session };
       localStorage.setItem(sessionKey, JSON.stringify(next));
       return next;
     });
@@ -541,10 +552,12 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     setCurrentExam(null);
   };
 
-  const clearSavedSession = (examId: string) => {
+  // Chỉ xoá đúng Ô của MỘT chế độ — nộp xong bài Thi thật không được đụng tới
+  // tiến độ Luyện tập đang làm dở của cùng đề đó (hai ô độc lập, xem sessionSlotKey).
+  const clearSavedSession = (examId: string, mode: 'practice' | 'exam') => {
     if (!sessionKey) return;
     const newSessions = { ...savedSessions };
-    delete newSessions[examId];
+    delete newSessions[sessionSlotKey(examId, mode)];
     setSavedSessions(newSessions);
     localStorage.setItem(sessionKey, JSON.stringify(newSessions));
   };
@@ -637,7 +650,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
     }
 
     // Clear saved session on exam completion
-    clearSavedSession(currentExam.id);
+    clearSavedSession(currentExam.id, mode);
 
     setExamState('result');
   };
@@ -720,7 +733,9 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               {EXAMS_DATA.filter(e => e.code === 'Claude Foundation').map((exam) => {
                 const bestScore = bestScores[exam.id];
                 const isPassed = bestScore >= EXAM_PASSING_SCORE;
-                const savedSession = savedSessions[exam.id];
+                // Ô nhớ theo ĐÚNG chế độ đang chọn ở nút gạt trên đầu trang — Luyện
+                // tập và Thi thật của cùng đề này giờ độc lập (xem sessionSlotKey).
+                const savedSession = savedSessions[sessionSlotKey(exam.id, mode)];
 
                 return (
                   <div 
@@ -794,7 +809,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                           </button>
                           <button 
                             onClick={() => {
-                              if (window.confirm('Tiến độ làm bài cũ của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?')) {
+                              if (window.confirm(`Tiến độ ${mode === 'exam' ? 'Thi thật' : 'Luyện tập'} đang làm dở của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?`)) {
                                 handleStartExam(exam);
                               }
                             }}
@@ -828,7 +843,9 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               {EXAMS_DATA.filter(e => e.code === 'Claude Developer').map((exam) => {
                 const bestScore = bestScores[exam.id];
                 const isPassed = bestScore >= EXAM_PASSING_SCORE;
-                const savedSession = savedSessions[exam.id];
+                // Ô nhớ theo ĐÚNG chế độ đang chọn ở nút gạt trên đầu trang — Luyện
+                // tập và Thi thật của cùng đề này giờ độc lập (xem sessionSlotKey).
+                const savedSession = savedSessions[sessionSlotKey(exam.id, mode)];
 
                 return (
                   <div 
@@ -902,7 +919,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                           </button>
                           <button 
                             onClick={() => {
-                              if (window.confirm('Tiến độ làm bài cũ của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?')) {
+                              if (window.confirm(`Tiến độ ${mode === 'exam' ? 'Thi thật' : 'Luyện tập'} đang làm dở của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?`)) {
                                 handleStartExam(exam);
                               }
                             }}
@@ -936,7 +953,9 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
               {EXAMS_DATA.filter(e => e.code === 'Claude Professional').map((exam) => {
                 const bestScore = bestScores[exam.id];
                 const isPassed = bestScore >= EXAM_PASSING_SCORE;
-                const savedSession = savedSessions[exam.id];
+                // Ô nhớ theo ĐÚNG chế độ đang chọn ở nút gạt trên đầu trang — Luyện
+                // tập và Thi thật của cùng đề này giờ độc lập (xem sessionSlotKey).
+                const savedSession = savedSessions[sessionSlotKey(exam.id, mode)];
 
                 return (
                   <div 
@@ -1010,7 +1029,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                           </button>
                           <button 
                             onClick={() => {
-                              if (window.confirm('Tiến độ làm bài cũ của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?')) {
+                              if (window.confirm(`Tiến độ ${mode === 'exam' ? 'Thi thật' : 'Luyện tập'} đang làm dở của đề này sẽ bị xóa. Bạn có chắc muốn thi lại từ đầu?`)) {
                                 handleStartExam(exam);
                               }
                             }}
