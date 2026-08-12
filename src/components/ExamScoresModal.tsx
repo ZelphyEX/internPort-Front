@@ -316,10 +316,16 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
 
   return (
     <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
-      <div className="w-full max-w-3xl my-8 bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl">
+      {/* Hộp cao tối đa 90vh, chia hai tầng: đầu đề cố định + phần thân TỰ CUỘN.
+          Bản cũ để cả hộp dài ra rồi cho đầu đề `sticky top-0`. Sticky là phần tử
+          được định vị nên nó VẼ ĐÈ lên danh sách bên dưới — cuộn tới đâu là vài
+          người bị khuất sau khối đầu đề tới đó. Nay đầu đề chiếm chỗ thật của nó
+          trong flex column, không còn nằm chồng lên ai. Đây cũng là cách các hộp
+          thoại khác trong portal đang dùng (xem InternDetailModal). */}
+      <div className="w-full max-w-3xl my-8 max-h-[90vh] flex flex-col overflow-hidden bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl">
 
         {/* Header */}
-        <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100 dark:border-slate-700 sticky top-0 bg-white dark:bg-slate-800 rounded-t-2xl">
+        <div className="shrink-0 flex items-start justify-between gap-3 p-5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
           <div className="flex items-center gap-3 min-w-0">
             <div className="p-2.5 rounded-xl bg-amber-100 dark:bg-amber-900/40 text-amber-700 dark:text-amber-400 shrink-0">
               <Award className="w-5 h-5" />
@@ -354,7 +360,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
           </div>
         </div>
 
-        <div className="p-5 space-y-6">
+        <div className="flex-1 overflow-y-auto p-5 space-y-6">
           {loading ? (
             <div className="p-8 flex items-center justify-center gap-2 text-slate-400 text-sm">
               <Loader2 className="w-4 h-4 animate-spin" /> Đang tải bảng điểm...
