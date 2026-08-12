@@ -71,6 +71,55 @@ interface Question {
   correct: string[];
   explanations: Record<string, string>;
   questionExplanation: string;
+  /** Chỉ đề Claude Foundation có sẵn: bối cảnh DÙNG CHUNG cho một nhóm câu hỏi
+   * (nhiều câu cùng `scenarioId` share đúng một đoạn này). Đề Developer/Professional
+   * không có trường này — bối cảnh của chúng nằm lẫn trong `question`, xem
+   * `splitScenarioAndQuestion()`. */
+  scenario?: string;
+  scenarioTitle?: string;
+}
+
+/**
+ * Tách một câu hỏi thành phần "bối cảnh" (Scenario) và phần "câu hỏi thật" (Question)
+ * để hiển thị riêng — gộp chung một đoạn văn dài rất khó theo dõi khi bối cảnh có
+ * 3-4 câu mô tả tình huống trước khi mới tới câu hỏi thật.
+ *
+ * Có 2 nguồn dữ liệu khác nhau tuỳ bộ đề:
+ *  - Claude Foundation: có sẵn field `scenario` riêng (bối cảnh CHUNG cho cả nhóm
+ *    câu hỏi) — dùng thẳng, không cần đoán.
+ *  - Claude Developer / Professional: KHÔNG có field riêng, bối cảnh nằm lẫn ngay
+ *    trong `question` dưới dạng vài câu mô tả tình huống rồi mới tới câu hỏi thật
+ *    (luôn có dấu "?"). Tách bằng cách tìm CÂU cuối cùng có chứa "?" — mọi câu
+ *    trước nó là bối cảnh, từ đó trở đi (kể cả câu phụ "Choose 2." nếu có) là câu
+ *    hỏi. Đã kiểm tra trên toàn bộ 1056 câu hỏi trong `src/data/CF.tests/exams/`:
+ *    100% có ít nhất một dấu "?". Nếu câu hỏi chỉ có một câu duy nhất (không có
+ *    bối cảnh dẫn dắt) thì để `scenario` rỗng — giao diện tự ẩn khối bối cảnh.
+ */
+function splitScenarioAndQuestion(
+  q: Question
+): { scenarioTitle?: string; scenario: string; question: string } {
+  if (q.scenario) {
+    return { scenarioTitle: q.scenarioTitle, scenario: q.scenario, question: q.question };
+  }
+
+  const sentences = q.question
+    .trim()
+    .split(/(?<=[.?!])\s+/)
+    .filter((s) => s.trim());
+
+  const lastQuestionIdx = sentences.reduce(
+    (found, s, i) => (s.includes('?') ? i : found),
+    -1
+  );
+
+  if (lastQuestionIdx <= 0) {
+    return { scenario: '', question: q.question };
+  }
+
+  return {
+    scenario: sentences.slice(0, lastQuestionIdx).join(' '),
+    question: sentences.slice(lastQuestionIdx).join(' '),
+  };
 }
 
 interface Exam {
@@ -91,6 +140,63 @@ interface SavedSession {
   timeLeft: number;
   date: string;
 }
+
+/**
+ * Hiển thị một câu hỏi tách thành 2 khối rõ ràng: "Tình huống" (bối cảnh, có thể
+ * không có) và "Câu hỏi" (điều thực sự được hỏi) — thay cho một đoạn văn dài gộp
+ * cả hai, dễ đọc lướt mà bỏ sót câu hỏi thật nằm ở cuối.
+ *
+ * `compact`: dùng ở màn xem lại kết quả (nhiều câu liệt kê liên tiếp) — cỡ chữ và
+ * khoảng cách nhỏ hơn so với màn làm bài (chỉ hiện 1 câu, cần nổi bật).
+ */
+const ScenarioQuestionBlock: React.FC<{ question: Question; compact?: boolean }> = ({
+  question,
+  compact = false,
+}) => {
+  const { scenarioTitle, scenario, question: questionText } = splitScenarioAndQuestion(question);
+
+  return (
+    <div className={compact ? 'space-y-2' : 'space-y-3'}>
+      {scenario && (
+        <div
+          className={`rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 ${
+            compact ? 'p-3' : 'p-4'
+          }`}
+        >
+          <div className="flex items-center gap-1.5 mb-1.5">
+            <BookOpen className={compact ? 'w-3.5 h-3.5 text-amber-600 dark:text-amber-400' : 'w-4 h-4 text-amber-600 dark:text-amber-400'} />
+            <span className={`font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+              Tình huống{scenarioTitle ? ` — ${scenarioTitle}` : ''}
+            </span>
+          </div>
+          <p
+            className={`text-amber-900/90 dark:text-amber-100/80 leading-relaxed whitespace-pre-line ${
+              compact ? 'text-[11px]' : 'text-sm'
+            }`}
+          >
+            {scenario}
+          </p>
+        </div>
+      )}
+
+      <div className={`rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/20 ${compact ? 'p-3' : 'p-4'}`}>
+        <div className="flex items-center gap-1.5 mb-1.5">
+          <HelpCircle className={compact ? 'w-3.5 h-3.5 text-blue-600 dark:text-blue-400' : 'w-4 h-4 text-blue-600 dark:text-blue-400'} />
+          <span className={`font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
+            Câu hỏi
+          </span>
+        </div>
+        <p
+          className={`font-extrabold text-slate-900 dark:text-slate-100 leading-snug whitespace-pre-line ${
+            compact ? 'text-sm' : 'text-base md:text-lg'
+          }`}
+        >
+          {questionText}
+        </p>
+      </div>
+    </div>
+  );
+};
 
 const EXAMS_DATA: Exam[] = [
   // Claude Developer
@@ -1004,9 +1110,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                 {currentQuestion.multiSelect ? 'Nhiều lựa chọn (Multiple Response)' : 'Một lựa chọn (Single Choice)'}
               </span>
             </div>
-            <h2 className="text-base md:text-lg font-extrabold text-slate-900 dark:text-slate-100 leading-snug whitespace-pre-line">
-              {currentQuestion.question}
-            </h2>
+            <ScenarioQuestionBlock question={currentQuestion} />
 
             {/* Answer Options list */}
             <div className="space-y-3 pt-2">
@@ -1269,9 +1373,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                   </div>
                 </div>
 
-                <h4 className="font-extrabold text-sm sm:text-base text-slate-900 dark:text-slate-100 leading-snug whitespace-pre-line">
-                  {q.question}
-                </h4>
+                <ScenarioQuestionBlock question={q} compact />
 
                 {/* Options Review list */}
                 <div className="space-y-2 pt-1">
