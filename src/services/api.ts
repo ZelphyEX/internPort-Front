@@ -403,6 +403,9 @@ export interface ApiExamAttempt {
   score: number;
   passed: boolean;
   duration_seconds?: number | null;
+  /** Đáp án đã chọn theo từng câu — {"<số câu>": ["A","C"]}. `null`/`undefined`
+   * cho các lần thi trước khi có trường này — không xem lại chi tiết được. */
+  answers?: Record<string, string[]> | null;
   created_at: string;
 }
 
@@ -988,6 +991,8 @@ export const examAttemptsApi = {
     total_questions: number;
     correct_count: number;
     duration_seconds?: number;
+    /** Đáp án đã chọn theo từng câu — {"<số câu>": ["A","C"]} — để xem lại sau này. */
+    answers?: Record<string, string[]>;
   }) {
     return request<ApiExamAttempt>('/exam-attempts', { method: 'POST', body: payload });
   },

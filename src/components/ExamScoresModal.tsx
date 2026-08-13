@@ -12,6 +12,7 @@ import {
   Mail,
   RefreshCw,
   AlertCircle,
+  Eye,
 } from 'lucide-react';
 import { UserRole } from '../types';
 import {
@@ -26,6 +27,7 @@ import {
   examPercent,
   tokenStore,
 } from '../services/api';
+import { ExamAttemptReviewModal } from './ExamAttemptReviewModal';
 
 /**
  * Bảng điểm Anthropic Mock Exam — mở ra khi bấm thẻ "Điểm Năng lực TB".
@@ -76,7 +78,8 @@ const PerExamList: React.FC<{
   attempts: ApiExamAttempt[];
   loadingAttempts: boolean;
   onLoadAttempts: () => void;
-}> = ({ summary, attempts, loadingAttempts, onLoadAttempts }) => {
+  onReview: (attempt: ApiExamAttempt) => void;
+}> = ({ summary, attempts, loadingAttempts, onLoadAttempts, onReview }) => {
   const [expandedExamId, setExpandedExamId] = useState<string | null>(null);
 
   if (summary.per_exam.length === 0) {
@@ -187,6 +190,14 @@ const PerExamList: React.FC<{
                           {attempt.score}
                         </span>
                         <PassBadge passed={attempt.passed} />
+                        <button
+                          type="button"
+                          onClick={() => onReview(attempt)}
+                          title="Xem lại đáp án đã chọn / đáp án đúng / lời giải thích"
+                          className="p-1.5 rounded-lg text-slate-400 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-950/30 dark:hover:text-blue-400 cursor-pointer"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                        </button>
                       </div>
                     </div>
                   ))
@@ -262,6 +273,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
 
   const [attemptsByUser, setAttemptsByUser] = useState<Record<number, ApiExamAttempt[]>>({});
   const [loadingAttemptsUserIds, setLoadingAttemptsUserIds] = useState<Record<number, boolean>>({});
+  const [reviewAttempt, setReviewAttempt] = useState<ApiExamAttempt | null>(null);
 
   const loadAttempts = (userId: number) => {
     if (attemptsByUser[userId] || loadingAttemptsUserIds[userId]) return;
@@ -484,6 +496,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                                   attempts={attemptsByUser[intern.user_id] || []}
                                   loadingAttempts={!!loadingAttemptsUserIds[intern.user_id]}
                                   onLoadAttempts={() => loadAttempts(intern.user_id)}
+                                  onReview={setReviewAttempt}
                                 />
                               </div>
                             )}
@@ -511,6 +524,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
                     attempts={attemptsByUser[mySummary.user_id] || []}
                     loadingAttempts={!!loadingAttemptsUserIds[mySummary.user_id]}
                     onLoadAttempts={() => loadAttempts(mySummary.user_id)}
+                    onReview={setReviewAttempt}
                   />
                 </div>
               )}
@@ -518,6 +532,10 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
           )}
         </div>
       </div>
+
+      {reviewAttempt && (
+        <ExamAttemptReviewModal attempt={reviewAttempt} onClose={() => setReviewAttempt(null)} />
+      )}
     </div>
   );
 };

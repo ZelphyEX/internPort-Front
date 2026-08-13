@@ -62,12 +62,12 @@ import pro4 from '../data/CF.tests/exams/exam_pro_4.json';
 import pro5 from '../data/CF.tests/exams/exam_pro_5.json';
 import pro6 from '../data/CF.tests/exams/exam_pro_6.json';
 
-interface Choice {
+export interface Choice {
   key: string;
   text: string;
 }
 
-interface Question {
+export interface Question {
   number: number;
   question: string;
   multiSelect: boolean;
@@ -99,7 +99,7 @@ interface Question {
  *    100% có ít nhất một dấu "?". Nếu câu hỏi chỉ có một câu duy nhất (không có
  *    bối cảnh dẫn dắt) thì để `scenario` rỗng — giao diện tự ẩn khối bối cảnh.
  */
-function splitScenarioAndQuestion(
+export function splitScenarioAndQuestion(
   q: Question
 ): { scenarioTitle?: string; scenario: string; question: string } {
   if (q.scenario) {
@@ -126,7 +126,7 @@ function splitScenarioAndQuestion(
   };
 }
 
-interface Exam {
+export interface Exam {
   id: string;
   title: string;
   code: string;
@@ -166,7 +166,7 @@ const sessionSlotKey = (examId: string, mode: 'practice' | 'exam'): string => `$
  * `compact`: dùng ở màn xem lại kết quả (nhiều câu liệt kê liên tiếp) — cỡ chữ và
  * khoảng cách nhỏ hơn so với màn làm bài (chỉ hiện 1 câu, cần nổi bật).
  */
-const ScenarioQuestionBlock: React.FC<{ question: Question; compact?: boolean }> = ({
+export const ScenarioQuestionBlock: React.FC<{ question: Question; compact?: boolean }> = ({
   question,
   compact = false,
 }) => {
@@ -318,7 +318,7 @@ const QuestionNavList: React.FC<{
   </div>
 );
 
-const EXAMS_DATA: Exam[] = [
+export const EXAMS_DATA: Exam[] = [
   // Claude Developer
   {
     id: 'claude-dev-1',
@@ -754,6 +754,9 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             total_questions: currentExam.questions.length,
             correct_count: correctCount,
             duration_seconds: Math.max(0, currentExam.duration * 60 - timeLeft),
+            // Để xem lại đáp án đã chọn / đáp án đúng / lời giải thích sau này
+            // (xem ExamAttemptReviewModal) — đề vẫn tĩnh ở frontend, chỉ gửi lựa chọn.
+            answers: selectedAnswers,
           })
           // Lấy lại từ server để bảng điểm khớp đúng dữ liệu đã lưu.
           .then(reloadBestScores)
