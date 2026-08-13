@@ -34,6 +34,7 @@ import {
   EXAM_PASSING_SCORE,
   EXAM_PASS_PERCENT,
   EXAM_SCORE_MAX,
+  ApiError,
 } from '../services/api';
 import { ExamScoresModal } from './ExamScoresModal';
 
@@ -756,12 +757,24 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
           })
           // Lấy lại từ server để bảng điểm khớp đúng dữ liệu đã lưu.
           .then(reloadBestScores)
-          .catch(() =>
+          .catch((err) => {
             // Không chặn màn kết quả: điểm vẫn hiện, chỉ cảnh báo là chưa đồng bộ.
+            //
+            // TRƯỚC ĐÂY: catch không đọc `err`, cứ lỗi gì cũng in "lỗi kết nối" —
+            // kể cả khi máy chủ đã trả lời (400/422/500) hay phiên đăng nhập hết
+            // hạn giữa chừng (đề tối đa 120 phút, dư sức dài hơn hạn access token).
+            // Gộp chung khiến người thi lẫn Mentor debug không biết đường nào mà
+            // lần. Giờ tách rõ: `ApiError` (server đã phản hồi, có status + detail
+            // thật) hiện đúng lý do; còn lại (fetch ném lỗi vì không tới được máy
+            // chủ) mới thật sự là "lỗi kết nối".
+            const detail =
+              err instanceof ApiError
+                ? `Máy chủ từ chối lưu kết quả (mã ${err.status}): ${err.detail}`
+                : 'Không lưu được kết quả lên hệ thống (lỗi kết nối).';
             setSubmitError(
-              'Không lưu được kết quả lên hệ thống (lỗi kết nối). Điểm này chỉ hiện tạm trên màn hình — Mentor sẽ không thấy, và tải lại trang là mất. Vui lòng thi lại khi có mạng.'
-            )
-          );
+              `${detail} Điểm này chỉ hiện tạm trên màn hình — Mentor sẽ không thấy, và tải lại trang là mất. Vui lòng thi lại khi có mạng.`
+            );
+          });
       }
     }
 
