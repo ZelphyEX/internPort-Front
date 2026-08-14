@@ -42,7 +42,21 @@ interface ProjectsViewProps {
   /** Nhóm để gán cả nhóm vào dự án (Mentor/Admin). */
   groups?: Group[];
   onUpdateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
-  onAddTask: (task: TaskItem) => void;
+  /**
+   * Giao 1 task cho một hoặc nhiều người cùng lúc — mỗi người trong
+   * `assignedInternIds` nhận một thẻ Kanban riêng, tạo trong 1 lượt gọi
+   * `POST /tasks/bulk`. Trả `false` nếu giao thất bại (đã tự báo lỗi bên trong)
+   * để form biết giữ nguyên dữ liệu cho người dùng sửa lại, thay vì reset mất.
+   */
+  onAddTasksBulk: (input: {
+    title: string;
+    projectId: string;
+    assignedInternIds: string[];
+    status: TaskStatus;
+    priority: TaskPriority;
+    dueDate: string;
+    description: string;
+  }) => Promise<boolean>;
   onDeleteTask?: (taskId: string) => void;
   onCreateProject?: (data: {
     code: string;
@@ -127,7 +141,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   interns = [],
   groups = [],
   onUpdateTaskStatus,
-  onAddTask,
+  onAddTasksBulk,
   onDeleteTask,
   onCreateProject,
   onDeleteProject,
@@ -161,10 +175,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   // --- Giao task trong phạm vi dự án ---
   const [isAssigningTask, setIsAssigningTask] = useState(false);
   const [ntTitle, setNtTitle] = useState('');
-  const [ntAssignee, setNtAssignee] = useState('');
+  // Nhiều người cùng lúc: mỗi người nhận MỘT thẻ Kanban riêng (task không dùng
+  // chung), nhưng cả lô tạo trong 1 lượt gọi — xem `onAddTasksBulk`.
+  const [ntAssigneeIds, setNtAssigneeIds] = useState<string[]>([]);
   const [ntPriority, setNtPriority] = useState<TaskPriority>('Medium');
   const [ntDue, setNtDue] = useState('');
   const [ntDesc, setNtDesc] = useState('');
+  const [isSubmittingTask, setIsSubmittingTask] = useState(false);
 
   const openProject = projects.find((p) => p.id === openProjectId) || null;
   const isBackendId = (id: string) => /^\d+$/.test(id);
@@ -301,29 +318,42 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     }
   };
 
-  const handleAssignTask = (e: React.FormEvent) => {
+  const handleAssignTask = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!openProject || !ntTitle.trim() || !ntAssignee) return;
-    const assignee = (members || []).find((m) => String(m.id) === ntAssignee);
-    onAddTask({
-      id: `TSK-${Date.now().toString().slice(-6)}`,
-      title: ntTitle.trim(),
-      projectId: openProject.id,
-      projectName: openProject.title,
-      assignedInternId: ntAssignee,
-      assignedInternName: assignee?.full_name || '',
-      mentorName: '',
-      status: 'To Do',
-      priority: ntPriority,
-      dueDate: ntDue,
-      description: ntDesc.trim(),
-      createdAt: new Date().toISOString(),
-    });
-    setNtTitle('');
-    setNtAssignee('');
-    setNtDue('');
-    setNtDesc('');
-    setIsAssigningTask(false);
+    if (!openProject || !ntTitle.trim() || ntAssigneeIds.length === 0) return;
+    setIsSubmittingTask(true);
+    try {
+      const ok = await onAddTasksBulk({
+        title: ntTitle.trim(),
+        projectId: openProject.id,
+        assignedInternIds: ntAssigneeIds,
+        status: 'To Do',
+        priority: ntPriority,
+        dueDate: ntDue,
+        description: ntDesc.trim(),
+      });
+      if (!ok) return; // lỗi đã báo bên trong onAddTasksBulk, giữ nguyên form để sửa lại
+      setNtTitle('');
+      setNtAssigneeIds([]);
+      setNtDue('');
+      setNtDesc('');
+      setIsAssigningTask(false);
+    } finally {
+      setIsSubmittingTask(false);
+    }
+  };
+
+  const toggleAssignee = (id: string) => {
+    setNtAssigneeIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const allMemberIds = (members || []).map((m) => String(m.id));
+  const isAllAssigneesSelected =
+    allMemberIds.length > 0 && allMemberIds.every((id) => ntAssigneeIds.includes(id));
+  const toggleSelectAllAssignees = () => {
+    setNtAssigneeIds(isAllAssigneesSelected ? [] : allMemberIds);
   };
 
   // ======================================================================== //
@@ -716,28 +746,61 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
-            <div>
-              <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">Giao cho *</label>
-              <select
-                required
-                value={ntAssignee}
-                onChange={(e) => setNtAssignee(e.target.value)}
-                className="w-full px-3 py-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 rounded-xl focus:ring-2 focus:ring-blue-500 font-semibold"
-              >
-                <option value="">— Chọn thành viên —</option>
-                {(members || []).map((m) => (
-                  <option key={m.id} value={String(m.id)}>
-                    {m.full_name}
-                  </option>
-                ))}
-              </select>
-              {(members || []).length === 0 && (
-                <p className="text-[11px] text-amber-700 mt-1">
-                  Dự án chưa có thành viên — hãy thêm thành viên trước khi giao task.
-                </p>
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="font-bold text-slate-800 dark:text-slate-200">
+                Giao cho * {ntAssigneeIds.length > 0 && (
+                  <span className="font-normal text-blue-700 dark:text-blue-300">
+                    ({ntAssigneeIds.length} người)
+                  </span>
+                )}
+              </label>
+              {(members || []).length > 0 && (
+                <label className="flex items-center gap-1.5 text-[11px] font-bold text-blue-700 dark:text-blue-300 cursor-pointer select-none">
+                  <input
+                    type="checkbox"
+                    checked={isAllAssigneesSelected}
+                    onChange={toggleSelectAllAssignees}
+                    className="accent-blue-600"
+                  />
+                  <span>Chọn tất cả ({allMemberIds.length} thành viên)</span>
+                </label>
               )}
             </div>
+
+            {(members || []).length === 0 ? (
+              <p className="text-[11px] text-amber-700 bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-800/60 rounded-xl px-3 py-2">
+                Dự án chưa có thành viên — hãy thêm thành viên trước khi giao task.
+              </p>
+            ) : (
+              <div className="max-h-40 overflow-y-auto grid grid-cols-1 sm:grid-cols-2 gap-1.5 p-2 bg-white dark:bg-slate-900 border border-blue-300 dark:border-blue-800 rounded-xl">
+                {(members || []).map((m) => {
+                  const idStr = String(m.id);
+                  const checked = ntAssigneeIds.includes(idStr);
+                  return (
+                    <label
+                      key={m.id}
+                      className={`flex items-center gap-2 px-2 py-1.5 rounded-lg cursor-pointer transition-colors ${
+                        checked
+                          ? 'bg-blue-100 dark:bg-blue-900/40'
+                          : 'hover:bg-slate-50 dark:hover:bg-slate-800'
+                      }`}
+                    >
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggleAssignee(idStr)}
+                        className="accent-blue-600 shrink-0"
+                      />
+                      <span className="font-semibold truncate">{m.full_name}</span>
+                    </label>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div>
               <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">Mức ưu tiên</label>
               <select
@@ -762,6 +825,15 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             </div>
           </div>
 
+          {/* Mỗi người chọn ở trên nhận MỘT thẻ Kanban riêng — bảng không có khái
+              niệm "1 task nhiều người phụ trách chung", nên nói rõ để Mentor không
+              hiểu nhầm là chỉ tạo 1 thẻ dùng chung. */}
+          {ntAssigneeIds.length > 1 && (
+            <p className="text-[11px] text-blue-700 dark:text-blue-300 bg-blue-100/60 dark:bg-blue-900/30 rounded-lg px-3 py-2">
+              Sẽ tạo <strong>{ntAssigneeIds.length} thẻ task riêng biệt</strong>, mỗi thẻ giao cho 1 người — không phải 1 thẻ dùng chung cho cả {ntAssigneeIds.length} người.
+            </p>
+          )}
+
           <div>
             <label className="font-bold text-slate-800 dark:text-slate-200 block mb-1">Mô tả công việc</label>
             <textarea
@@ -778,10 +850,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             </button>
             <button
               type="submit"
-              disabled={(members || []).length === 0}
-              className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-extrabold text-xs"
+              disabled={(members || []).length === 0 || ntAssigneeIds.length === 0 || isSubmittingTask}
+              className="px-4 py-1.5 rounded-xl bg-blue-600 hover:bg-blue-500 disabled:opacity-50 disabled:cursor-not-allowed text-white font-extrabold text-xs flex items-center gap-1.5"
             >
-              Giao task
+              {isSubmittingTask && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
+              <span>
+                {ntAssigneeIds.length > 1 ? `Giao ${ntAssigneeIds.length} task` : 'Giao task'}
+              </span>
             </button>
           </div>
         </form>

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { UserRole, Intern, Project, TaskItem, DailyReport, TaskStatus, AuthUser, DocumentResource, Group } from './types';
+import { UserRole, Intern, Project, TaskItem, DailyReport, TaskStatus, TaskPriority, AuthUser, DocumentResource, Group } from './types';
 import { GraduationCap } from 'lucide-react';
 import {
   INITIAL_INTERNS,
@@ -480,31 +480,67 @@ export default function App() {
     return Number.isInteger(n) && String(n) === id;
   };
 
-  // Giao Task mới. Online: POST /tasks (đặc tả), rồi đồng bộ id thật từ server về
-  // client để các thao tác sau (sửa/xoá) gọi đúng endpoint. Lỗi mạng: thêm cục bộ.
-  const handleAddTask = async (newTask: TaskItem) => {
+  /**
+   * Giao task — hỗ trợ giao cho 1 người HOẶC nhiều người (kể cả "chọn tất cả
+   * thành viên") trong cùng một lượt. Backend không có bảng N-N assignee nên
+   * mỗi người vẫn nhận một thẻ Kanban riêng — chỉ khác là cả lô được tạo trong
+   * MỘT lần gọi `POST /tasks/bulk` (1 transaction ở server) thay vì lặp lại
+   * `POST /tasks` cho từng người.
+   *
+   * Trả `true`/`false` để form gọi hàm này (ProjectsView) biết có nên reset lại
+   * hay không (thất bại thì giữ nguyên form cho người dùng sửa, không mất dữ liệu đã nhập).
+   */
+  const handleAddTasksBulk = async (input: {
+    title: string;
+    projectId: string;
+    assignedInternIds: string[];
+    status: TaskStatus;
+    priority: TaskPriority;
+    dueDate: string;
+    description: string;
+  }): Promise<boolean> => {
+    const ids = input.assignedInternIds.filter(isBackendId).map(Number);
+    if (ids.length === 0) {
+      alert('Cần chọn ít nhất một người nhận task có tài khoản thật trên hệ thống.');
+      return false;
+    }
+
     if (tokenStore.isAuthenticated()) {
       try {
-        const created = await tasksApi.create({
-          title: newTask.title,
-          project_id: isBackendId(newTask.projectId) ? Number(newTask.projectId) : undefined,
-          assigned_intern_id: isBackendId(newTask.assignedInternId) ? Number(newTask.assignedInternId) : undefined,
-          status: newTask.status,
-          priority: newTask.priority,
-          due_date: newTask.dueDate || undefined,
-          description: newTask.description || undefined,
+        const created = await tasksApi.bulkCreate({
+          title: input.title,
+          project_id: isBackendId(input.projectId) ? Number(input.projectId) : undefined,
+          assigned_intern_ids: ids,
+          status: input.status,
+          priority: input.priority,
+          due_date: input.dueDate || undefined,
+          description: input.description || undefined,
         });
-        setTasks(prev => [{ ...newTask, id: String(created.id) }, ...prev]);
-        return;
+        setTasks(prev => [...created.map(apiTaskToTaskItem), ...prev]);
+        return true;
       } catch (err) {
-        if (err instanceof ApiError) {
-          alert(err.detail || 'Giao task thất bại.');
-          return;
-        }
-        // Lỗi mạng: rơi xuống nhánh cục bộ.
+        alert(err instanceof ApiError ? err.detail || 'Giao task thất bại.' : 'Giao task thất bại (lỗi kết nối).');
+        return false;
       }
     }
-    setTasks(prev => [newTask, ...prev]);
+
+    // Ngoại tuyến: thêm cục bộ, mỗi người một thẻ, id tạm sinh ở client.
+    const localTasks: TaskItem[] = ids.map((id, idx) => ({
+      id: `TSK-${Date.now().toString().slice(-6)}-${idx}`,
+      title: input.title,
+      projectId: input.projectId,
+      projectName: projects.find(p => p.id === input.projectId)?.title || '',
+      assignedInternId: String(id),
+      assignedInternName: interns.find(i => i.id === String(id))?.name || '',
+      mentorName: '',
+      status: input.status,
+      priority: input.priority,
+      dueDate: input.dueDate,
+      description: input.description,
+      createdAt: new Date().toISOString(),
+    }));
+    setTasks(prev => [...localTasks, ...prev]);
+    return true;
   };
 
   // Tải lại danh sách dự án (dùng sau khi tạo dự án / đổi thành viên để `membersCount`
@@ -968,7 +1004,7 @@ export default function App() {
               interns={interns}
               groups={groups}
               onUpdateTaskStatus={handleUpdateTaskStatus}
-              onAddTask={handleAddTask}
+              onAddTasksBulk={handleAddTasksBulk}
               onDeleteTask={handleDeleteTask}
               onCreateProject={handleCreateProject}
               onDeleteProject={handleDeleteProject}

@@ -1572,6 +1572,26 @@ export const tasksApi = {
     return request<ApiTask>('/tasks', { method: 'POST', body: payload });
   },
 
+  /**
+   * POST /tasks/bulk — Giao CÙNG một task cho NHIỀU người cùng lúc (vd cả nhóm/dự
+   * án). Quyền: MENTOR/ADMIN. Trả về danh sách task đã tạo — mỗi người trong
+   * `assigned_intern_ids` nhận MỘT thẻ Kanban riêng (không có task dùng chung nhiều
+   * người), tạo trong một transaction ở backend.
+   */
+  bulkCreate(payload: {
+    title: string;
+    project_id?: number;
+    assigned_intern_ids: number[];
+    mentor_id?: number;
+    status?: ApiTaskStatus;
+    priority?: ApiTaskPriority;
+    due_date?: string;
+    description?: string;
+    pr_url?: string;
+  }) {
+    return request<ApiTask[]>('/tasks/bulk', { method: 'POST', body: payload });
+  },
+
   /** GET /tasks/{id} — Chi tiết task. */
   get(id: number) {
     return request<ApiTask>(`/tasks/${id}`);
