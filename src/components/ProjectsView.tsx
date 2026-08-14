@@ -21,6 +21,7 @@ import { AuthUser, Project, TaskItem, TaskStatus, TaskPriority, UserRole, Intern
 import { canManageContent } from '../services/permissions';
 import { projectsApi, tokenStore, ApiError, ApiProjectMember } from '../services/api';
 import { AssignPicker } from './AssignPicker';
+import { TaskDetailModal } from './TaskDetailModal';
 
 /**
  * Tab "Dự án & Kanban Worklog" — cấu trúc 2 tầng:
@@ -182,6 +183,9 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const [ntDue, setNtDue] = useState('');
   const [ntDesc, setNtDesc] = useState('');
   const [isSubmittingTask, setIsSubmittingTask] = useState(false);
+  // Task đang mở xem chi tiết (bấm vào thẻ Kanban) — lưu ID, không lưu cả object,
+  // để mỗi lần render tự lấy lại bản mới nhất từ `tasks` (vd sau khi đổi status).
+  const [detailTaskId, setDetailTaskId] = useState<string | null>(null);
 
   const openProject = projects.find((p) => p.id === openProjectId) || null;
   const isBackendId = (id: string) => /^\d+$/.test(id);
@@ -886,12 +890,15 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   colTasks.map((task) => (
                     <div
                       key={task.id}
-                      className="relative bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-2.5 hover:shadow-md transition-all group"
+                      onClick={() => setDetailTaskId(task.id)}
+                      title="Bấm để xem chi tiết"
+                      className="relative bg-white dark:bg-slate-800 rounded-xl p-3.5 border border-slate-200/90 dark:border-slate-700 shadow-2xs space-y-2.5 hover:shadow-md hover:border-blue-300 dark:hover:border-blue-800 transition-all group cursor-pointer"
                     >
                       {canManage && onDeleteTask && (
                         <button
                           type="button"
-                          onClick={() => {
+                          onClick={(e) => {
+                            e.stopPropagation();
                             if (window.confirm(`Xoá task "${task.title}"?`)) onDeleteTask(task.id);
                           }}
                           title="Xoá task"
@@ -934,6 +941,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                           href={task.prUrl}
                           target="_blank"
                           rel="noopener noreferrer"
+                          onClick={(e) => e.stopPropagation()}
                           className="inline-flex items-center gap-1 text-[10px] font-bold text-blue-600 hover:underline"
                         >
                           <ExternalLink className="w-3 h-3" />
@@ -951,6 +959,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                         <span className="text-[10px] text-slate-400 font-semibold">Chuyển:</span>
                         <select
                           value={task.status}
+                          onClick={(e) => e.stopPropagation()}
                           onChange={(e) => onUpdateTaskStatus(task.id, e.target.value as TaskStatus)}
                           className="text-[10px] bg-slate-100 dark:bg-slate-900 hover:bg-slate-200 text-slate-800 dark:text-slate-200 font-bold px-2 py-1 rounded-md focus:outline-none cursor-pointer border border-slate-200 dark:border-slate-700"
                         >
@@ -978,6 +987,21 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
           );
         })}
       </div>
+
+      {/* Lấy lại bản mới nhất từ `tasks` theo id (không lưu cả object trong state)
+          để không hiện dữ liệu cũ nếu task đã đổi (vd đổi status) trong lúc modal mở. */}
+      {detailTaskId && (() => {
+        const liveTask = tasks.find((t) => t.id === detailTaskId);
+        if (!liveTask) return null;
+        return (
+          <TaskDetailModal
+            task={liveTask}
+            canManage={canManage}
+            onClose={() => setDetailTaskId(null)}
+            onDelete={onDeleteTask}
+          />
+        );
+      })()}
     </div>
   );
 };
