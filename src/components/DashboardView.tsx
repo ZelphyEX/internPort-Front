@@ -121,7 +121,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   // Nếu tài khoản đang đăng nhập không map được internId cụ thể (VD: đổi vai trò thử nghiệm từ tài khoản Admin/Mentor),
   // vẫn hiển thị tạm hồ sơ intern đầu tiên trong danh sách để demo cho đầy đủ
   const myIntern = (currentUser?.internId ? interns.find(i => i.id === currentUser.internId) : undefined) || interns[0];
-  const myTasks = myIntern ? tasks.filter(t => t.assignedInternId === myIntern.id) : [];
+  const myTasks = myIntern ? tasks.filter(t => t.assignedInternIds.includes(myIntern.id)) : [];
   const myCompletedTasks = myTasks.filter(t => t.status === 'Done');
   const myTaskCompletionRate = myTasks.length > 0 ? Math.round((myCompletedTasks.length / myTasks.length) * 100) : 0;
 
@@ -138,11 +138,16 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         acc[t.status] = (acc[t.status] || 0) + 1;
         return acc;
       }, {});
-      // Ai đang gánh việc chưa xong — dùng cho phần "ai nhiều việc nhất" của bản tóm tắt.
+      // Ai đang gánh việc chưa xong — dùng cho phần "ai nhiều việc nhất" của bản tóm
+      // tắt. Một task dùng chung nhiều người thì tính vào việc "chưa xong" của TỪNG
+      // người trong đó, không chỉ người đầu tiên.
       const openByAssignee = projectTasks
-        .filter((t) => t.status !== 'Done' && t.assignedInternName)
+        .filter((t) => t.status !== 'Done')
         .reduce<Record<string, number>>((acc, t) => {
-          acc[t.assignedInternName] = (acc[t.assignedInternName] || 0) + 1;
+          t.assignedInternNames.forEach((name) => {
+            if (!name) return;
+            acc[name] = (acc[name] || 0) + 1;
+          });
           return acc;
         }, {});
       return {

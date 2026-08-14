@@ -66,8 +66,14 @@ export interface TaskItem {
   title: string;
   projectId: string;
   projectName: string;
-  assignedInternId: string;
-  assignedInternName: string;
+  /**
+   * Một task giao được cho NHIỀU người cùng lúc — đây vẫn là MỘT task duy nhất
+   * dùng chung (1 thẻ Kanban), không tách thành nhiều task riêng theo từng người.
+   * Ai trong danh sách sửa task (đổi status...) là sửa chung, mọi người còn lại
+   * cùng thấy thay đổi ngay. Hai mảng luôn cùng độ dài, cùng thứ tự (song song).
+   */
+  assignedInternIds: string[];
+  assignedInternNames: string[];
   mentorName: string;
   status: TaskStatus;
   priority: TaskPriority;

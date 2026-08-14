@@ -701,14 +701,21 @@ export interface ApiProjectDetail extends ApiProject {
 export type ApiTaskStatus = 'To Do' | 'In Progress' | 'In Review' | 'Done' | 'Blocked';
 export type ApiTaskPriority = 'Low' | 'Medium' | 'High' | 'Urgent';
 
+/** Một người trong danh sách người nhận task (`ApiTask.assignees`). */
+export interface ApiTaskAssignee {
+  user_id: number;
+  full_name: string;
+}
+
 export interface ApiTask {
   id: number;
   title: string;
   project_id?: number | null;
   project_code?: string | null;
   project_title?: string | null;
-  assigned_intern_id?: number | null;
-  assigned_intern_name?: string | null;
+  /** Một task giao được cho NHIỀU người cùng lúc — vẫn là MỘT task duy nhất
+   * (không tách thành nhiều task riêng); ai trong danh sách sửa là sửa chung. */
+  assignees: ApiTaskAssignee[];
   mentor_id?: number | null;
   mentor_name?: string | null;
   status: ApiTaskStatus;
@@ -1557,11 +1564,17 @@ export const tasksApi = {
     return request<Paginated<ApiTask>>('/tasks', { query: params });
   },
 
-  /** POST /tasks — Tạo task. Quyền: MENTOR/ADMIN. `mentor_id` mặc định là người gọi. */
+  /**
+   * POST /tasks — Tạo task. Quyền: MENTOR/ADMIN. `mentor_id` mặc định là người gọi.
+   *
+   * `assigned_intern_ids` nhận 0, 1, hoặc NHIỀU người (vd cả nhóm/dự án) — tất cả
+   * cùng gắn vào MỘT task này (1 thẻ Kanban dùng chung), không tạo nhiều task
+   * riêng. Ai trong danh sách sửa task là sửa chung, mọi người còn lại cùng thấy.
+   */
   create(payload: {
     title: string;
     project_id?: number;
-    assigned_intern_id?: number;
+    assigned_intern_ids?: number[];
     mentor_id?: number;
     status?: ApiTaskStatus;
     priority?: ApiTaskPriority;
@@ -1572,38 +1585,22 @@ export const tasksApi = {
     return request<ApiTask>('/tasks', { method: 'POST', body: payload });
   },
 
-  /**
-   * POST /tasks/bulk — Giao CÙNG một task cho NHIỀU người cùng lúc (vd cả nhóm/dự
-   * án). Quyền: MENTOR/ADMIN. Trả về danh sách task đã tạo — mỗi người trong
-   * `assigned_intern_ids` nhận MỘT thẻ Kanban riêng (không có task dùng chung nhiều
-   * người), tạo trong một transaction ở backend.
-   */
-  bulkCreate(payload: {
-    title: string;
-    project_id?: number;
-    assigned_intern_ids: number[];
-    mentor_id?: number;
-    status?: ApiTaskStatus;
-    priority?: ApiTaskPriority;
-    due_date?: string;
-    description?: string;
-    pr_url?: string;
-  }) {
-    return request<ApiTask[]>('/tasks/bulk', { method: 'POST', body: payload });
-  },
-
   /** GET /tasks/{id} — Chi tiết task. */
   get(id: number) {
     return request<ApiTask>(`/tasks/${id}`);
   },
 
-  /** PATCH /tasks/{id} — Sửa task (đổi status, PR url, feedback...). */
+  /**
+   * PATCH /tasks/{id} — Sửa task (đổi status, PR url, feedback, người nhận...).
+   * Gửi `assigned_intern_ids` là THAY TOÀN BỘ danh sách người nhận, không phải
+   * thêm/gộp vào danh sách cũ.
+   */
   update(
     id: number,
     payload: Partial<{
       title: string;
       project_id: number;
-      assigned_intern_id: number;
+      assigned_intern_ids: number[];
       mentor_id: number;
       status: ApiTaskStatus;
       priority: ApiTaskPriority;

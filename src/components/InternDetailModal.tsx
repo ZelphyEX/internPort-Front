@@ -69,7 +69,7 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
   };
 
   const internReports = reports.filter(r => r.internId === intern.id);
-  const internTasks = tasks.filter(t => t.assignedInternId === intern.id);
+  const internTasks = tasks.filter(t => t.assignedInternIds.includes(intern.id));
   const completedTasksCount = internTasks.filter(t => t.status === 'Done').length;
 
   const handleGenerateAiEvaluation = async () => {

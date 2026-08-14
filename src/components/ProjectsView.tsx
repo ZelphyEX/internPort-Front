@@ -43,12 +43,12 @@ interface ProjectsViewProps {
   groups?: Group[];
   onUpdateTaskStatus: (taskId: string, newStatus: TaskStatus) => void;
   /**
-   * Giao 1 task cho một hoặc nhiều người cùng lúc — mỗi người trong
-   * `assignedInternIds` nhận một thẻ Kanban riêng, tạo trong 1 lượt gọi
-   * `POST /tasks/bulk`. Trả `false` nếu giao thất bại (đã tự báo lỗi bên trong)
-   * để form biết giữ nguyên dữ liệu cho người dùng sửa lại, thay vì reset mất.
+   * Giao 1 task cho một hoặc nhiều người cùng lúc (`assignedInternIds`) — tạo
+   * MỘT bản ghi task duy nhất dùng chung (1 thẻ Kanban), không tách thành nhiều
+   * task riêng theo từng người. Trả `false` nếu giao thất bại (đã tự báo lỗi bên
+   * trong) để form biết giữ nguyên dữ liệu cho người dùng sửa lại, thay vì reset mất.
    */
-  onAddTasksBulk: (input: {
+  onAssignTask: (input: {
     title: string;
     projectId: string;
     assignedInternIds: string[];
@@ -141,7 +141,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   interns = [],
   groups = [],
   onUpdateTaskStatus,
-  onAddTasksBulk,
+  onAssignTask,
   onDeleteTask,
   onCreateProject,
   onDeleteProject,
@@ -175,8 +175,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   // --- Giao task trong phạm vi dự án ---
   const [isAssigningTask, setIsAssigningTask] = useState(false);
   const [ntTitle, setNtTitle] = useState('');
-  // Nhiều người cùng lúc: mỗi người nhận MỘT thẻ Kanban riêng (task không dùng
-  // chung), nhưng cả lô tạo trong 1 lượt gọi — xem `onAddTasksBulk`.
+  // Nhiều người cùng lúc = 1 task DÙNG CHUNG cho tất cả (không tạo nhiều task
+  // riêng) — xem `onAssignTask`.
   const [ntAssigneeIds, setNtAssigneeIds] = useState<string[]>([]);
   const [ntPriority, setNtPriority] = useState<TaskPriority>('Medium');
   const [ntDue, setNtDue] = useState('');
@@ -323,7 +323,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
     if (!openProject || !ntTitle.trim() || ntAssigneeIds.length === 0) return;
     setIsSubmittingTask(true);
     try {
-      const ok = await onAddTasksBulk({
+      const ok = await onAssignTask({
         title: ntTitle.trim(),
         projectId: openProject.id,
         assignedInternIds: ntAssigneeIds,
@@ -332,7 +332,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
         dueDate: ntDue,
         description: ntDesc.trim(),
       });
-      if (!ok) return; // lỗi đã báo bên trong onAddTasksBulk, giữ nguyên form để sửa lại
+      if (!ok) return; // lỗi đã báo bên trong onAssignTask, giữ nguyên form để sửa lại
       setNtTitle('');
       setNtAssigneeIds([]);
       setNtDue('');
@@ -825,12 +825,13 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             </div>
           </div>
 
-          {/* Mỗi người chọn ở trên nhận MỘT thẻ Kanban riêng — bảng không có khái
-              niệm "1 task nhiều người phụ trách chung", nên nói rõ để Mentor không
-              hiểu nhầm là chỉ tạo 1 thẻ dùng chung. */}
+          {/* Tất cả người chọn ở trên cùng dùng chung MỘT thẻ Kanban — không phải
+              mỗi người một thẻ riêng. Ai trong số họ đổi status/PR url là đổi
+              chung, mọi người còn lại cùng thấy ngay. Nói rõ để Mentor không hiểu
+              nhầm là sẽ tạo nhiều thẻ. */}
           {ntAssigneeIds.length > 1 && (
             <p className="text-[11px] text-blue-700 dark:text-blue-300 bg-blue-100/60 dark:bg-blue-900/30 rounded-lg px-3 py-2">
-              Sẽ tạo <strong>{ntAssigneeIds.length} thẻ task riêng biệt</strong>, mỗi thẻ giao cho 1 người — không phải 1 thẻ dùng chung cho cả {ntAssigneeIds.length} người.
+              Cả <strong>{ntAssigneeIds.length} người</strong> sẽ cùng dùng chung <strong>MỘT thẻ task</strong> — ai đổi trạng thái là đổi chung, không tách thành nhiều thẻ riêng.
             </p>
           )}
 
@@ -855,7 +856,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
             >
               {isSubmittingTask && <Loader2 className="w-3.5 h-3.5 animate-spin" />}
               <span>
-                {ntAssigneeIds.length > 1 ? `Giao ${ntAssigneeIds.length} task` : 'Giao task'}
+                {ntAssigneeIds.length > 1 ? `Giao task cho ${ntAssigneeIds.length} người` : 'Giao task'}
               </span>
             </button>
           </div>
@@ -909,8 +910,17 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                       </h4>
 
                       <div className="flex items-center justify-between text-[11px] pt-1 border-t border-slate-100 dark:border-slate-800">
-                        <span className="font-semibold text-slate-700 dark:text-slate-300 truncate">
-                          {task.assignedInternName || 'Chưa giao'}
+                        {/* Task dùng chung nhiều người: hiện người đầu + số người còn
+                            lại, đầy đủ danh sách xem qua tooltip (title). */}
+                        <span
+                          className="font-semibold text-slate-700 dark:text-slate-300 truncate"
+                          title={task.assignedInternNames.join(', ') || undefined}
+                        >
+                          {task.assignedInternNames.length === 0
+                            ? 'Chưa giao'
+                            : task.assignedInternNames.length === 1
+                            ? task.assignedInternNames[0]
+                            : `${task.assignedInternNames[0]} +${task.assignedInternNames.length - 1} khác`}
                         </span>
                         {task.dueDate && (
                           <span className="text-slate-400 flex items-center gap-1 shrink-0">

@@ -481,16 +481,16 @@ export default function App() {
   };
 
   /**
-   * Giao task — hỗ trợ giao cho 1 người HOẶC nhiều người (kể cả "chọn tất cả
-   * thành viên") trong cùng một lượt. Backend không có bảng N-N assignee nên
-   * mỗi người vẫn nhận một thẻ Kanban riêng — chỉ khác là cả lô được tạo trong
-   * MỘT lần gọi `POST /tasks/bulk` (1 transaction ở server) thay vì lặp lại
-   * `POST /tasks` cho từng người.
+   * Giao 1 task cho một hoặc nhiều người cùng lúc (kể cả "chọn tất cả thành
+   * viên") — đây là MỘT bản ghi task duy nhất dùng chung (1 thẻ Kanban, không
+   * tách thành nhiều task riêng theo từng người). Ai trong số người nhận sửa
+   * task (đổi status...) là sửa chung, mọi người còn lại thấy thay đổi ngay vì
+   * cùng nhìn vào một task.
    *
    * Trả `true`/`false` để form gọi hàm này (ProjectsView) biết có nên reset lại
    * hay không (thất bại thì giữ nguyên form cho người dùng sửa, không mất dữ liệu đã nhập).
    */
-  const handleAddTasksBulk = async (input: {
+  const handleCreateTask = async (input: {
     title: string;
     projectId: string;
     assignedInternIds: string[];
@@ -507,7 +507,7 @@ export default function App() {
 
     if (tokenStore.isAuthenticated()) {
       try {
-        const created = await tasksApi.bulkCreate({
+        const created = await tasksApi.create({
           title: input.title,
           project_id: isBackendId(input.projectId) ? Number(input.projectId) : undefined,
           assigned_intern_ids: ids,
@@ -516,7 +516,7 @@ export default function App() {
           due_date: input.dueDate || undefined,
           description: input.description || undefined,
         });
-        setTasks(prev => [...created.map(apiTaskToTaskItem), ...prev]);
+        setTasks(prev => [apiTaskToTaskItem(created), ...prev]);
         return true;
       } catch (err) {
         alert(err instanceof ApiError ? err.detail || 'Giao task thất bại.' : 'Giao task thất bại (lỗi kết nối).');
@@ -524,22 +524,22 @@ export default function App() {
       }
     }
 
-    // Ngoại tuyến: thêm cục bộ, mỗi người một thẻ, id tạm sinh ở client.
-    const localTasks: TaskItem[] = ids.map((id, idx) => ({
-      id: `TSK-${Date.now().toString().slice(-6)}-${idx}`,
+    // Ngoại tuyến: thêm cục bộ — 1 thẻ dùng chung cho toàn bộ người được chọn.
+    const localTask: TaskItem = {
+      id: `TSK-${Date.now().toString().slice(-6)}`,
       title: input.title,
       projectId: input.projectId,
       projectName: projects.find(p => p.id === input.projectId)?.title || '',
-      assignedInternId: String(id),
-      assignedInternName: interns.find(i => i.id === String(id))?.name || '',
+      assignedInternIds: ids.map(String),
+      assignedInternNames: ids.map((id) => interns.find(i => i.id === String(id))?.name || ''),
       mentorName: '',
       status: input.status,
       priority: input.priority,
       dueDate: input.dueDate,
       description: input.description,
       createdAt: new Date().toISOString(),
-    }));
-    setTasks(prev => [...localTasks, ...prev]);
+    };
+    setTasks(prev => [localTask, ...prev]);
     return true;
   };
 
@@ -829,10 +829,22 @@ export default function App() {
     }
   };
 
-  // Bỏ trạng thái intern khỏi state cục bộ (kèm dọn Task/Báo cáo liên quan)
+  // Bỏ trạng thái intern khỏi state cục bộ (kèm dọn Task/Báo cáo liên quan).
+  // Task dùng chung cho nhiều người: chỉ GỠ người này khỏi danh sách người
+  // nhận, không xoá cả task — người khác trong task đó vẫn còn nguyên.
   const removeInternLocal = (internId: string) => {
     setInterns(prev => prev.filter(i => i.id !== internId));
-    setTasks(prev => prev.filter(t => t.assignedInternId !== internId));
+    setTasks(prev =>
+      prev.map((t) => {
+        const idx = t.assignedInternIds.indexOf(internId);
+        if (idx === -1) return t;
+        return {
+          ...t,
+          assignedInternIds: t.assignedInternIds.filter((_, i) => i !== idx),
+          assignedInternNames: t.assignedInternNames.filter((_, i) => i !== idx),
+        };
+      })
+    );
     setReports(prev => prev.filter(r => r.internId !== internId));
     setSelectedIntern(prev => (prev && prev.id === internId ? null : prev));
   };
@@ -1004,7 +1016,7 @@ export default function App() {
               interns={interns}
               groups={groups}
               onUpdateTaskStatus={handleUpdateTaskStatus}
-              onAddTasksBulk={handleAddTasksBulk}
+              onAssignTask={handleCreateTask}
               onDeleteTask={handleDeleteTask}
               onCreateProject={handleCreateProject}
               onDeleteProject={handleDeleteProject}
