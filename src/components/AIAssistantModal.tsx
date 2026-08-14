@@ -29,7 +29,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     {
       id: 'msg-1',
       sender: 'assistant',
-      text: 'Xin chào! Tôi là **Trợ lý AI Mentor Gimasys** (được vận hành bởi Gemini 3.6 Flash).\n\nTôi có thể giúp bạn giải đáp thắc mắc kỹ thuật (Java, React, DevOps, Cloud, Salesforce), quy định nộp báo cáo hằng ngày (Daily Standup), quy chuẩn Git Commit hay hướng dẫn viết CV/bảo vệ thực tập. Bạn cần hỗ trợ gì hôm nay?',
+      text: 'Xin chào! Tôi là **Trợ lý AI Mentor Gimasys** (được vận hành bởi Claude Haiku 4.5).\n\nTôi có thể giúp bạn giải đáp thắc mắc kỹ thuật (Java, React, DevOps, Cloud, Salesforce), quy định nộp báo cáo hằng ngày (Daily Standup), quy chuẩn Git Commit hay hướng dẫn viết CV/bảo vệ thực tập. Bạn cần hỗ trợ gì hôm nay?',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -64,11 +64,25 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     setIsLoading(true);
 
     try {
+      // Gửi kèm các lượt trước để trợ lý nhớ mạch hội thoại. Trước đây chỉ gửi
+      // `message` nên mỗi câu hỏi là một cuộc trò chuyện mới — hỏi "còn cách nào
+      // khác không?" thì trợ lý không biết "khác" so với gì.
+      //
+      // Bỏ lời chào mở đầu (`msg-1`, do client tự dựng, model chưa hề nói câu đó) và
+      // các thông báo lỗi: lượt đầu tiên gửi lên PHẢI là của người dùng.
+      const history = messages
+        .filter((m) => m.id !== 'msg-1' && !m.id.startsWith('err-'))
+        .map((m) => ({
+          role: m.sender === 'user' ? 'user' : 'assistant',
+          content: m.text,
+        }));
+
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: messageText,
+          history,
           role: currentRole
         })
       });
@@ -89,7 +103,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
       const errorMsg: AIMessage = {
         id: `err-${Date.now()}`,
         sender: 'assistant',
-        text: 'Chưa nhận được phản hồi từ AI Server. Hãy đảm bảo GEMINI_API_KEY đã được cấu hình trong phần Secrets của AI Studio.',
+        text: 'Chưa nhận được phản hồi từ AI Server. Hãy đảm bảo ANTHROPIC_API_KEY đã được cấu hình trên server.',
         timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, errorMsg]);
@@ -112,7 +126,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
               <div className="flex items-center gap-2">
                 <h3 className="font-extrabold text-base">Trợ lý AI Mentor Gimasys</h3>
                 <span className="text-[10px] font-bold px-2 py-0.5 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-full">
-                  Gemini 3.6 Flash
+                  Claude Haiku 4.5
                 </span>
               </div>
               <p className="text-[11px] text-slate-300">Giải đáp quy trình, tư vấn kỹ thuật & hướng dẫn thực tập 24/7</p>

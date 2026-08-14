@@ -12,11 +12,12 @@ import {
   Trash2,
   UserPlus,
   UserMinus,
+  UserCheck,
   Loader2,
   X,
   CalendarDays,
 } from 'lucide-react';
-import { Project, TaskItem, TaskStatus, TaskPriority, UserRole, Intern, Group } from '../types';
+import { AuthUser, Project, TaskItem, TaskStatus, TaskPriority, UserRole, Intern, Group } from '../types';
 import { canManageContent } from '../services/permissions';
 import { projectsApi, tokenStore, ApiError, ApiProjectMember } from '../services/api';
 import { AssignPicker } from './AssignPicker';
@@ -52,6 +53,8 @@ interface ProjectsViewProps {
   onDeleteProject?: (projectId: string) => void;
   onReloadProjects?: () => void;
   currentRole: UserRole;
+  /** Người đang đăng nhập — để Mentor/Admin tự thêm chính mình vào dự án. */
+  currentUser?: AuthUser | null;
 }
 
 const COLUMNS: { title: string; status: TaskStatus; color: string; countColor: string }[] = [
@@ -130,6 +133,7 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   onDeleteProject,
   onReloadProjects,
   currentRole,
+  currentUser,
 }) => {
   const canManage = canManageContent(currentRole);
 
@@ -219,6 +223,36 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
       onReloadProjects?.();
     } catch (err) {
       alert(err instanceof ApiError ? err.detail : 'Thêm thành viên thất bại.');
+    } finally {
+      setSavingMember(false);
+    }
+  };
+
+  /**
+   * Tự thêm CHÍNH MÌNH (Mentor/Admin đang đăng nhập) vào dự án.
+   *
+   * Kho ứng viên bên dưới chỉ liệt kê Thực tập sinh (`GET /users?role=INTERN`) nên
+   * Mentor không tự xuất hiện ở đó — cần nút riêng. Backend không giới hạn vai trò ở
+   * `POST /projects/{id}/members`, nên Mentor vào dự án được như thành viên thường
+   * (và nhờ vậy tên Mentor mới xuất hiện trong danh sách người được giao task).
+   */
+  const handleAddSelfToProject = async () => {
+    if (!openProjectId || !isBackendId(openProjectId)) {
+      alert('Dự án này là dữ liệu demo, chưa có trên máy chủ.');
+      return;
+    }
+    const myId = Number(currentUser?.id);
+    if (!Number.isInteger(myId)) {
+      alert('Tài khoản của bạn là dữ liệu demo, chưa có trên máy chủ nên không thêm vào dự án được.');
+      return;
+    }
+    setSavingMember(true);
+    try {
+      await projectsApi.addMembers(Number(openProjectId), [myId]);
+      loadMembers(openProjectId);
+      onReloadProjects?.();
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Thêm bạn vào dự án thất bại.');
     } finally {
       setSavingMember(false);
     }
@@ -488,6 +522,8 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
   const memberIds = new Set((members || []).map((m) => String(m.id)));
   // Người đã là thành viên bị loại khỏi kho chọn; lọc theo từ khoá do AssignPicker lo.
   const candidates = interns.filter((i) => !memberIds.has(i.id));
+  // Người đang đăng nhập đã ở trong dự án chưa — dùng để ẩn nút "Thêm chính tôi".
+  const isSelfMember = !!currentUser && memberIds.has(String(currentUser.id));
 
   return (
     <div className="space-y-6 pb-12">
@@ -595,6 +631,28 @@ export const ProjectsView: React.FC<ProjectsViewProps> = ({
                   )}
                 </div>
               ))}
+            </div>
+          )}
+
+          {/* Tự thêm mình vào dự án — Mentor/Admin không nằm trong kho ứng viên bên
+              dưới (kho đó chỉ có Thực tập sinh) nên cần nút riêng. */}
+          {canManage && !isSelfMember && (
+            <div className="pt-4 border-t border-slate-100 dark:border-slate-800">
+              <button
+                type="button"
+                disabled={savingMember}
+                onClick={handleAddSelfToProject}
+                className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer"
+              >
+                {savingMember ? (
+                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                ) : (
+                  <UserCheck className="w-3.5 h-3.5" />
+                )}
+                <span>
+                  Thêm chính tôi{currentUser?.name ? ` (${currentUser.name})` : ''} vào dự án này
+                </span>
+              </button>
             </div>
           )}
 

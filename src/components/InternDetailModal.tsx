@@ -192,7 +192,7 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
                 </div>
                 <div>
                   <h4 className="font-extrabold text-slate-900 dark:text-slate-100 text-sm">
-                    Tạo Báo cáo Đánh giá AI tự động (Gemini 3.6 Flash)
+                    Tạo Báo cáo Đánh giá AI tự động (Claude Haiku 4.5)
                   </h4>
                   <p className="text-xs text-slate-500 dark:text-slate-400">
                     Phân tích toàn bộ dữ liệu task, báo cáo hằng ngày và kỹ năng để xuất khuyến nghị tuyển dụng.
@@ -215,7 +215,7 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
             {aiReport && (
               <div className="mt-4 pt-4 border-t border-indigo-200/60 bg-white/90 rounded-xl p-4 text-xs space-y-4 shadow-2xs">
                 <div className="flex items-center justify-between">
-                  <span className="font-extrabold text-indigo-900 text-sm">ĐÁNH GIÁ CHUYÊN SÂU TỪ GEMINI AI</span>
+                  <span className="font-extrabold text-indigo-900 text-sm">ĐÁNH GIÁ CHUYÊN SÂU TỪ CLAUDE AI</span>
                   <span className="px-2.5 py-1 bg-emerald-100 text-emerald-800 font-extrabold rounded-full">
                     {aiReport.hiringRecommendation}
                   </span>

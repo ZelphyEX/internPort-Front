@@ -122,7 +122,7 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
           <div className="flex items-center justify-between gap-2 px-5 py-3 bg-indigo-50 dark:bg-indigo-950/40 border-b border-indigo-100 dark:border-indigo-900">
             <div className="flex items-center gap-2 text-indigo-800 dark:text-indigo-300 font-extrabold text-xs uppercase tracking-wide">
               <Sparkles className="w-4 h-4 text-indigo-600 dark:text-indigo-400" />
-              <span>Tổng hợp Standup hằng ngày bằng AI (Gemini)</span>
+              <span>Tổng hợp Standup hằng ngày bằng AI (Claude)</span>
             </div>
             <button
               type="button"

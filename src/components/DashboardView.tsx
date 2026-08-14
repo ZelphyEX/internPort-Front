@@ -19,6 +19,8 @@ import {
   tokenStore,
   dashboardApi,
   examAttemptsApi,
+  assignmentsApi,
+  learningApi,
   ApiDashboardMe,
   ApiDashboardOverview,
   ApiExamSummary,
@@ -50,7 +52,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   onSelectIntern,
   onOpenAddReport
 }) => {
-  const [aiStandupSummary, setAiStandupSummary] = useState<string | null>(null);
+  const [aiActivitySummary, setAiActivitySummary] = useState<string | null>(null);
+  // Nhãn model do SERVER trả về, không hard-code ở đây: đổi model bên server.ts là
+  // nhãn tự đổi theo, không để giao diện ghi tên một model khác model thật đang chạy.
+  const [activityModelLabel, setActivityModelLabel] = useState<string | null>(null);
+  const [activitySummaryError, setActivitySummaryError] = useState<string | null>(null);
   const [isSummarizing, setIsSummarizing] = useState(false);
 
   // Số liệu tính sẵn từ server (GET /dashboard/me hoặc /dashboard/overview). Online-first:
@@ -119,23 +125,132 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   const myCompletedTasks = myTasks.filter(t => t.status === 'Done');
   const myTaskCompletionRate = myTasks.length > 0 ? Math.round((myCompletedTasks.length / myTasks.length) * 100) : 0;
 
-  // AI Standup Summarizer Handler
+  /**
+   * Gom dự án + task thành dữ liệu gọn cho AI đọc.
+   *
+   * `projects`/`tasks` đã được backend thu hẹp theo quyền (INTERN chỉ nhận dự án mình
+   * tham gia và task của mình — xem `GET /projects`), nên không cần lọc lại ở đây.
+   */
+  const buildProjectPayload = () =>
+    projects.map((p) => {
+      const projectTasks = tasks.filter((t) => t.projectId === p.id);
+      const byStatus = projectTasks.reduce<Record<string, number>>((acc, t) => {
+        acc[t.status] = (acc[t.status] || 0) + 1;
+        return acc;
+      }, {});
+      // Ai đang gánh việc chưa xong — dùng cho phần "ai nhiều việc nhất" của bản tóm tắt.
+      const openByAssignee = projectTasks
+        .filter((t) => t.status !== 'Done' && t.assignedInternName)
+        .reduce<Record<string, number>>((acc, t) => {
+          acc[t.assignedInternName] = (acc[t.assignedInternName] || 0) + 1;
+          return acc;
+        }, {});
+      return {
+        code: p.code,
+        title: p.title,
+        status: p.status,
+        progress_percent: p.progress,
+        deadline: p.deadline || null,
+        member_count: p.membersCount,
+        total_tasks: projectTasks.length,
+        tasks_by_status: byStatus,
+        open_tasks_by_assignee: openByAssignee,
+      };
+    });
+
+  /**
+   * "Tóm tắt hoạt động" — thay cho "Tóm tắt Standup AI" cũ (vốn chỉ đọc báo cáo ngày).
+   *
+   * Tóm tắt ba mảng: điểm thi Mock Exam, tiến độ Lộ trình Đào tạo & Skills, tiến độ
+   * Dự án & Kanban. Phạm vi dữ liệu theo vai trò:
+   *   * MENTOR / ADMIN -> toàn bộ thành viên (`/exam-attempts/overview`, `/roadmap-assignments`).
+   *   * INTERN         -> chỉ của chính mình (`/exam-attempts/me/summary`, `/me/roadmaps`).
+   *
+   * Không có nhánh "dự phòng" bịa số liệu như bản cũ: một bản tóm tắt bịa còn tệ hơn
+   * không có bản nào, vì Mentor sẽ ra quyết định dựa trên số liệu không tồn tại.
+   */
   const handleGenerateAiSummary = async () => {
     setIsSummarizing(true);
+    setActivitySummaryError(null);
     try {
-      const res = await fetch('/api/ai/summarize-standup', {
+      const isIntern = currentRole === 'INTERN';
+
+      // Lấy tiến độ lộ trình đúng theo quyền. Điểm thi đã có sẵn trong state.
+      let roadmapPayload: unknown = null;
+      if (tokenStore.isAuthenticated()) {
+        try {
+          if (isIntern) {
+            const mine = await learningApi.myRoadmaps();
+            roadmapPayload = mine.map((r) => ({
+              title: r.title,
+              status: r.status,
+              progress_percent: r.progress_percent,
+              completed_lessons: r.completed_lessons,
+              total_lessons: r.total_lessons,
+            }));
+          } else {
+            const res = await assignmentsApi.list({ size: 100 });
+            roadmapPayload = res.items.map((a) => ({
+              member: a.user_name,
+              roadmap: a.roadmap_title,
+              status: a.status,
+              progress_percent: a.progress_percent,
+            }));
+          }
+        } catch {
+          /* Không lấy được lộ trình: vẫn tóm tắt 2 mảng còn lại, mục này ghi "chưa có dữ liệu". */
+        }
+      }
+
+      const examPayload = isIntern
+        ? examSummary && {
+            avg_score: examSummary.avg_score,
+            best_score: examSummary.best_score,
+            exams_taken: examSummary.exams_taken,
+            exams_passed: examSummary.exams_passed,
+            per_exam: examSummary.per_exam.map((e) => ({
+              exam: e.exam_title,
+              best_score: e.best_score,
+              passed: e.passed,
+              attempts: e.attempts,
+            })),
+          }
+        : examOverview && {
+            avg_score: examOverview.avg_score,
+            members_with_attempts: examOverview.interns_with_attempts,
+            members_total: examOverview.interns_total,
+            members: examOverview.interns.map((i) => ({
+              name: i.full_name,
+              avg_score: i.avg_score,
+              best_score: i.best_score,
+              exams_passed: i.exams_passed,
+              exams_taken: i.exams_taken,
+            })),
+          };
+
+      const res = await fetch('/api/ai/summarize-activity', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reports })
+        body: JSON.stringify({
+          scope: isIntern ? 'self' : 'all',
+          exams: examPayload ?? null,
+          roadmaps: roadmapPayload,
+          projects: buildProjectPayload(),
+        }),
       });
       const data = await res.json();
-      if (data.summary) {
-        setAiStandupSummary(data.summary);
+      if (res.ok && data.summary) {
+        setAiActivitySummary(data.summary);
+        setActivityModelLabel(typeof data.model === 'string' ? data.model : null);
       } else {
-        setAiStandupSummary('Đã tổng hợp: Các thực tập sinh hoàn thành tốt tiến độ hôm nay. 1 nhân sự nhóm DevOps gặp vướng mắc về AWS IAM Policy.');
+        setActivitySummaryError(
+          data.error || 'Không tạo được tóm tắt hoạt động. Vui lòng thử lại.'
+        );
       }
-    } catch (e) {
-      setAiStandupSummary('Đã tổng hợp (Chế độ dự phòng): Tất cả 4 báo cáo hôm nay đã được ghi nhận. Nhóm Java và React hoạt động tốt, nhóm DevOps cần hỗ trợ cấu hình IAM.');
+    } catch {
+      setActivitySummaryError(
+        'Không gọi được dịch vụ AI (lỗi kết nối). Số liệu trên các thẻ bên dưới vẫn chính xác.'
+      );
     } finally {
       setIsSummarizing(false);
     }
@@ -169,7 +284,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold text-slate-900 dark:text-slate-100 bg-amber-400 hover:bg-amber-300 shadow-md transition-all cursor-pointer disabled:opacity-50"
             >
               <Sparkles className="w-4 h-4" />
-              <span>{isSummarizing ? 'Đang tóm tắt...' : 'Tóm tắt Standup AI'}</span>
+              <span>{isSummarizing ? 'Đang tóm tắt...' : 'Tóm tắt hoạt động'}</span>
             </button>
 
             <button
@@ -190,16 +305,31 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
         </div>
 
-        {/* AI Standup Summary Output Box */}
-        {aiStandupSummary && (
+        {/* Hộp kết quả Tóm tắt hoạt động (điểm thi + lộ trình + dự án) */}
+        {activitySummaryError && (
+          <div className="mt-6 pt-4 border-t border-slate-700/80 bg-amber-950/40 border border-amber-800/60 rounded-xl p-4 text-xs text-amber-200 flex items-start gap-2">
+            <AlertCircle className="w-4 h-4 shrink-0 mt-px" />
+            <span>{activitySummaryError}</span>
+          </div>
+        )}
+
+        {aiActivitySummary && (
           <div className="mt-6 pt-4 border-t border-slate-700/80 bg-slate-800/60 rounded-xl p-4 text-xs text-slate-200">
             <div className="flex items-center gap-2 text-amber-300 font-bold mb-2">
               <Sparkles className="w-4 h-4" />
-              <span>TỔNG HỢP STANDUP AI TRONG NGÀY (Gemini 3.6 Flash)</span>
+              <span>
+                TÓM TẮT HOẠT ĐỘNG —{' '}
+                {currentRole === 'INTERN' ? 'CỦA BẠN' : 'TOÀN BỘ THÀNH VIÊN'}
+                {activityModelLabel ? ` (${activityModelLabel})` : ''}
+              </span>
             </div>
             <div className="prose prose-invert prose-xs max-w-none whitespace-pre-line leading-relaxed text-slate-300">
-              {aiStandupSummary}
+              {aiActivitySummary}
             </div>
+            <p className="mt-3 pt-2 border-t border-slate-700/60 text-[11px] text-slate-500">
+              Tổng hợp từ: điểm thi Anthropic Mock Exam, tiến độ Lộ trình Đào tạo &amp; Skills, và
+              Dự án &amp; Kanban Worklog.
+            </p>
           </div>
         )}
       </div>

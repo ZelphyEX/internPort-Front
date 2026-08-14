@@ -974,6 +974,7 @@ export default function App() {
               onDeleteProject={handleDeleteProject}
               onReloadProjects={reloadProjects}
               currentRole={currentRole}
+              currentUser={currentUser}
             />
           )}
 

@@ -1,11 +1,11 @@
 # Gimasys Intern Portal
 
-A training & internship management portal for Gimasys Joint Stock Company. Interns follow assigned learning roadmaps, mentors/admins manage users, groups, documents, and progress, and an AI assistant (Gemini) helps with onboarding questions, intern evaluation, and daily-standup summaries.
+A training & internship management portal for Gimasys Joint Stock Company. Interns follow assigned learning roadmaps, mentors/admins manage users, groups, documents, and progress, and an AI assistant (Claude) helps with onboarding questions, intern evaluation, activity summaries, and daily-standup summaries.
 
 ## Tech stack
 
 - **Frontend**: React 19 + TypeScript, built with Vite 6, styled with Tailwind CSS v4. Entry point: `index.html` → `src/main.tsx` → `src/App.tsx`.
-- **Backend (this repo)**: Express server (`server.ts`) that in dev mode mounts Vite as middleware (single process, single port), and in production serves the built `dist/` static assets plus a few `/api/ai/*` routes that call the Gemini API (`@google/genai`).
+- **Backend (this repo)**: Express server (`server.ts`) that in dev mode mounts Vite as middleware (single process, single port), and in production serves the built `dist/` static assets plus a few `/api/ai/*` routes that call the Claude API (`@anthropic-ai/sdk`, model `claude-opus-5`).
 - **Backend (real data)**: A separate FastAPI service (Swagger at its own `/docs`) is the system of record — auth, users, groups, documents, roadmaps, dashboards, comments. This repo's `src/services/api.ts` is the typed client for it.
 
 ## Roles
@@ -18,7 +18,7 @@ A training & internship management portal for Gimasys Joint Stock Company. Inter
 - `src/services/api.ts` — REST client for the FastAPI backend (`/api/v1/...`), JWT bearer auth with auto-refresh on 401. Base URL from `VITE_API_BASE_URL` (defaults to same-origin `/api/v1`).
 - `src/services/mappers.ts` — converts between the backend's snake_case shapes (`ApiUser`, `ApiDocument`, `ApiGroup`, ...) and the frontend's shapes (`AuthUser`, `DocumentResource`, `Group`, ...).
 - `src/data/mockData.ts` — seed/demo data. Several views still read from here (see status below), and it also backs the offline-fallback / demo-login path.
-- `server.ts` — Express app; `/api/ai/chat`, `/api/ai/evaluate`, `/api/ai/summarize-standup` call Gemini directly (needs `GEMINI_API_KEY`).
+- `server.ts` — Express app; `/api/ai/chat`, `/api/ai/evaluate`, `/api/ai/summarize-standup`, `/api/ai/summarize-activity` call Claude directly (needs `ANTHROPIC_API_KEY`). `/summarize-activity` is the Dashboard's "Tóm tắt hoạt động" — the client sends already-permission-scoped exam/roadmap/project data, the server never queries the DB itself.
 
 ## Current integration status (be accurate about this — don't claim more than what's true)
 

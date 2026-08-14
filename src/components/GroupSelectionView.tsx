@@ -10,6 +10,8 @@ import {
   ChevronRight,
   ChevronDown,
   Search,
+  Trash2,
+  UserCheck,
 } from 'lucide-react';
 import { AuthUser, Group, Intern, UserRole } from '../types';
 import { groupsApi, tokenStore, ApiError, ApiGroupMember } from '../services/api';
@@ -65,6 +67,7 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
   const [savingMember, setSavingMember] = useState(false);
   const [internSearch, setInternSearch] = useState('');
   const [pickedInternIds, setPickedInternIds] = useState<string[]>([]);
+  const [deletingGroupId, setDeletingGroupId] = useState<string | null>(null);
 
   const isManager = currentRole !== 'INTERN';
   const online = tokenStore.isAuthenticated();
@@ -137,6 +140,90 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
     }
   };
 
+  /**
+   * Tự thêm CHÍNH MÌNH (Mentor/Admin đang đăng nhập) vào nhóm.
+   *
+   * Danh sách `interns` chỉ chứa Thực tập sinh (`GET /users?role=INTERN`) nên Mentor
+   * không bao giờ tự xuất hiện trong kho chọn — cần nút riêng. Backend không giới hạn
+   * vai trò ở `POST /groups/{id}/members`, nên Mentor vào nhóm được như mọi thành viên
+   * khác, và cũng kế thừa lộ trình/dự án của nhóm y hệt.
+   */
+  const handleAddSelf = async () => {
+    if (!openGroupId) return;
+    const myId = Number(currentUser.id);
+    if (!Number.isInteger(myId)) {
+      alert('Tài khoản của bạn là dữ liệu demo, chưa có trên máy chủ nên không thêm vào nhóm được.');
+      return;
+    }
+    setSavingMember(true);
+    try {
+      const res = await groupsApi.addMembers(Number(openGroupId), [myId]);
+      loadMembers(openGroupId);
+      onReloadGroups();
+      if (res.added_count === 0) {
+        alert('Bạn đã ở trong nhóm này rồi.');
+        return;
+      }
+      const inherited: string[] = [];
+      if (res.inherited_roadmaps > 0) inherited.push(`${res.inherited_roadmaps} lượt gán lộ trình`);
+      if (res.inherited_projects > 0) inherited.push(`${res.inherited_projects} lượt vào dự án`);
+      alert(
+        `Đã thêm bạn vào nhóm.` +
+          (inherited.length > 0 ? `\n\nBạn nhận luôn theo nhóm: ${inherited.join(' và ')}.` : '')
+      );
+    } catch (err) {
+      alert(err instanceof ApiError ? err.detail : 'Thêm bạn vào nhóm thất bại.');
+    } finally {
+      setSavingMember(false);
+    }
+  };
+
+  /**
+   * Xoá hẳn một nhóm. Xác nhận hai lớp vì đây là hành động không hoàn tác được:
+   * backend xoá nhóm KÈM toàn bộ bản ghi thành viên trong cùng một transaction.
+   *
+   * Backend trả 409 nếu còn lượt gán lộ trình trỏ vào nhóm này (`source_group_id`) —
+   * hiện đúng lý do đó ra thay vì báo "xoá thất bại" chung chung, để Mentor biết phải
+   * huỷ gán lộ trình cho nhóm trước.
+   */
+  const handleDeleteGroup = async (groupId: string, groupName: string, memberCount: number) => {
+    if (!isBackendId(groupId)) {
+      alert('Nhóm này chỉ tồn tại cục bộ (tạo khi mất mạng), chưa có trên máy chủ để xoá.');
+      return;
+    }
+    if (
+      !window.confirm(
+        `⚠️ XOÁ NHÓM "${groupName}"?\n\n` +
+          `Nhóm này đang có ${memberCount} thành viên.\n\n` +
+          'Hành động này KHÔNG THỂ HOÀN TÁC:\n' +
+          '• Nhóm và toàn bộ danh sách thành viên của nhóm sẽ bị xoá vĩnh viễn.\n' +
+          '• Từ nay không gán lộ trình / dự án theo nhóm này được nữa.\n\n' +
+          'Tài khoản của các thành viên KHÔNG bị xoá, và lộ trình / dự án họ đang học vẫn giữ nguyên.'
+      )
+    ) {
+      return;
+    }
+    if (!window.confirm(`Xác nhận lần cuối: xoá vĩnh viễn nhóm "${groupName}"?`)) return;
+
+    setDeletingGroupId(groupId);
+    try {
+      await groupsApi.remove(Number(groupId));
+      if (openGroupId === groupId) setOpenGroupId(null);
+      onReloadGroups();
+    } catch (err) {
+      alert(
+        err instanceof ApiError
+          ? err.status === 409
+            ? `Không xoá được nhóm "${groupName}": nhóm đang được dùng trong một lượt gán lộ trình.\n\n` +
+              'Sang tab "Lộ trình Đào tạo & Skills" huỷ gán lộ trình cho nhóm này trước, rồi xoá lại.'
+            : err.detail
+          : 'Xoá nhóm thất bại (lỗi kết nối).'
+      );
+    } finally {
+      setDeletingGroupId(null);
+    }
+  };
+
   const handleRemoveMember = async (userId: number, fullName: string) => {
     if (!openGroupId) return;
     if (
@@ -169,6 +256,8 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
 
   // Intern chưa có trong nhóm + khớp từ khoá tìm kiếm.
   const memberIdSet = new Set((members || []).map((m) => String(m.id)));
+  // Người đang đăng nhập đã ở trong nhóm đang mở chưa — dùng để ẩn nút "Thêm chính tôi".
+  const isSelfMember = memberIdSet.has(String(currentUser.id));
   const candidates = interns
     .filter((i) => !memberIdSet.has(i.id))
     .filter((i) => {
@@ -285,34 +374,53 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
                   key={g.id}
                   className="bg-slate-800/90 border border-slate-700/80 rounded-2xl shadow-md overflow-hidden"
                 >
-                  <button
-                    type="button"
-                    onClick={() => setOpenGroupId(isOpen ? null : g.id)}
-                    className="w-full p-4 flex items-center justify-between gap-3 hover:bg-slate-800 transition-colors cursor-pointer text-left"
-                  >
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-sm shrink-0">
-                        {g.name.slice(0, 2).toUpperCase()}
-                      </div>
-                      <div className="min-w-0">
-                        <p className="font-extrabold text-white text-sm truncate">{g.name}</p>
-                        <div className="flex items-center gap-1.5 mt-1 flex-wrap">
-                          <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-slate-700 text-slate-200 border-slate-600 uppercase">
-                            {memberCount} thành viên
-                          </span>
-                          {g.cohort && (
-                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-slate-700 text-slate-300 border-slate-600 uppercase">
-                              Niên khoá {g.cohort}
+                  {/* Nút mở/đóng và nút xoá nằm CẠNH nhau trong một hàng flex — không
+                      lồng nút xoá vào trong nút mở (button trong button là HTML không
+                      hợp lệ, và bấm xoá sẽ kích hoạt luôn cả việc mở nhóm). */}
+                  <div className="flex items-stretch">
+                    <button
+                      type="button"
+                      onClick={() => setOpenGroupId(isOpen ? null : g.id)}
+                      className="flex-1 min-w-0 p-4 flex items-center justify-between gap-3 hover:bg-slate-800 transition-colors cursor-pointer text-left"
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="w-11 h-11 rounded-xl bg-gradient-to-br from-blue-600 to-indigo-700 text-white flex items-center justify-center font-black text-sm shrink-0">
+                          {g.name.slice(0, 2).toUpperCase()}
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-extrabold text-white text-sm truncate">{g.name}</p>
+                          <div className="flex items-center gap-1.5 mt-1 flex-wrap">
+                            <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-slate-700 text-slate-200 border-slate-600 uppercase">
+                              {memberCount} thành viên
                             </span>
-                          )}
+                            {g.cohort && (
+                              <span className="text-[9px] font-bold px-1.5 py-0.2 rounded border bg-slate-700 text-slate-300 border-slate-600 uppercase">
+                                Niên khoá {g.cohort}
+                              </span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                    <span className="flex items-center gap-1 text-[11px] font-bold text-blue-300 shrink-0">
-                      <span className="hidden sm:inline">Thành viên</span>
-                      {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
-                    </span>
-                  </button>
+                      <span className="flex items-center gap-1 text-[11px] font-bold text-blue-300 shrink-0">
+                        <span className="hidden sm:inline">Thành viên</span>
+                        {isOpen ? <ChevronDown className="w-4 h-4" /> : <ChevronRight className="w-4 h-4" />}
+                      </span>
+                    </button>
+
+                    <button
+                      type="button"
+                      disabled={deletingGroupId === g.id}
+                      onClick={() => handleDeleteGroup(g.id, g.name, memberCount)}
+                      title={`Xoá nhóm "${g.name}"`}
+                      className="px-4 flex items-center text-slate-500 hover:text-red-400 hover:bg-red-950/30 disabled:opacity-50 transition-colors cursor-pointer shrink-0 border-l border-slate-700/60"
+                    >
+                      {deletingGroupId === g.id ? (
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="w-4 h-4" />
+                      )}
+                    </button>
+                  </div>
 
                   {isOpen && (
                     <div className="border-t border-slate-700/80 p-4 space-y-4">
@@ -359,6 +467,24 @@ export const GroupSelectionView: React.FC<GroupSelectionViewProps> = ({
                           </div>
                         )}
                       </div>
+
+                      {/* Tự thêm mình vào nhóm — Mentor/Admin không có trong kho chọn
+                          bên dưới (kho đó chỉ liệt kê Thực tập sinh) nên cần nút riêng. */}
+                      {isBackendId(g.id) && !isSelfMember && (
+                        <button
+                          type="button"
+                          disabled={savingMember}
+                          onClick={handleAddSelf}
+                          className="w-full py-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 disabled:opacity-50 disabled:cursor-not-allowed text-white text-xs font-extrabold flex items-center justify-center gap-2 cursor-pointer"
+                        >
+                          {savingMember ? (
+                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                          ) : (
+                            <UserCheck className="w-3.5 h-3.5" />
+                          )}
+                          <span>Thêm chính tôi ({currentUser.name}) vào nhóm này</span>
+                        </button>
+                      )}
 
                       {/* Thêm thành viên */}
                       {isBackendId(g.id) && (

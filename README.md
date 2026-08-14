@@ -1,11 +1,11 @@
 # Gimasys Intern Portal
 
-Cổng thông tin Đào tạo & Quản lý Thực tập sinh của Gimasys. Intern theo dõi lộ trình học được giao, Mentor/Admin quản lý user/nhóm/tài liệu/tiến độ, và một trợ lý AI (Gemini) hỗ trợ hỏi đáp onboarding, đánh giá thực tập sinh, tổng hợp báo cáo standup hằng ngày.
+Cổng thông tin Đào tạo & Quản lý Thực tập sinh của Gimasys. Intern theo dõi lộ trình học được giao, Mentor/Admin quản lý user/nhóm/tài liệu/tiến độ, và một trợ lý AI (Claude) hỗ trợ hỏi đáp onboarding, đánh giá thực tập sinh, tóm tắt hoạt động và tổng hợp báo cáo standup hằng ngày.
 
 ## Kiến trúc
 
 - **Frontend**: React 19 + TypeScript, build bằng Vite 6, giao diện Tailwind CSS v4. Entry point: `index.html` → `src/main.tsx` → `src/App.tsx`.
-- **Server (repo này)**: Express (`server.ts`) — dev mode gắn Vite làm middleware (một process, một port); production phục vụ `dist/` tĩnh, cộng thêm các route `/api/ai/*` gọi Gemini API.
+- **Server (repo này)**: Express (`server.ts`) — dev mode gắn Vite làm middleware (một process, một port); production phục vụ `dist/` tĩnh, cộng thêm các route `/api/ai/*` gọi Claude API (`@anthropic-ai/sdk`).
 - **Backend dữ liệu thật**: Một service FastAPI riêng (có Swagger `/docs` riêng) là nguồn dữ liệu chính — auth, users, groups, documents, roadmaps, dashboard, comments. `src/services/api.ts` là client TypeScript gọi service này.
 
 ## Chạy local
@@ -19,7 +19,7 @@ npm install
 Tạo file `.env.local` ở thư mục gốc:
 
 ```
-GEMINI_API_KEY=              # khoá Gemini API — cần để dùng AI Assistant/Evaluator/Standup Summary
+ANTHROPIC_API_KEY=           # khoá Claude API (Anthropic) — cần để dùng AI Assistant/Evaluator/Tóm tắt hoạt động
 VITE_API_BASE_URL=           # base URL backend FastAPI thật, vd: https://your-backend/api/v1
 ```
 
@@ -62,7 +62,7 @@ Cần cấu hình trong **Settings → Secrets and variables → Actions** của
 | Tên | Ghi chú |
 |---|---|
 | `WIF_PROVIDER` | `projects/<NUMBER>/locations/global/workloadIdentityPools/<POOL>/providers/<PROVIDER>` |
-| `GEMINI_API_KEY` | Được forward vào Cloud Run runtime để `/api/ai/*` hoạt động ở production |
+| `ANTHROPIC_API_KEY` | Được forward vào Cloud Run runtime để `/api/ai/*` hoạt động ở production |
 
 Setup GCP một lần (chạy `gcloud` local), tóm tắt trong comment đầu file `deploy.yml`:
 1. Bật API: `run.googleapis.com`, `artifactregistry.googleapis.com`, `iamcredentials.googleapis.com`.
