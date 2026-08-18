@@ -77,9 +77,28 @@ import {
  */
 const KEEP_ON_SIGN_OUT = new Set(['gimasys_theme', 'gimasys_session_ended']);
 
+/**
+ * Tiến độ luyện tập (đề Mock Exam, chế độ Luyện tập) KHÔNG có bản sao trên
+ * server — backend không có khái niệm "bài thi tạm", chỉ chế độ Thi mới submit
+ * lên `/exam-attempts` (xem MockExamView). Xoá key này là MẤT VĨNH VIỄN, khác
+ * hẳn các cache khác (interns/projects/documents/...) vốn tự nạp lại từ server
+ * ngay sau lần đăng nhập kế tiếp — nên không dọn theo quy tắc chung.
+ *
+ * Giữ lại an toàn: khoá đã gắn theo user id (`gimasys_exam_saved_u<id>`, xem
+ * MockExamView.tsx), nên không gây lẫn tiến độ sang tài khoản khác đăng nhập
+ * sau đó trên cùng máy — đúng tinh thần "chỉ dọn cái gì có thể nạp lại từ
+ * server, hoặc có thể lẫn sang tài khoản khác" mà hàm này hướng tới.
+ */
+const KEEP_PREFIX_ON_SIGN_OUT = 'gimasys_exam_saved_u';
+
 function clearAccountScopedCache(): void {
   Object.keys(localStorage)
-    .filter((k) => k.startsWith('gimasys_') && !KEEP_ON_SIGN_OUT.has(k))
+    .filter(
+      (k) =>
+        k.startsWith('gimasys_') &&
+        !KEEP_ON_SIGN_OUT.has(k) &&
+        !k.startsWith(KEEP_PREFIX_ON_SIGN_OUT)
+    )
     .forEach((k) => localStorage.removeItem(k));
 }
 
