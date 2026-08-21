@@ -28,6 +28,7 @@ import {
   tokenStore,
 } from '../services/api';
 import { ExamAttemptReviewModal } from './ExamAttemptReviewModal';
+import { useDismissablePopup } from '../hooks/useDismissablePopup';
 
 /**
  * Bảng điểm Anthropic Mock Exam — mở ra khi bấm thẻ "Điểm Năng lực TB".
@@ -260,6 +261,7 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
   onClose,
 }) => {
   const isMentorOrAdmin = currentRole !== 'INTERN';
+  const dismiss = useDismissablePopup(onClose);
 
   const [mySummary, setMySummary] = useState<ApiExamSummary | null>(null);
   const [overview, setOverview] = useState<ApiExamOverview | null>(null);
@@ -327,7 +329,10 @@ export const ExamScoresModal: React.FC<ExamScoresModalProps> = ({
   );
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto"
+      {...dismiss}
+    >
       {/* Hộp cao tối đa 90vh, chia hai tầng: đầu đề cố định + phần thân TỰ CUỘN.
           Bản cũ để cả hộp dài ra rồi cho đầu đề `sticky top-0`. Sticky là phần tử
           được định vị nên nó VẼ ĐÈ lên danh sách bên dưới — cuộn tới đâu là vài

@@ -35,105 +35,19 @@ import {
   EXAM_PASS_PERCENT,
   EXAM_SCORE_MAX,
   ApiError,
+  ApiExamAttempt,
 } from '../services/api';
 import { ExamScoresModal } from './ExamScoresModal';
+import { ExamAttemptReviewModal } from './ExamAttemptReviewModal';
+import {
+  Choice,
+  Question,
+  Exam,
+  EXAMS_DATA,
+  ScenarioQuestionBlock,
+} from '../data/examCatalog';
 
-// Import Claude Developer (dev)
-import dev1 from '../data/CF.tests/exams/exam_dev_1.json';
-import dev2 from '../data/CF.tests/exams/exam_dev_2.json';
-import dev3 from '../data/CF.tests/exams/exam_dev_3.json';
-import dev4 from '../data/CF.tests/exams/exam_dev_4.json';
-import dev5 from '../data/CF.tests/exams/exam_dev_5.json';
-import dev6 from '../data/CF.tests/exams/exam_dev_6.json';
 
-// Import Claude Foundation (foundation)
-import fd1 from '../data/CF.tests/exams/exam_foundation_1.json';
-import fd2 from '../data/CF.tests/exams/exam_foundation_2.json';
-import fd3 from '../data/CF.tests/exams/exam_foundation_3.json';
-import fd4 from '../data/CF.tests/exams/exam_foundation_4.json';
-import fd5 from '../data/CF.tests/exams/exam_foundation_5.json';
-import fd6 from '../data/CF.tests/exams/exam_foundation_6.json';
-
-// Import Claude Architect Professional (pro)
-import pro1 from '../data/CF.tests/exams/exam_pro_1.json';
-import pro2 from '../data/CF.tests/exams/exam_pro_2.json';
-import pro3 from '../data/CF.tests/exams/exam_pro_3.json';
-import pro4 from '../data/CF.tests/exams/exam_pro_4.json';
-import pro5 from '../data/CF.tests/exams/exam_pro_5.json';
-import pro6 from '../data/CF.tests/exams/exam_pro_6.json';
-
-export interface Choice {
-  key: string;
-  text: string;
-}
-
-export interface Question {
-  number: number;
-  question: string;
-  multiSelect: boolean;
-  choices: Choice[];
-  correct: string[];
-  explanations: Record<string, string>;
-  questionExplanation: string;
-  /** Chỉ đề Claude Foundation có sẵn: bối cảnh DÙNG CHUNG cho một nhóm câu hỏi
-   * (nhiều câu cùng `scenarioId` share đúng một đoạn này). Đề Developer/Professional
-   * không có trường này — bối cảnh của chúng nằm lẫn trong `question`, xem
-   * `splitScenarioAndQuestion()`. */
-  scenario?: string;
-  scenarioTitle?: string;
-}
-
-/**
- * Tách một câu hỏi thành phần "bối cảnh" (Scenario) và phần "câu hỏi thật" (Question)
- * để hiển thị riêng — gộp chung một đoạn văn dài rất khó theo dõi khi bối cảnh có
- * 3-4 câu mô tả tình huống trước khi mới tới câu hỏi thật.
- *
- * Có 2 nguồn dữ liệu khác nhau tuỳ bộ đề:
- *  - Claude Foundation: có sẵn field `scenario` riêng (bối cảnh CHUNG cho cả nhóm
- *    câu hỏi) — dùng thẳng, không cần đoán.
- *  - Claude Developer / Professional: KHÔNG có field riêng, bối cảnh nằm lẫn ngay
- *    trong `question` dưới dạng vài câu mô tả tình huống rồi mới tới câu hỏi thật
- *    (luôn có dấu "?"). Tách bằng cách tìm CÂU cuối cùng có chứa "?" — mọi câu
- *    trước nó là bối cảnh, từ đó trở đi (kể cả câu phụ "Choose 2." nếu có) là câu
- *    hỏi. Đã kiểm tra trên toàn bộ 1056 câu hỏi trong `src/data/CF.tests/exams/`:
- *    100% có ít nhất một dấu "?". Nếu câu hỏi chỉ có một câu duy nhất (không có
- *    bối cảnh dẫn dắt) thì để `scenario` rỗng — giao diện tự ẩn khối bối cảnh.
- */
-export function splitScenarioAndQuestion(
-  q: Question
-): { scenarioTitle?: string; scenario: string; question: string } {
-  if (q.scenario) {
-    return { scenarioTitle: q.scenarioTitle, scenario: q.scenario, question: q.question };
-  }
-
-  const sentences = q.question
-    .trim()
-    .split(/(?<=[.?!])\s+/)
-    .filter((s) => s.trim());
-
-  const lastQuestionIdx = sentences.reduce(
-    (found, s, i) => (s.includes('?') ? i : found),
-    -1
-  );
-
-  if (lastQuestionIdx <= 0) {
-    return { scenario: '', question: q.question };
-  }
-
-  return {
-    scenario: sentences.slice(0, lastQuestionIdx).join(' '),
-    question: sentences.slice(lastQuestionIdx).join(' '),
-  };
-}
-
-export interface Exam {
-  id: string;
-  title: string;
-  code: string;
-  description: string;
-  duration: number; // minutes
-  questions: Question[];
-}
 
 interface SavedSession {
   examId: string;
@@ -157,66 +71,6 @@ interface SavedSession {
  * độ của cùng một đề độc lập hoàn toàn — làm dở cả hai cùng lúc không đụng nhau.
  */
 const sessionSlotKey = (examId: string, mode: 'practice' | 'exam'): string => `${examId}::${mode}`;
-
-/**
- * Hiển thị một câu hỏi tách thành 2 khối rõ ràng: "Tình huống" (bối cảnh, có thể
- * không có) và "Câu hỏi" (điều thực sự được hỏi) — thay cho một đoạn văn dài gộp
- * cả hai, dễ đọc lướt mà bỏ sót câu hỏi thật nằm ở cuối.
- *
- * `compact`: dùng ở màn xem lại kết quả (nhiều câu liệt kê liên tiếp) — cỡ chữ và
- * khoảng cách nhỏ hơn so với màn làm bài (chỉ hiện 1 câu, cần nổi bật).
- */
-export const ScenarioQuestionBlock: React.FC<{ question: Question; compact?: boolean }> = ({
-  question,
-  compact = false,
-}) => {
-  const { scenarioTitle, scenario, question: questionText } = splitScenarioAndQuestion(question);
-
-  return (
-    <div className={compact ? 'space-y-2' : 'space-y-3'}>
-      {scenario && (
-        <div
-          className={`rounded-2xl border border-amber-200 dark:border-amber-900/60 bg-amber-50/70 dark:bg-amber-950/20 ${
-            compact ? 'p-3' : 'p-4'
-          }`}
-        >
-          <div className="flex items-center gap-1.5 mb-1.5">
-            <BookOpen className={compact ? 'w-3.5 h-3.5 text-amber-600 dark:text-amber-400' : 'w-4 h-4 text-amber-600 dark:text-amber-400'} />
-            <span className={`font-black uppercase tracking-wider text-amber-700 dark:text-amber-400 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-              Tình huống{scenarioTitle ? ` — ${scenarioTitle}` : ''}
-            </span>
-          </div>
-          <p
-            className={`text-amber-900/90 dark:text-amber-100/80 leading-relaxed whitespace-pre-line ${
-              compact ? 'text-[11px]' : 'text-sm'
-            }`}
-          >
-            {scenario}
-          </p>
-        </div>
-      )}
-
-      <div className={`rounded-2xl border border-blue-200 dark:border-blue-900/60 bg-blue-50/60 dark:bg-blue-950/20 ${compact ? 'p-3' : 'p-4'}`}>
-        <div className="flex items-center gap-1.5 mb-1.5">
-          <HelpCircle className={compact ? 'w-3.5 h-3.5 text-blue-600 dark:text-blue-400' : 'w-4 h-4 text-blue-600 dark:text-blue-400'} />
-          <span className={`font-black uppercase tracking-wider text-blue-700 dark:text-blue-400 ${compact ? 'text-[9px]' : 'text-[10px]'}`}>
-            Câu hỏi
-          </span>
-        </div>
-        {/* Cùng cỡ chữ/độ đậm/độ giãn dòng với đoạn "Tình huống" ở trên — chỉ khác
-            màu chữ (xanh dương thay vì hổ phách) để vẫn phân biệt được hai khối
-            mà không lệch kiểu chữ giữa hai phần của cùng một câu hỏi. */}
-        <p
-          className={`text-blue-900/90 dark:text-blue-100/80 leading-relaxed whitespace-pre-line ${
-            compact ? 'text-[11px]' : 'text-sm'
-          }`}
-        >
-          {questionText}
-        </p>
-      </div>
-    </div>
-  );
-};
 
 type QuestionNavStatus = 'unanswered' | 'answered' | 'correct' | 'incorrect';
 
@@ -318,157 +172,6 @@ const QuestionNavList: React.FC<{
   </div>
 );
 
-export const EXAMS_DATA: Exam[] = [
-  // Claude Developer
-  {
-    id: 'claude-dev-1',
-    title: 'Claude Developer — Practice Exam 1',
-    code: 'Claude Developer',
-    description: 'Bộ câu hỏi thi thử số 1 ôn luyện chứng chỉ Claude Developer. Đánh giá kỹ năng lập trình với Claude API, sử dụng SDK, tối ưu hóa prompt trong code và xây dựng ứng dụng.',
-    duration: 120,
-    questions: dev1.questions as Question[]
-  },
-  {
-    id: 'claude-dev-2',
-    title: 'Claude Developer — Practice Exam 2',
-    code: 'Claude Developer',
-    description: 'Bộ câu hỏi thi thử số 2 ôn luyện chứng chỉ Claude Developer. Tập trung vào các kỹ thuật gọi tool (Tool Calling), quản lý lỗi API và xử lý bất đồng bộ.',
-    duration: 120,
-    questions: dev2.questions as Question[]
-  },
-  {
-    id: 'claude-dev-3',
-    title: 'Claude Developer — Practice Exam 3',
-    code: 'Claude Developer',
-    description: 'Bộ câu hỏi thi thử số 3 ôn luyện chứng chỉ Claude Developer. Đánh giá thiết kế giải pháp AI, tối ưu hóa Token, xử lý context window dài và kiểm soát chi phí.',
-    duration: 120,
-    questions: dev3.questions as Question[]
-  },
-  {
-    id: 'claude-dev-4',
-    title: 'Claude Developer — Practice Exam 4',
-    code: 'Claude Developer',
-    description: 'Bộ câu hỏi thi thử số 4 ôn luyện chứng chỉ Claude Developer. Bao gồm thiết lập và tích hợp Model Context Protocol (MCP) và các chuẩn bảo mật truyền nhận dữ liệu.',
-    duration: 120,
-    questions: dev4.questions as Question[]
-  },
-  {
-    id: 'claude-dev-5',
-    title: 'Claude Developer — Practice Exam 5',
-    code: 'Claude Developer',
-    description: 'Bộ câu hỏi thi thử số 5 ôn luyện chứng chỉ Claude Developer. Kiểm tra các tình huống thực tế về orchestration, chaining và kết hợp nhiều LLM.',
-    duration: 120,
-    questions: dev5.questions as Question[]
-  },
-  {
-    id: 'claude-dev-6',
-    title: 'Claude Developer — Practice Exam 6',
-    code: 'Claude Developer',
-    description: 'Bộ câu hỏi thi thử số 6 ôn luyện chứng chỉ Claude Developer. Tổng hợp nâng cao, sẵn sàng cho kỳ thi chính thức của Anthropic dành cho nhà phát triển.',
-    duration: 120,
-    questions: dev6.questions as Question[]
-  },
-
-  // Claude Foundation
-  {
-    id: 'claude-foundation-1',
-    title: 'Claude Foundation — Practice Exam 1',
-    code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 1 chứng chỉ Claude Certified Architect - Foundations. Tập trung vào cấu trúc hệ thống, SDK cơ bản, thiết kế Prompt và các đặc điểm mô hình.',
-    duration: 120,
-    questions: fd1.questions as Question[]
-  },
-  {
-    id: 'claude-foundation-2',
-    title: 'Claude Foundation — Practice Exam 2',
-    code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 2 chứng chỉ Claude Certified Architect - Foundations. Đánh giá các quy tắc prompt cơ bản, cấu trúc context window, và định dạng JSON.',
-    duration: 120,
-    questions: fd2.questions as Question[]
-  },
-  {
-    id: 'claude-foundation-3',
-    title: 'Claude Foundation — Practice Exam 3',
-    code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 3 chứng chỉ Claude Certified Architect - Foundations. Tập trung sâu vào cơ chế Tokenizer, Prompt Engineering, và cấu hình cuộc hội thoại.',
-    duration: 120,
-    questions: fd3.questions as Question[]
-  },
-  {
-    id: 'claude-foundation-4',
-    title: 'Claude Foundation — Practice Exam 4',
-    code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 4 chứng chỉ Claude Certified Architect - Foundations. Gồm các câu hỏi thực tế về Model Context Protocol (MCP) và bảo mật cơ bản cho doanh nghiệp.',
-    duration: 120,
-    questions: fd4.questions as Question[]
-  },
-  {
-    id: 'claude-foundation-5',
-    title: 'Claude Foundation — Practice Exam 5',
-    code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 5 chứng chỉ Claude Certified Architect - Foundations. Trắc nghiệm mô phỏng chi tiết các case study thiết kế Prompt và định dạng API.',
-    duration: 120,
-    questions: fd5.questions as Question[]
-  },
-  {
-    id: 'claude-foundation-6',
-    title: 'Claude Foundation — Practice Exam 6',
-    code: 'Claude Foundation',
-    description: 'Bộ câu hỏi thi thử số 6 chứng chỉ Claude Certified Architect - Foundations. Kiểm tra kiến thức tổng hợp, so sánh mô hình Opus, Sonnet và Haiku.',
-    duration: 120,
-    questions: fd6.questions as Question[]
-  },
-
-  // Claude Certified Architect - Professional
-  {
-    id: 'claude-pro-1',
-    title: 'Claude Certified Architect – Professional — Practice Exam 1',
-    code: 'Claude Professional',
-    description: 'Bộ câu hỏi ôn luyện chứng chỉ chuyên gia CCAP-P (Claude Certified Architect - Professional). Gồm các bài toán thiết kế kiến trúc AI cấp doanh nghiệp nâng cao, bảo mật dữ liệu, và tích hợp quy mô lớn.',
-    duration: 120,
-    questions: pro1.questions as Question[]
-  },
-  {
-    id: 'claude-pro-2',
-    title: 'Claude Certified Architect – Professional — Practice Exam 2',
-    code: 'Claude Professional',
-    description: 'Bộ câu hỏi thi thử số 2 cho chứng chỉ CCAP-P. Đánh giá khả năng tối ưu hóa chi phí API, thiết lập caching thông minh, và xử lý Rate Limit trên quy mô lớn.',
-    duration: 120,
-    questions: pro2.questions as Question[]
-  },
-  {
-    id: 'claude-pro-3',
-    title: 'Claude Certified Architect – Professional — Practice Exam 3',
-    code: 'Claude Professional',
-    description: 'Bộ câu hỏi thi thử số 3 cho chứng chỉ CCAP-P. Tập trung vào an toàn AI, hạn chế tấn công prompt injection, và giám sát tính nhất quán của hệ thống.',
-    duration: 120,
-    questions: pro3.questions as Question[]
-  },
-  {
-    id: 'claude-pro-4',
-    title: 'Claude Certified Architect – Professional — Practice Exam 4',
-    code: 'Claude Professional',
-    description: 'Bộ câu hỏi thi thử số 4 cho chứng chỉ CCAP-P. Chứa các câu hỏi tình huống thực tiễn thiết kế hệ thống multi-agent phức tạp và luồng kiểm soát chất lượng.',
-    duration: 120,
-    questions: pro4.questions as Question[]
-  },
-  {
-    id: 'claude-pro-5',
-    title: 'Claude Certified Architect – Professional — Practice Exam 5',
-    code: 'Claude Professional',
-    description: 'Bộ câu hỏi thi thử số 5 cho chứng chỉ CCAP-P. Ôn tập kỹ thuật Fine-tuning, RAG kết hợp, và sử dụng công nghệ thị giác máy tính trong sản xuất.',
-    duration: 120,
-    questions: pro5.questions as Question[]
-  },
-  {
-    id: 'claude-pro-6',
-    title: 'Claude Certified Architect – Professional — Practice Exam 6',
-    code: 'Claude Professional',
-    description: 'Bộ câu hỏi thi thử số 6 cho chứng chỉ CCAP-P. Kiến thức tổng quát cuối cùng, đảm bảo sự sẵn sàng tốt nhất cho kỳ thi chính thức của Anthropic.',
-    duration: 120,
-    questions: pro6.questions as Question[]
-  }
-];
 
 interface MockExamViewProps {
   currentUser: AuthUser | null;
@@ -564,6 +267,61 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
   }, []);
 
   useEffect(reloadBestScores, [reloadBestScores, currentUser]);
+
+  // Lịch sử làm bài của chính mình — để mỗi thẻ đề có nút "Xem lại" mở đúng lần
+  // thi gần nhất, không phải vào Bảng điểm rồi bấm lần nữa mới xem được.
+  const [myAttempts, setMyAttempts] = useState<ApiExamAttempt[]>([]);
+  const [reviewAttempt, setReviewAttempt] = useState<ApiExamAttempt | null>(null);
+
+  const reloadMyAttempts = React.useCallback(() => {
+    if (!tokenStore.isAuthenticated()) {
+      setMyAttempts([]);
+      return;
+    }
+    examAttemptsApi
+      .mine({ page: 1, size: 100 })
+      .then((res) => setMyAttempts(res.items))
+      .catch(() => {/* ngoại tuyến: không có nút xem lại, không chặn gì khác */});
+  }, []);
+
+  useEffect(reloadMyAttempts, [reloadMyAttempts, currentUser]);
+
+  /**
+   * Lần thi GẦN NHẤT của một đề mà còn xem lại được.
+   *
+   * Ưu tiên lần có `answers`: các lần thi trước khi backend lưu đáp án chi tiết
+   * chỉ còn điểm tổng, mở ra sẽ là một hộp trống báo "chưa lưu chi tiết" — thà
+   * lấy lần cũ hơn nhưng xem được. `mine()` đã sắp mới nhất trước.
+   */
+  const latestReviewableAttempt = (examId: string): ApiExamAttempt | undefined => {
+    const ofExam = myAttempts.filter((a) => a.exam_id === examId);
+    return ofExam.find((a) => a.answers) || ofExam[0];
+  };
+
+  /**
+   * Nút "Xem lại" trên thẻ đề — mở đúng lần thi gần nhất của đề đó.
+   *
+   * Là hàm dựng JSX (không phải component riêng) vì cần đọc `myAttempts` và gọi
+   * `setReviewAttempt` của chính màn này; ba khối đề (Foundation / Developer /
+   * Professional) dùng lại cùng một hàm, không nhân bản đoạn JSX ba lần.
+   *
+   * Chỉ hiện khi thực sự có lần thi để xem — chưa thi thì không có gì để mở.
+   */
+  const renderReviewButton = (examId: string) => {
+    const attempt = latestReviewableAttempt(examId);
+    if (!attempt) return null;
+    return (
+      <button
+        type="button"
+        onClick={() => setReviewAttempt(attempt)}
+        title="Xem lại đáp án đã chọn, đáp án đúng, lời giải thích và câu đã đánh dấu"
+        className="mt-1.5 inline-flex items-center gap-1 text-[10px] font-extrabold text-blue-600 dark:text-blue-400 hover:underline cursor-pointer"
+      >
+        <Eye className="w-3 h-3" />
+        <span>Xem lại</span>
+      </button>
+    );
+  };
 
   // Timer countdown
   useEffect(() => {
@@ -757,9 +515,19 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
             // Để xem lại đáp án đã chọn / đáp án đúng / lời giải thích sau này
             // (xem ExamAttemptReviewModal) — đề vẫn tĩnh ở frontend, chỉ gửi lựa chọn.
             answers: selectedAnswers,
+            // Cờ "xem lại sau" người thi tự đánh dấu — gửi kèm để lúc xem lại còn
+            // thấy mình đã băn khoăn ở câu nào. Trước đây cờ chỉ sống trong bộ nhớ
+            // trình duyệt lúc làm bài nên nộp xong là mất.
+            flagged: Object.keys(flaggedQuestions)
+              .filter((k) => flaggedQuestions[Number(k)])
+              .map(Number),
           })
-          // Lấy lại từ server để bảng điểm khớp đúng dữ liệu đã lưu.
-          .then(reloadBestScores)
+          // Lấy lại từ server để bảng điểm khớp đúng dữ liệu đã lưu, và để lần
+          // thi vừa nộp xuất hiện ngay trong nút "Xem lại" trên thẻ đề.
+          .then(() => {
+            reloadBestScores();
+            reloadMyAttempts();
+          })
           .catch((err) => {
             // Không chặn màn kết quả: điểm vẫn hiện, chỉ cảnh báo là chưa đồng bộ.
             //
@@ -927,6 +695,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                         ) : (
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">Chưa thi</span>
                         )}
+                        {renderReviewButton(exam.id)}
                       </div>
 
                       {savedSession ? (
@@ -1037,6 +806,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                         ) : (
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">Chưa thi</span>
                         )}
+                        {renderReviewButton(exam.id)}
                       </div>
 
                       {savedSession ? (
@@ -1147,6 +917,7 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                         ) : (
                           <span className="text-[10px] text-slate-400 dark:text-slate-500 font-bold">Chưa thi</span>
                         )}
+                        {renderReviewButton(exam.id)}
                       </div>
 
                       {savedSession ? (
@@ -1190,6 +961,15 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
           <ExamScoresModal
             currentRole={currentUser?.role || 'INTERN'}
             onClose={() => setIsScoresOpen(false)}
+          />
+        )}
+
+        {/* Xem lại một lần thi cũ ngay từ thẻ đề, không phải vào Bảng điểm rồi
+            bấm thêm lần nữa (nút "Xem lại" ở mỗi thẻ, xem renderReviewButton). */}
+        {reviewAttempt && (
+          <ExamAttemptReviewModal
+            attempt={reviewAttempt}
+            onClose={() => setReviewAttempt(null)}
           />
         )}
       </div>
@@ -1653,6 +1433,13 @@ export const MockExamView: React.FC<MockExamViewProps> = ({ currentUser }) => {
                 <div className="flex items-start justify-between gap-3">
                   <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">Câu hỏi {idx + 1}</span>
                   <div className="flex items-center gap-1.5">
+                    {/* Cờ tự đánh dấu lúc làm bài — nhắc lại đây mình đã băn khoăn. */}
+                    {flaggedQuestions[q.number] && (
+                      <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-900/40">
+                        <Flag className="w-3 h-3 fill-amber-500 text-amber-500" />
+                        <span>Đã đánh dấu</span>
+                      </span>
+                    )}
                     {isCorrect ? (
                       <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 font-bold border border-green-100 dark:border-green-900/30">
                         <CheckCircle className="w-3 h-3" />

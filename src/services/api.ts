@@ -64,8 +64,9 @@ export const tokenStore = {
 /**
  * True khi phiên đã quá hạn tuyệt đối.
  *
- * Server không gia hạn mốc này khi refresh, nên đây là "1 ngày kể từ lúc đăng
- * nhập", không phải "1 ngày kể từ lần thao tác cuối". Trả false nếu chưa biết mốc
+ * Server không gia hạn mốc này khi refresh. Mốc là "lần tới đồng hồ chạm 00:00
+ * giờ Việt Nam" — phiên reset hằng ngày, KHÔNG phải "1 ngày kể từ lúc đăng nhập",
+ * nên đăng nhập 23:50 thì phiên chỉ còn 10 phút. Trả false nếu chưa biết mốc
  * (backend cũ chưa trả `session_expires_at`) — khi đó vẫn còn 401 làm lưới đỡ.
  */
 export function isSessionExpired(): boolean {
@@ -75,7 +76,7 @@ export function isSessionExpired(): boolean {
 
 /** Thông báo dùng chung khi phiên hết hạn theo thời gian. */
 export const SESSION_EXPIRED_DETAIL =
-  'Phiên đăng nhập đã hết hạn (mỗi phiên chỉ kéo dài 1 ngày). Vui lòng đăng nhập lại.';
+  'Phiên đăng nhập đã hết hạn (phiên tự reset vào 0h mỗi ngày). Vui lòng đăng nhập lại.';
 
 // ---- Kiểu dữ liệu chung ---------------------------------------------------
 
@@ -406,6 +407,9 @@ export interface ApiExamAttempt {
   /** Đáp án đã chọn theo từng câu — {"<số câu>": ["A","C"]}. `null`/`undefined`
    * cho các lần thi trước khi có trường này — không xem lại chi tiết được. */
   answers?: Record<string, string[]> | null;
+  /** Số câu tự đánh dấu "xem lại sau" (lá cờ) — [3, 17, 42]. `null`/`undefined`
+   * cho các lần thi trước khi có trường này. */
+  flagged?: number[] | null;
   created_at: string;
 }
 
@@ -1000,6 +1004,8 @@ export const examAttemptsApi = {
     duration_seconds?: number;
     /** Đáp án đã chọn theo từng câu — {"<số câu>": ["A","C"]} — để xem lại sau này. */
     answers?: Record<string, string[]>;
+    /** Số câu tự đánh dấu "xem lại sau" (lá cờ) — [3, 17, 42]. */
+    flagged?: number[];
   }) {
     return request<ApiExamAttempt>('/exam-attempts', { method: 'POST', body: payload });
   },

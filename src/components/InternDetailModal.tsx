@@ -18,6 +18,7 @@ import {
   UserX
 } from 'lucide-react';
 import { Intern, DailyReport, TaskItem, AIEvalReport, UserRole } from '../types';
+import { useDismissablePopup } from '../hooks/useDismissablePopup';
 import { InternProgressPanel } from './InternProgressPanel';
 
 interface InternDetailModalProps {
@@ -39,6 +40,7 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
   onDeleteIntern,
   onKickIntern
 }) => {
+  const dismiss = useDismissablePopup(onClose);
   const [aiReport, setAiReport] = useState<AIEvalReport | null>(null);
   const [isEvaluating, setIsEvaluating] = useState(false);
   const [evalError, setEvalError] = useState<string | null>(null);
@@ -128,7 +130,10 @@ export const InternDetailModal: React.FC<InternDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto"
+      {...dismiss}
+    >
       <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-4xl w-full my-8 shadow-2xl border border-slate-200 dark:border-slate-700 overflow-hidden flex flex-col max-h-[90vh]">
         
         {/* Modal Header Banner */}

@@ -11,6 +11,7 @@ import {
   BookOpen
 } from 'lucide-react';
 import { AIMessage, UserRole } from '../types';
+import { useDismissablePopup } from '../hooks/useDismissablePopup';
 
 interface AIAssistantModalProps {
   isOpen: boolean;
@@ -34,6 +35,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     }
   ]);
   const [inputPrompt, setInputPrompt] = useState('');
+  const dismiss = useDismissablePopup(onClose);
   const [isLoading, setIsLoading] = useState(false);
   const chatEndRef = useRef<HTMLDivElement>(null);
 
@@ -113,7 +115,10 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+      {...dismiss}
+    >
       <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-2xl w-full h-[650px] shadow-2xl border border-slate-200 dark:border-slate-700 flex flex-col overflow-hidden">
         
         {/* Header */}

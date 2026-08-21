@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { X, FileSpreadsheet } from 'lucide-react';
 import { DailyReport, AuthUser } from '../types';
+import { useDismissablePopup } from '../hooks/useDismissablePopup';
 
 interface AddReportModalProps {
   isOpen: boolean;
@@ -33,6 +34,16 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
   const [blockers, setBlockers] = useState('');
   const [hoursLogged, setHoursLogged] = useState(8);
 
+  // Đây là FORM NHẬP LIỆU, không phải popup chỉ xem: bấm lỡ ra ngoài mà đóng
+  // luôn thì mất sạch nội dung báo cáo vừa gõ. Nên vẫn cho đóng bằng cách bấm ra
+  // ngoài / Esc (đúng yêu cầu), nhưng hỏi lại nếu đã nhập gì — trống thì đóng luôn,
+  // không hỏi vô ích.
+  const hasInput = !!(completedToday.trim() || tomorrowPlan.trim() || blockers.trim());
+  const dismiss = useDismissablePopup(() => {
+    if (hasInput && !window.confirm('Đóng biểu mẫu? Nội dung báo cáo vừa nhập sẽ mất.')) return;
+    onClose();
+  });
+
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!completedToday) return;
@@ -55,7 +66,10 @@ export const AddReportModal: React.FC<AddReportModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+    <div
+      className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4"
+      {...dismiss}
+    >
       <div className="bg-white dark:bg-slate-800 rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-200 dark:border-slate-700 space-y-4">
         <div className="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
           <div className="flex items-center gap-2 text-slate-900 dark:text-slate-100 font-extrabold text-base">

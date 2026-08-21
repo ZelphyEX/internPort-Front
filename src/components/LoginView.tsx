@@ -292,7 +292,7 @@ export const LoginView: React.FC<LoginViewProps> = ({ onLogin }) => {
         {/* Khung đăng nhập */}
         <div className="bg-slate-800/90 border border-slate-700/80 rounded-3xl p-6 sm:p-8 shadow-2xl max-w-md w-full backdrop-blur-xl space-y-6">
 
-          {/* Vì sao vừa bị đưa về đây (phiên hết hạn sau 1 ngày, hoặc token hỏng) */}
+          {/* Vì sao vừa bị đưa về đây (phiên reset vào 0h mỗi ngày, hoặc token hỏng) */}
           {sessionNotice && (
             <p className="text-[11px] font-bold text-amber-300 bg-amber-950/30 border border-amber-800/60 rounded-xl px-3 py-2.5 flex items-start gap-2">
               <Clock className="w-4 h-4 shrink-0 mt-px" />

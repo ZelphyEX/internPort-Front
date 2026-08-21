@@ -1,6 +1,7 @@
 import React from 'react';
 import { X, Users, CalendarDays, ExternalLink, Trash2, FolderGit2 } from 'lucide-react';
 import { TaskItem } from '../types';
+import { useDismissablePopup } from '../hooks/useDismissablePopup';
 
 /**
  * Chi tiết một task — mở khi bấm vào thẻ Kanban. Task có thể dùng chung cho
@@ -34,6 +35,8 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   onClose,
   onDelete,
 }) => {
+  const dismiss = useDismissablePopup(onClose);
+
   const handleDelete = () => {
     if (!onDelete) return;
     if (!window.confirm(`Xoá task "${task.title}"? Không thể hoàn tác.`)) return;
@@ -42,7 +45,10 @@ export const TaskDetailModal: React.FC<TaskDetailModalProps> = ({
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
+    <div
+      className="fixed inset-0 z-50 flex items-start sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto"
+      {...dismiss}
+    >
       <div className="w-full max-w-lg my-8 max-h-[90vh] flex flex-col overflow-hidden bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl">
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between gap-3 p-5 border-b border-slate-100 dark:border-slate-700">

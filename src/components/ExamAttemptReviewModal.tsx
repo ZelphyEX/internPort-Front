@@ -1,7 +1,8 @@
 import React from 'react';
-import { X, CheckCircle, XCircle, AlertCircle } from 'lucide-react';
+import { X, CheckCircle, XCircle, AlertCircle, Flag } from 'lucide-react';
 import { ApiExamAttempt } from '../services/api';
-import { EXAMS_DATA, ScenarioQuestionBlock } from './MockExamView';
+import { EXAMS_DATA, ScenarioQuestionBlock } from '../data/examCatalog';
+import { useDismissablePopup } from '../hooks/useDismissablePopup';
 
 /**
  * Xem lại chi tiết MỘT lần thi đã lưu: từng câu — đáp án đã chọn, đáp án đúng,
@@ -22,9 +23,17 @@ export const ExamAttemptReviewModal: React.FC<ExamAttemptReviewModalProps> = ({
   onClose,
 }) => {
   const exam = EXAMS_DATA.find((e) => e.id === attempt.exam_id);
+  const dismiss = useDismissablePopup(onClose);
+  // Cờ "xem lại sau" người thi tự đánh dấu lúc làm bài. `null`/`undefined` với các
+  // lần thi trước khi trường này tồn tại — khi đó không hiện cờ nào (đúng thực tế:
+  // không phải "không đánh dấu câu nào", mà là "không có dữ liệu cờ").
+  const flaggedSet = new Set(attempt.flagged ?? []);
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto">
+    <div
+      className="fixed inset-0 z-[60] flex items-start sm:items-center justify-center p-4 bg-slate-900/70 backdrop-blur-sm overflow-y-auto"
+      {...dismiss}
+    >
       <div className="w-full max-w-3xl my-8 max-h-[90vh] flex flex-col overflow-hidden bg-white dark:bg-slate-800 rounded-2xl border border-slate-200 dark:border-slate-700 shadow-2xl">
         {/* Header */}
         <div className="shrink-0 flex items-start justify-between gap-3 p-5 border-b border-slate-100 dark:border-slate-700 bg-white dark:bg-slate-800">
@@ -79,6 +88,14 @@ export const ExamAttemptReviewModal: React.FC<ExamAttemptReviewModalProps> = ({
                     <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase">
                       Câu hỏi {idx + 1}
                     </span>
+                    <div className="flex items-center gap-1.5 shrink-0">
+                    {/* Cờ tự đánh dấu lúc làm bài — nhắc lại mình đã băn khoăn ở đâu. */}
+                    {flaggedSet.has(q.number) && (
+                      <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded bg-amber-50 dark:bg-amber-950/30 text-amber-700 dark:text-amber-400 font-bold border border-amber-200 dark:border-amber-900/40">
+                        <Flag className="w-3 h-3 fill-amber-500 text-amber-500" />
+                        <span>Đã đánh dấu</span>
+                      </span>
+                    )}
                     {isCorrect ? (
                       <span className="inline-flex items-center gap-1 text-[9px] px-2 py-0.5 rounded bg-green-50 dark:bg-green-900/30 text-green-600 dark:text-green-400 font-bold border border-green-100 dark:border-green-900/30">
                         <CheckCircle className="w-3 h-3" />
@@ -94,6 +111,7 @@ export const ExamAttemptReviewModal: React.FC<ExamAttemptReviewModalProps> = ({
                         <span>Sai</span>
                       </span>
                     )}
+                    </div>
                   </div>
 
                   <ScenarioQuestionBlock question={q} compact />

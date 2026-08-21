@@ -105,7 +105,7 @@ function clearAccountScopedCache(): void {
 export default function App() {
   // Auth State
   const [currentUser, setCurrentUser] = useState<AuthUser | null>(() => {
-    // Phiên chỉ sống 1 ngày. Dọn ngay lúc khởi tạo state, nếu không giao diện
+    // Phiên reset vào 0h mỗi ngày. Dọn ngay lúc khởi tạo state, nếu không giao diện
     // portal sẽ loé lên một nhịp rồi mới bị đá về màn đăng nhập.
     if (isSessionExpired()) {
       endSession();
