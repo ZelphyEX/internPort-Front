@@ -29,6 +29,7 @@ import {
 } from '../services/api';
 import { ExamScoresModal } from './ExamScoresModal';
 
+import { MarkdownText } from './MarkdownText';
 interface DashboardViewProps {
   interns: Intern[];
   projects: Project[];
@@ -328,8 +329,8 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                 {activityModelLabel ? ` (${activityModelLabel})` : ''}
               </span>
             </div>
-            <div className="prose prose-invert prose-xs max-w-none whitespace-pre-line leading-relaxed text-slate-300">
-              {aiActivitySummary}
+            <div className="text-xs leading-relaxed text-slate-300 space-y-1.5">
+              <MarkdownText tone="invert">{aiActivitySummary}</MarkdownText>
             </div>
             <p className="mt-3 pt-2 border-t border-slate-700/60 text-[11px] text-slate-500">
               Tổng hợp từ: điểm thi Anthropic Mock Exam, tiến độ Lộ trình Đào tạo &amp; Skills, và

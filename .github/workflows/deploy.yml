@@ -31,6 +31,11 @@ on:
 #   ANTHROPIC_API_KEY      Claude (Anthropic) API key, forwarded to the running Cloud Run
 #                          service so /api/ai/* routes work in production (see server.ts).
 #
+# Lưu ý: VITE_API_BASE_URL được dùng HAI lần — build-arg (Vite nướng vào bundle client)
+# và env runtime BACKEND_BASE_URL của Cloud Run. Cái sau để chatbot phía server tra cứu
+# được dữ liệu portal; thiếu nó thì server rơi về mặc định localhost:8000 (không có
+# backend nào ở đó trên Cloud Run) và trợ lý báo "fetch failed" ở mọi câu hỏi số liệu.
+#
 # One-time GCP setup (run locally with gcloud), summarized:
 #   1. Enable APIs: run.googleapis.com, artifactregistry.googleapis.com, iamcredentials.googleapis.com
 #   2. Create the Artifact Registry docker repo (AR_REPOSITORY) in GCP_REGION.
@@ -135,6 +140,7 @@ jobs:
             --port=8080
           env_vars: |
             ANTHROPIC_API_KEY=${{ secrets.ANTHROPIC_API_KEY }}
+            BACKEND_BASE_URL=${{ vars.VITE_API_BASE_URL }}
 
       - name: Show deployed URL
         run: |

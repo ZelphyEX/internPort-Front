@@ -14,6 +14,7 @@ import {
 import { AIMessage, AuthUser, UserRole } from '../types';
 import { useDismissablePopup } from '../hooks/useDismissablePopup';
 import { tokenStore } from '../services/api';
+import { MarkdownText } from './MarkdownText';
 
 /**
  * Nhãn tiếng Việt cho tên endpoint mà server trả về trong `lookups`.
@@ -226,9 +227,16 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
                   ? 'bg-blue-600 text-white rounded-br-none' 
                   : 'bg-white dark:bg-slate-800 text-slate-800 dark:text-slate-200 border border-slate-200/90 rounded-bl-none'
               }`}>
-                <div className="prose prose-xs max-w-none leading-relaxed whitespace-pre-line">
-                  {msg.text}
-                </div>
+                {/* Câu của người dùng là chữ thuần, giữ nguyên xuống dòng họ gõ.
+                    Câu của trợ lý là Markdown do Claude sinh ra nên phải render, không
+                    thì hiện nguyên dấu ** và ###. */}
+                {msg.sender === 'user' ? (
+                  <div className="leading-relaxed whitespace-pre-line">{msg.text}</div>
+                ) : (
+                  <div className="leading-relaxed space-y-1.5">
+                    <MarkdownText>{msg.text}</MarkdownText>
+                  </div>
+                )}
 
                 {/* Nguồn dữ liệu đã tra cứu — để người dùng biết con số lấy từ đâu */}
                 {msg.sources && msg.sources.length > 0 && (

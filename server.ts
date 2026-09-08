@@ -14,19 +14,41 @@ const app = express();
 const PORT = Number(process.env.PORT)  || 3000;
 
 /**
- * Backend FastAPI. Dùng chung cho CẢ proxy `/api/v1` của trình duyệt lẫn phần chatbot
- * tự gọi API bằng `fetch` (xem `PORTAL_ENDPOINTS`) — để hai đường không lệch nhau khi
- * đổi chỗ deploy backend.
+ * Gốc API backend mà chatbot dùng để tra cứu dữ liệu portal (xem `PORTAL_ENDPOINTS`).
+ *
+ * Backend KHÔNG nằm cùng service với server này: bản deploy đặt nó ở host riêng và
+ * client gọi thẳng qua `VITE_API_BASE_URL` (xem .github/workflows/deploy.yml), còn
+ * `localhost:8000` chỉ đúng khi chạy local. Trước đây hằng số này bị đặt cứng thành
+ * localhost nên trên production mọi lượt tra cứu đều chết với "fetch failed".
+ *
+ * Thứ tự ưu tiên:
+ *   1. BACKEND_BASE_URL — biến chuyên dụng, ưu tiên cao nhất.
+ *   2. VITE_API_BASE_URL — đúng địa chỉ backend mà client đang gọi, khỏi phải khai
+ *      báo thêm biến mới ở nơi đã cấu hình sẵn giá trị này.
+ *   3. http://localhost:8000/api/v1 — mặc định cho môi trường dev.
  */
+const BACKEND_BASE_URL = (
+  process.env.BACKEND_BASE_URL ||
+  process.env.VITE_API_BASE_URL ||
+  "http://localhost:8000/api/v1"
+).replace(/\/$/, "");
 
-const BACKEND_ORIGIN = (process.env.BACKEND_ORIGIN || "http://localhost:8000").replace(/\/$/, "");
-const BACKEND_BASE_URL = `${BACKEND_ORIGIN}/api/v1`;
+// Cảnh báo sớm ngay lúc khởi động, thay vì đợi người dùng đầu tiên hỏi chatbot rồi
+// mới thấy lỗi mạng khó hiểu trong log.
+if (!process.env.BACKEND_BASE_URL && !process.env.VITE_API_BASE_URL) {
+  console.warn(
+    `[chatbot] BACKEND_BASE_URL chưa được đặt — đang dùng mặc định ${BACKEND_BASE_URL}. ` +
+      "Nếu backend không chạy ở đây, chatbot sẽ không tra cứu được dữ liệu portal."
+  );
+}
 
-// Proxy API requests to backend
+// Proxy API requests to backend. Dùng chung gốc với chatbot để hai đường không lệch
+// nhau; bỏ hậu tố /api/v1 vì client đã tự gắn tiền tố đó vào từng đường dẫn.
+const BACKEND_PROXY_TARGET = BACKEND_BASE_URL.replace(/\/api\/v1$/, "");
 app.use(
   "/api/v1",
   createProxyMiddleware({
-    target: BACKEND_ORIGIN,
+    target: BACKEND_PROXY_TARGET,
     changeOrigin: true,
   })
 );
@@ -521,10 +543,19 @@ Bối cảnh người dùng: ${userContext ? JSON.stringify(userContext) : "Chư
           } catch (err: any) {
             // Backend sập / sai BACKEND_BASE_URL: báo lại cho model để nó nói thật
             // với người dùng, thay vì để cả request 500 và mất luôn câu trả lời.
+            //
+            // `fetch` của Node chỉ ném vỏn vẹn "fetch failed" và giấu nguyên nhân
+            // trong `err.cause`, nên phải tự ghép URL + mã lỗi vào — không thì log
+            // production chẳng nói được là đang gọi nhầm địa chỉ nào.
+            const cause = err?.cause?.code ? ` (${err.cause.code})` : "";
+            const detail = `Không gọi được Intern Portal API tại ${BACKEND_BASE_URL}: ${
+              err?.message ?? err
+            }${cause}`;
+            console.error(`[chatbot] ${detail}`);
             return {
               type: "tool_result" as const,
               tool_use_id: block.id,
-              content: `Không gọi được Intern Portal API: ${err?.message ?? err}`,
+              content: detail,
               is_error: true,
             };
           }

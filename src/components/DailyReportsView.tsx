@@ -16,6 +16,7 @@ import {
 import { DailyReport, UserRole, AuthUser } from '../types';
 import { canReviewReports } from '../services/permissions';
 
+import { MarkdownText } from './MarkdownText';
 interface DailyReportsViewProps {
   reports: DailyReport[];
   onOpenAddReport: () => void;
@@ -133,8 +134,8 @@ export const DailyReportsView: React.FC<DailyReportsViewProps> = ({
               <X className="w-4 h-4" />
             </button>
           </div>
-          <div className="p-5 text-xs leading-relaxed whitespace-pre-line text-slate-700 dark:text-slate-200">
-            {aiSummary}
+          <div className="p-5 text-xs leading-relaxed text-slate-700 dark:text-slate-200 space-y-1.5">
+            <MarkdownText>{aiSummary}</MarkdownText>
           </div>
         </div>
       )}

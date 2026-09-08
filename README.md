@@ -21,7 +21,17 @@ Tạo file `.env.local` ở thư mục gốc:
 ```
 ANTHROPIC_API_KEY=           # khoá Claude API (Anthropic) — cần để dùng AI Assistant/Evaluator/Tóm tắt hoạt động
 VITE_API_BASE_URL=           # base URL backend FastAPI thật, vd: https://your-backend/api/v1
+BACKEND_BASE_URL=            # (tuỳ chọn) base URL backend cho chatbot gọi từ PHÍA SERVER
 ```
+
+`VITE_API_BASE_URL` là địa chỉ **trình duyệt** gọi; `BACKEND_BASE_URL` là địa chỉ
+**server Express** gọi khi chatbot tra cứu dữ liệu portal. Bỏ trống `BACKEND_BASE_URL`
+thì server dùng lại `VITE_API_BASE_URL`, và nếu cả hai đều trống thì rơi về
+`http://localhost:8000/api/v1`. Chỉ cần khai riêng khi hai đường đi khác nhau — ví dụ
+backend nằm sau một địa chỉ nội bộ mà trình duyệt không với tới được.
+
+> Chatbot báo `Không gọi được Intern Portal API tại ...` nghĩa là biến này đang trỏ
+> sai chỗ hoặc backend chưa chạy — URL trong thông báo chính là địa chỉ server đã gọi.
 
 Chạy dev server (Express + Vite, một port duy nhất):
 
@@ -56,7 +66,7 @@ Cần cấu hình trong **Settings → Secrets and variables → Actions** của
 | `AR_REPOSITORY` | `gimasys-intern-portal` | Artifact Registry repo (phải tạo trước) |
 | `CLOUD_RUN_SERVICE` | `gimasys-intern-portal` | Tên Cloud Run service |
 | `WIF_SERVICE_ACCOUNT` | `gh-deployer@my-project.iam.gserviceaccount.com` | Service account deploy |
-| `VITE_API_BASE_URL` | `https://your-backend/api/v1` | Không bí mật, nhưng được "nướng" vào bundle client lúc **build**, nên truyền qua Docker build-arg chứ không phải env runtime |
+| `VITE_API_BASE_URL` | `https://your-backend/api/v1` | Dùng **hai lần**: build-arg (Vite nướng vào bundle client) và env runtime `BACKEND_BASE_URL` của Cloud Run để chatbot phía server tra cứu được dữ liệu portal |
 
 **Secrets:**
 | Tên | Ghi chú |
