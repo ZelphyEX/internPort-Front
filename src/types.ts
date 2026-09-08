@@ -149,6 +149,12 @@ export interface AIMessage {
   sender: 'user' | 'assistant';
   text: string;
   timestamp: string;
+  /**
+   * Các nhóm dữ liệu portal mà trợ lý đã tra cứu để soạn câu trả lời này
+   * (tên endpoint do `/api/ai/chat` trả về). Hiện dưới câu trả lời để người dùng
+   * biết số liệu lấy từ đâu, thay vì phải tin suông.
+   */
+  sources?: string[];
 }
 
 export interface AuthUser {

@@ -1118,6 +1118,7 @@ export default function App() {
         isOpen={isAiAssistantOpen}
         onClose={() => setIsAiAssistantOpen(false)}
         currentRole={currentRole}
+        currentUser={currentUser}
       />
 
     </div>

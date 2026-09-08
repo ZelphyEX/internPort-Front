@@ -13,11 +13,19 @@ const app = express();
 // Cloud Run tiêm biến môi trường PORT (mặc định 8080). Local dev dùng 3000.
 const PORT = Number(process.env.PORT) || 3000;
 
+/**
+ * Backend FastAPI. Dùng chung cho CẢ proxy `/api/v1` của trình duyệt lẫn phần chatbot
+ * tự gọi API bằng `fetch` (xem `PORTAL_ENDPOINTS`) — để hai đường không lệch nhau khi
+ * đổi chỗ deploy backend.
+ */
+const BACKEND_ORIGIN = (process.env.BACKEND_ORIGIN || "http://localhost:8000").replace(/\/$/, "");
+const BACKEND_BASE_URL = `${BACKEND_ORIGIN}/api/v1`;
+
 // Proxy API requests to backend
 app.use(
   "/api/v1",
   createProxyMiddleware({
-    target: "http://localhost:8000",
+    target: BACKEND_ORIGIN,
     changeOrigin: true,
   })
 );
@@ -63,6 +71,352 @@ app.get("/api/health", (req, res) => {
   res.json({ status: "ok", service: "Gimasys Intern Portal API", timestamp: new Date().toISOString() });
 });
 
+// ============================================================================
+// Truy xuất dữ liệu Portal cho chatbot (tool use)
+// ============================================================================
+
+interface PortalEndpoint {
+  /** Đường dẫn dưới `/api/v1`, có thể chứa placeholder dạng `{user_id}`. */
+  path: string;
+  desc: string;
+  /** Query param được phép — tham số ngoài danh sách này bị bỏ trước khi gọi backend. */
+  query?: string[];
+}
+
+/** Phân trang dùng chung ở mọi endpoint danh sách. */
+const PAGING = ["page", "size"];
+
+/**
+ * Danh mục endpoint ĐỌC mà chatbot được phép gọi.
+ *
+ * Vì sao cần: trước đây `/api/ai/chat` chỉ nhận `message` + `role`, nên trợ lý không
+ * nhìn thấy một dòng dữ liệu thật nào của portal — hỏi "em còn task nào chưa xong?"
+ * hay "điểm thi của em bao nhiêu?" thì nó chỉ trả lời chung chung hoặc bịa số. Giờ
+ * nó tự tra cứu qua ĐÚNG các API mà giao diện đang dùng.
+ *
+ * Ba lớp an toàn:
+ * 1. Chỉ GET — không endpoint nào ghi/sửa/xóa dữ liệu.
+ * 2. Allowlist — model chỉ chọn được tên trong bảng này, không tự bịa URL.
+ * 3. Gọi kèm ĐÚNG access token của người đang chat, nên backend vẫn chặn theo vai
+ *    trò: Intern hỏi dữ liệu người khác vẫn nhận 403/404 y như khi bấm trên giao diện.
+ *    Server KHÔNG giữ token đặc quyền nào của riêng nó.
+ */
+const PORTAL_ENDPOINTS: Record<string, PortalEndpoint> = {
+  // --- Người dùng & tổng quan ---
+  me: {
+    path: "/auth/me",
+    desc: "Hồ sơ người đang đăng nhập: id, họ tên, email, vai trò, điểm, tỉ lệ chuyên cần, github",
+  },
+  dashboard_me: {
+    path: "/dashboard/me",
+    desc: "Tổng quan của chính người dùng: lộ trình đang học, % tiến độ, số bài đã hoàn thành",
+  },
+  dashboard_overview: {
+    path: "/dashboard/overview",
+    desc: "Tổng quan toàn hệ thống: số lượng intern, tiến độ trung bình, thống kê chung (chỉ MENTOR/ADMIN)",
+  },
+  dashboard_roadmap: {
+    path: "/dashboard/roadmaps/{roadmap_id}",
+    desc: "Thống kê tiến độ của một lộ trình: ai đang học, ai đã xong (chỉ MENTOR/ADMIN)",
+  },
+  users: {
+    path: "/users",
+    desc: "Danh sách người dùng (chỉ MENTOR/ADMIN). Dùng để tìm id theo tên/email trước khi tra cứu chi tiết",
+    query: [...PAGING, "search", "role", "status"],
+  },
+  user: {
+    path: "/users/{user_id}",
+    desc: "Hồ sơ chi tiết một người dùng (chỉ MENTOR/ADMIN)",
+  },
+  groups: {
+    path: "/groups",
+    desc: "Danh sách nhóm/khóa thực tập (chỉ MENTOR/ADMIN)",
+    query: [...PAGING, "search", "cohort"],
+  },
+  group: {
+    path: "/groups/{group_id}",
+    desc: "Chi tiết một nhóm kèm danh sách thành viên (chỉ MENTOR/ADMIN)",
+  },
+  role_requests: {
+    path: "/role-requests",
+    desc: "Hàng đợi yêu cầu đổi vai trò (chỉ ADMIN)",
+    query: [...PAGING, "status"],
+  },
+  my_role_request: {
+    path: "/role-requests/me",
+    desc: "Yêu cầu đổi vai trò đang chờ duyệt của chính người dùng",
+  },
+
+  // --- Lộ trình đào tạo & bài học ---
+  roadmaps: {
+    path: "/roadmaps",
+    desc: "Danh sách lộ trình đào tạo",
+    query: [...PAGING, "search"],
+  },
+  roadmap: {
+    path: "/roadmaps/{roadmap_id}",
+    desc: "Chi tiết lộ trình: các chặng (module) và bài học trong từng chặng",
+  },
+  my_roadmaps: {
+    path: "/me/roadmaps",
+    desc: "Các lộ trình đã gán cho chính người dùng kèm % tiến độ và assignment_id",
+  },
+  my_roadmap_detail: {
+    path: "/me/roadmaps/{assignment_id}",
+    desc: "Chi tiết một lộ trình của chính người dùng: từng bài học và bài nào đã hoàn thành",
+  },
+  user_roadmaps: {
+    path: "/users/{user_id}/roadmaps",
+    desc: "Các lộ trình của một người khác kèm % tiến độ (chỉ MENTOR/ADMIN)",
+  },
+  user_roadmap_detail: {
+    path: "/users/{user_id}/roadmaps/{assignment_id}",
+    desc: "Chi tiết tiến độ từng bài của một người khác (chỉ MENTOR/ADMIN)",
+  },
+  roadmap_assignments: {
+    path: "/roadmap-assignments",
+    desc: "Danh sách lượt gán lộ trình (ai được gán lộ trình nào, trạng thái) (chỉ MENTOR/ADMIN)",
+    query: [...PAGING, "roadmap_id", "user_id", "group_id", "status"],
+  },
+  documents: {
+    path: "/documents",
+    desc: "Thư viện tài liệu học (VIDEO/PDF/LINK/ARTICLE)",
+    query: [...PAGING, "search", "tag", "type"],
+  },
+  document: { path: "/documents/{document_id}", desc: "Chi tiết một tài liệu" },
+  tags: { path: "/tags", desc: "Danh sách thẻ (tag) dùng cho tài liệu và dự án" },
+  lesson_comments: {
+    path: "/lessons/{module_document_id}/comments",
+    desc: "Thảo luận/hỏi đáp trong một bài học",
+  },
+
+  // --- Dự án & công việc ---
+  projects: {
+    path: "/projects",
+    desc: "Danh sách dự án kèm tiến độ, deadline, khối kỹ thuật",
+    query: [...PAGING, "search", "department", "status", "member_user_id"],
+  },
+  project: {
+    path: "/projects/{project_id}",
+    desc: "Chi tiết một dự án kèm thành viên và tag",
+  },
+  tasks: {
+    path: "/tasks",
+    desc: "Danh sách task Kanban. Intern chỉ thấy task của mình; Mentor lọc được theo assigned_intern_id",
+    query: [...PAGING, "project_id", "assigned_intern_id", "status", "priority"],
+  },
+  task: { path: "/tasks/{task_id}", desc: "Chi tiết một task kèm feedback của mentor" },
+
+  // --- Báo cáo hằng ngày ---
+  daily_reports: {
+    path: "/daily-reports",
+    desc: "Báo cáo công việc hằng ngày. Intern chỉ thấy của mình; Mentor lọc được theo intern_id và khoảng ngày (YYYY-MM-DD)",
+    query: [...PAGING, "intern_id", "date_from", "date_to", "status"],
+  },
+  daily_report: {
+    path: "/daily-reports/{report_id}",
+    desc: "Chi tiết một báo cáo hằng ngày",
+  },
+
+  // --- Điểm thi Anthropic Mock Exam (thang 0–1000, đạt từ 800) ---
+  my_exam_summary: {
+    path: "/exam-attempts/me/summary",
+    desc: "Tổng hợp điểm thi thử của chính người dùng: điểm cao nhất từng đề, số đề đã đạt",
+  },
+  my_exam_attempts: {
+    path: "/exam-attempts/me",
+    desc: "Lịch sử từng lượt thi thử của chính người dùng",
+    query: [...PAGING],
+  },
+  exam_overview: {
+    path: "/exam-attempts/overview",
+    desc: "Bảng điểm thi thử của toàn bộ thành viên (chỉ MENTOR/ADMIN)",
+  },
+  user_exam_summary: {
+    path: "/users/{user_id}/exam-attempts/summary",
+    desc: "Tổng hợp điểm thi thử của một người khác (chỉ MENTOR/ADMIN)",
+  },
+  user_exam_attempts: {
+    path: "/users/{user_id}/exam-attempts",
+    desc: "Lịch sử thi thử của một người khác (chỉ MENTOR/ADMIN)",
+    query: [...PAGING],
+  },
+};
+
+/** Bảng danh mục dán vào mô tả tool để model biết chọn endpoint và tham số nào. */
+const PORTAL_ENDPOINT_CATALOG = Object.entries(PORTAL_ENDPOINTS)
+  .map(([name, ep]) => {
+    const pathParams = (ep.path.match(/\{(\w+)\}/g) ?? []).map(
+      (token) => `${token.slice(1, -1)} (path_params)`
+    );
+    const params = [...pathParams, ...(ep.query ?? [])];
+    return `- ${name}: ${ep.desc}${params.length ? ` — tham số: ${params.join(", ")}` : ""}`;
+  })
+  .join("\n");
+
+const PORTAL_TOOL: Anthropic.Tool = {
+  name: "portal_data",
+  description: `Đọc dữ liệu THẬT từ hệ thống Gimasys Intern Portal (chỉ đọc, không ghi).
+
+Gọi tool này mỗi khi câu hỏi liên quan tới dữ liệu cụ thể của portal: người dùng, nhóm,
+lộ trình đào tạo, tiến độ học, tài liệu, dự án, task Kanban, báo cáo hằng ngày, điểm thi
+thử. TUYỆT ĐỐI không đoán số liệu — chưa tra cứu thì chưa nêu con số nào.
+
+Mọi lời gọi đều chạy dưới quyền của chính người đang chat, nên có thể nhận lỗi 403/404
+nếu họ không được xem dữ liệu đó; khi ấy hãy nói rõ là không có quyền, đừng suy đoán.
+
+Mẹo: cần dữ liệu của một người cụ thể thì tra "users" với tham số search để lấy id trước.
+Có thể gọi nhiều endpoint trong cùng một lượt.
+
+Các endpoint dùng được:
+${PORTAL_ENDPOINT_CATALOG}`,
+  input_schema: {
+    type: "object",
+    properties: {
+      endpoint: {
+        type: "string",
+        enum: Object.keys(PORTAL_ENDPOINTS),
+        description: "Tên endpoint trong danh mục ở trên",
+      },
+      path_params: {
+        type: "object",
+        description:
+          'Giá trị thay cho placeholder trong đường dẫn, ví dụ {"user_id": 12}. Chỉ dùng chuỗi hoặc số.',
+      },
+      query: {
+        type: "object",
+        description:
+          'Query param, ví dụ {"status": "Blocked", "size": 100}. Tham số ngoài danh mục sẽ bị bỏ qua.',
+      },
+    },
+    required: ["endpoint"],
+  },
+};
+
+/**
+ * Trần ký tự cho một kết quả tra cứu. Danh sách 100 bản ghi kèm mô tả dài có thể lên
+ * tới hàng chục nghìn token; cắt ở đây để một câu hỏi không đốt sạch cửa sổ ngữ cảnh.
+ */
+const PORTAL_RESULT_MAX_CHARS = 24_000;
+
+/** Số lượt tra cứu tối đa trong một câu hỏi, chặn vòng lặp tool vô hạn. */
+const MAX_TOOL_ROUNDS = 6;
+
+/**
+ * Gọi một endpoint trong allowlist.
+ *
+ * `body` luôn là chuỗi để nhét thẳng vào `tool_result`; `ok` cho biết có thật sự đọc
+ * được dữ liệu hay không (403/404/tham số sai đều là `false`) — giao diện chỉ khoe
+ * "nguồn dữ liệu" cho những lượt tra cứu thành công.
+ */
+async function callPortalEndpoint(
+  input: unknown,
+  authorization: string
+): Promise<{ ok: boolean; body: string }> {
+  const args = (input ?? {}) as {
+    endpoint?: string;
+    path_params?: Record<string, unknown>;
+    query?: Record<string, unknown>;
+  };
+
+  const endpoint = PORTAL_ENDPOINTS[args.endpoint ?? ""];
+  if (!endpoint) {
+    return {
+      ok: false,
+      body: JSON.stringify({
+        error: `Không có endpoint "${args.endpoint}". Chỉ dùng đúng tên trong danh mục.`,
+      }),
+    };
+  }
+
+  // Thay placeholder. Thiếu tham số thì báo lại cho model thay vì gọi backend với
+  // URL còn nguyên dấu ngoặc (backend sẽ trả 404 khó hiểu).
+  let path = endpoint.path;
+  for (const token of endpoint.path.match(/\{(\w+)\}/g) ?? []) {
+    const key = token.slice(1, -1);
+    const value = args.path_params?.[key];
+    if (value === undefined || value === null || value === "") {
+      return {
+        ok: false,
+        body: JSON.stringify({
+          error: `Thiếu path_params.${key} cho endpoint "${args.endpoint}".`,
+        }),
+      };
+    }
+    path = path.replace(token, encodeURIComponent(String(value)));
+  }
+
+  const allowed = endpoint.query ?? [];
+  const qs = new URLSearchParams();
+  for (const [key, value] of Object.entries(args.query ?? {})) {
+    if (!allowed.includes(key)) continue; // tham số lạ: bỏ, không đẩy sang backend
+    if (value === undefined || value === null || value === "") continue;
+    qs.append(key, String(value));
+  }
+  // Mặc định của backend là 20 bản ghi/trang — quá ít để trả lời "cả nhóm còn bao
+  // nhiêu task", và model dễ kết luận thiếu. Lấy tối đa (MAX_SIZE = 100) ngay lượt đầu.
+  if (allowed.includes("size") && !qs.has("size")) qs.append("size", "100");
+
+  const url = `${BACKEND_BASE_URL}${path}${qs.toString() ? `?${qs}` : ""}`;
+  const res = await fetch(url, {
+    headers: { Authorization: authorization, Accept: "application/json" },
+  });
+  const body = await res.text();
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      body: JSON.stringify({
+        error: `Intern Portal API trả về ${res.status}`,
+        detail: body.slice(0, 500),
+        hint:
+          res.status === 401 || res.status === 403
+            ? "Người dùng hiện tại không có quyền xem dữ liệu này — hãy nói thẳng với họ, không suy đoán thay."
+            : undefined,
+      }),
+    };
+  }
+
+  return {
+    ok: true,
+    body:
+      body.length > PORTAL_RESULT_MAX_CHARS
+        ? `${body.slice(0, PORTAL_RESULT_MAX_CHARS)}\n…[đã cắt bớt vì quá dài — hãy lọc hẹp lại hoặc phân trang để lấy đúng phần cần]`
+        : body,
+  };
+}
+
+/**
+ * Phần system prompt ỔN ĐỊNH (không đổi giữa các lượt chat) — tách riêng và đánh dấu
+ * `cache_control` nên nó cùng với `tools` được cache; phần biến thiên theo người dùng
+ * nằm ở khối sau, đổi cũng không làm hỏng cache.
+ */
+const CHAT_SYSTEM_BASE = `Bạn là Trợ lý Đào tạo & AI Mentor chuyên nghiệp tại Công ty Công nghệ Gimasys (Gimasys Intern Portal Assistant).
+
+Nhiệm vụ của bạn:
+1. Tra cứu và giải thích dữ liệu thật trên portal: tiến độ học, lộ trình, tài liệu, dự án, task Kanban, báo cáo hằng ngày, điểm thi thử, thành viên và nhóm.
+2. Hướng dẫn quy trình thực tập, văn hóa làm việc Gimasys, quy định báo cáo hằng ngày (Daily Standup), Git Workflow, Coding Convention.
+3. Giải đáp thắc mắc chuyên môn kỹ thuật (Java, Spring Boot, React, TypeScript, Cloud AWS/GCP, Salesforce, DevOps, Docker).
+4. Đưa ra lời khuyên phát triển kỹ năng mềm, phương pháp hoàn thành dự án thực tập đúng tiến độ.
+
+Cách trả lời: tiếng Việt lịch sự, truyền cảm hứng, ngắn gọn, có cấu trúc rõ ràng bằng Markdown.`;
+
+/** Phần thêm vào khi phiên chat có token hợp lệ (tra cứu được dữ liệu thật). */
+const CHAT_SYSTEM_WITH_DATA = `
+
+QUY TẮC DỮ LIỆU (bắt buộc):
+- Mọi câu hỏi chạm tới dữ liệu portal đều phải gọi tool \`portal_data\` trước khi trả lời. Không có số liệu trong tay thì không được nêu con số, tên người, tên dự án hay ngày tháng nào.
+- Cần dữ liệu của một người cụ thể: tra \`users\` với \`search\` để lấy \`id\`, rồi mới gọi endpoint chi tiết.
+- Câu hỏi bao quát (ví dụ "em đang thế nào?"): gọi song song nhiều endpoint trong cùng một lượt (\`dashboard_me\`, \`my_roadmaps\`, \`tasks\`, \`my_exam_summary\`, \`daily_reports\`).
+- Tool trả về lỗi 403/404: nói rõ người dùng không có quyền xem hoặc dữ liệu không tồn tại. Không bịa để lấp chỗ trống.
+- Tra cứu xong mà thật sự không có dữ liệu: ghi rõ "chưa có dữ liệu", đừng suy đoán.
+- Luôn ưu tiên con số cụ thể lấy từ tool hơn nhận xét chung chung, và nêu rõ số liệu lấy từ đâu (ví dụ "theo Kanban của dự án X").`;
+
+/** Phần thêm vào khi request không kèm token (chưa đăng nhập / token hết hạn). */
+const CHAT_SYSTEM_NO_DATA = `
+
+LƯU Ý: phiên chat này KHÔNG truy cập được dữ liệu portal (thiếu token đăng nhập). Chỉ trả lời kiến thức chung và quy trình; nếu người dùng hỏi số liệu cụ thể của họ, hãy nói rõ rằng cần đăng nhập lại để trợ lý tra cứu được.`;
+
 // API 1: Chatbot Trợ lý AI Đào tạo & Mentor Gimasys
 app.post("/api/ai/chat", async (req, res) => {
   try {
@@ -72,16 +426,27 @@ app.post("/api/ai/chat", async (req, res) => {
     }
 
     const ai = getAIClient();
-    
-    const systemInstruction = `Bạn là Trợ lý Đào tạo & AI Mentor chuyên nghiệp tại Công ty Công nghệ Gimasys (Gimasys Intern Portal Assistant).
-Vai trò hiện tại của người dùng: ${role || "Thực tập sinh"}.
-Bối cảnh người dùng: ${userContext ? JSON.stringify(userContext) : "Chưa có"}.
 
-Nhiệm vụ của bạn:
-1. Hướng dẫn quy trình thực tập, văn hóa làm việc Gimasys, quy định báo cáo hàng ngày (Daily Standup), Git Workflow, Coding Convention.
-2. Giải đáp thắc mắc chuyên môn kỹ thuật (Java, Spring Boot, React, TypeScript, Cloud AWS/GCP, Salesforce, DevOps, Docker).
-3. Đưa ra lời khuyên phát triển kỹ năng mềm, phương pháp hoàn thành dự án thực tập đúng tiến độ.
-4. Trả lời bằng tiếng Việt lịch sự, truyền cảm hứng, ngắn gọn, có cấu trúc rõ ràng với Markdown.`;
+    // Token của CHÍNH người đang chat, do client chuyển tiếp lên. Server không giữ
+    // token riêng nên không đọc vượt quyền người dùng được — backend vẫn là nơi
+    // quyết định ai được xem gì.
+    const authorization = req.headers.authorization;
+    const canReadPortal =
+      typeof authorization === "string" && authorization.startsWith("Bearer ");
+
+    const systemInstruction: Anthropic.TextBlockParam[] = [
+      {
+        type: "text",
+        text: CHAT_SYSTEM_BASE + (canReadPortal ? CHAT_SYSTEM_WITH_DATA : CHAT_SYSTEM_NO_DATA),
+        cache_control: { type: "ephemeral" },
+      },
+      {
+        type: "text",
+        text: `Hôm nay là ${new Date().toISOString().slice(0, 10)}.
+Vai trò hiện tại của người dùng: ${role || "Thực tập sinh"}.
+Bối cảnh người dùng: ${userContext ? JSON.stringify(userContext) : "Chưa có"}.`,
+      },
+    ];
 
     // `history` do client gửi lên là các lượt trước của cùng cuộc hội thoại. Bản cũ
     // (Gemini) nhận field này nhưng KHÔNG dùng — mỗi lần đều tạo chat mới nên trợ lý
@@ -96,14 +461,93 @@ Nhiệm vụ của bạn:
           .map((h: any) => ({ role: h.role as "user" | "assistant", content: h.content }))
       : [];
 
-    const response = await ai.messages.create({
+    const messages: Anthropic.MessageParam[] = [
+      ...priorTurns,
+      { role: "user", content: message },
+    ];
+    const tools = canReadPortal ? [PORTAL_TOOL] : undefined;
+
+    /** Endpoint đã tra cứu, trả về cho client để hiện "đã đọc dữ liệu gì". */
+    const lookups: string[] = [];
+
+    let response = await ai.messages.create({
       model: AI_MODEL,
       max_tokens: 4096,
       system: systemInstruction,
-      messages: [...priorTurns, { role: "user", content: message }],
+      tools,
+      messages,
     });
 
-    res.json({ reply: textOf(response) });
+    // Vòng lặp tool: chạy tới khi Claude thôi đòi tra cứu, hoặc hết ngân sách lượt.
+    for (let round = 0; response.stop_reason === "tool_use"; round++) {
+      const outOfBudget = round >= MAX_TOOL_ROUNDS;
+      const toolUses = response.content.filter(
+        (block): block is Anthropic.ToolUseBlock => block.type === "tool_use"
+      );
+
+      messages.push({
+        role: "assistant",
+        content: response.content as Anthropic.ContentBlockParam[],
+      });
+
+      // Claude có thể gọi nhiều tool trong CÙNG một lượt. Chạy song song rồi trả
+      // TẤT CẢ `tool_result` trong MỘT message user — tách ra nhiều message sẽ dạy
+      // model thôi gọi song song ở các lượt sau.
+      const results: Anthropic.ToolResultBlockParam[] = await Promise.all(
+        toolUses.map(async (block) => {
+          if (outOfBudget) {
+            return {
+              type: "tool_result" as const,
+              tool_use_id: block.id,
+              content:
+                "Đã đạt giới hạn số lần tra cứu cho một câu hỏi. Hãy trả lời bằng dữ liệu đã có và nói rõ phần nào còn thiếu.",
+              is_error: true,
+            };
+          }
+          const endpointName = (block.input as { endpoint?: string })?.endpoint;
+          try {
+            const result = await callPortalEndpoint(block.input, authorization as string);
+            // Chỉ tính là "nguồn dữ liệu" khi backend thật sự trả dữ liệu — lượt bị
+            // 403/404 mà vẫn hiện chip nguồn sẽ khiến người dùng tưởng câu trả lời
+            // dựa trên dữ liệu họ không hề được xem.
+            if (result.ok && endpointName) lookups.push(endpointName);
+            return {
+              type: "tool_result" as const,
+              tool_use_id: block.id,
+              content: result.body,
+              is_error: !result.ok,
+            };
+          } catch (err: any) {
+            // Backend sập / sai BACKEND_BASE_URL: báo lại cho model để nó nói thật
+            // với người dùng, thay vì để cả request 500 và mất luôn câu trả lời.
+            return {
+              type: "tool_result" as const,
+              tool_use_id: block.id,
+              content: `Không gọi được Intern Portal API: ${err?.message ?? err}`,
+              is_error: true,
+            };
+          }
+        })
+      );
+
+      messages.push({ role: "user", content: results });
+
+      response = await ai.messages.create({
+        model: AI_MODEL,
+        max_tokens: 4096,
+        system: systemInstruction,
+        tools,
+        // Hết ngân sách: khoá tool lại để lượt này chắc chắn ra câu trả lời bằng chữ.
+        tool_choice: outOfBudget ? { type: "none" } : undefined,
+        messages,
+      });
+    }
+
+    res.json({
+      reply: textOf(response),
+      // Danh sách endpoint đã đọc — giao diện dùng để hiện nguồn dữ liệu.
+      lookups: [...new Set(lookups)],
+    });
   } catch (err: any) {
     console.error("Error in /api/ai/chat:", err);
     res.status(500).json({

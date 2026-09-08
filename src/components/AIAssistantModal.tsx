@@ -8,21 +8,65 @@ import {
   Loader2, 
   HelpCircle,
   Code2,
-  BookOpen
+  BookOpen,
+  Database
 } from 'lucide-react';
-import { AIMessage, UserRole } from '../types';
+import { AIMessage, AuthUser, UserRole } from '../types';
 import { useDismissablePopup } from '../hooks/useDismissablePopup';
+import { tokenStore } from '../services/api';
+
+/**
+ * Nhãn tiếng Việt cho tên endpoint mà server trả về trong `lookups`.
+ * Tên nào chưa có nhãn thì hiện nguyên tên — thà xấu còn hơn giấu nguồn.
+ */
+const SOURCE_LABELS: Record<string, string> = {
+  me: 'Hồ sơ cá nhân',
+  dashboard_me: 'Tổng quan cá nhân',
+  dashboard_overview: 'Tổng quan hệ thống',
+  dashboard_roadmap: 'Tiến độ lộ trình',
+  users: 'Danh sách thành viên',
+  user: 'Hồ sơ thành viên',
+  groups: 'Nhóm thực tập',
+  group: 'Chi tiết nhóm',
+  role_requests: 'Yêu cầu đổi vai trò',
+  my_role_request: 'Yêu cầu đổi vai trò của tôi',
+  roadmaps: 'Lộ trình đào tạo',
+  roadmap: 'Chi tiết lộ trình',
+  my_roadmaps: 'Lộ trình của tôi',
+  my_roadmap_detail: 'Tiến độ lộ trình của tôi',
+  user_roadmaps: 'Lộ trình của thành viên',
+  user_roadmap_detail: 'Tiến độ lộ trình của thành viên',
+  roadmap_assignments: 'Lượt gán lộ trình',
+  documents: 'Thư viện tài liệu',
+  document: 'Tài liệu',
+  tags: 'Thẻ phân loại',
+  lesson_comments: 'Thảo luận bài học',
+  projects: 'Dự án',
+  project: 'Chi tiết dự án',
+  tasks: 'Task Kanban',
+  task: 'Chi tiết task',
+  daily_reports: 'Báo cáo hằng ngày',
+  daily_report: 'Chi tiết báo cáo',
+  my_exam_summary: 'Điểm thi thử của tôi',
+  my_exam_attempts: 'Lịch sử thi thử của tôi',
+  exam_overview: 'Bảng điểm thi thử',
+  user_exam_summary: 'Điểm thi thử của thành viên',
+  user_exam_attempts: 'Lịch sử thi thử của thành viên',
+};
 
 interface AIAssistantModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentRole: UserRole;
+  /** Người đang đăng nhập — gửi kèm để trợ lý biết đang nói chuyện với ai. */
+  currentUser?: AuthUser | null;
 }
 
 export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
   isOpen,
   onClose,
-  currentRole
+  currentRole,
+  currentUser
 }) => {
   if (!isOpen) return null;
 
@@ -30,7 +74,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
     {
       id: 'msg-1',
       sender: 'assistant',
-      text: 'Xin chào! Tôi là **Trợ lý AI Mentor Gimasys** (được vận hành bởi Claude Haiku 4.5).\n\nTôi có thể giúp bạn giải đáp thắc mắc kỹ thuật (Java, React, DevOps, Cloud, Salesforce), quy định nộp báo cáo hằng ngày (Daily Standup), quy chuẩn Git Commit hay hướng dẫn viết CV/bảo vệ thực tập. Bạn cần hỗ trợ gì hôm nay?',
+      text: 'Xin chào! Tôi là **Trợ lý AI Mentor Gimasys** (được vận hành bởi Claude Haiku 4.5).\n\nTôi đọc được **dữ liệu thật trên portal** trong phạm vi quyền của bạn: tiến độ lộ trình, task Kanban, dự án, báo cáo hằng ngày, điểm thi thử, tài liệu. Ngoài ra tôi vẫn giải đáp thắc mắc kỹ thuật (Java, React, DevOps, Cloud, Salesforce) và quy trình thực tập. Bạn cần hỗ trợ gì hôm nay?',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
     }
   ]);
@@ -40,10 +84,11 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
   const chatEndRef = useRef<HTMLDivElement>(null);
 
   const promptChips = [
+    'Tôi đang học tới đâu rồi?',
+    'Còn task nào chưa xong hoặc đang bị Blocked?',
+    'Điểm thi thử của tôi thế nào, đề nào cần thi lại?',
     'Quy định nộp báo cáo hằng ngày (Daily Standup) tại Gimasys là gì?',
-    'Hướng dẫn quy chuẩn Git Commit Message & Pull Request?',
-    'Cách xử lý khi gặp Blocker trong task dự án?',
-    'Mentor đánh giá thực tập sinh dựa trên những tiêu chí nào?'
+    'Hướng dẫn quy chuẩn Git Commit Message & Pull Request?'
   ];
 
   useEffect(() => {
@@ -79,13 +124,29 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
           content: m.text,
         }));
 
+      // Chuyển tiếp access token của chính người dùng: server dùng đúng token này để
+      // tra cứu dữ liệu portal, nên backend vẫn chặn theo quyền (Intern không đọc
+      // được dữ liệu người khác). Thiếu token thì trợ lý chỉ trả lời kiến thức chung.
+      const accessToken = tokenStore.getAccess();
       const res = await fetch('/api/ai/chat', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          ...(accessToken ? { Authorization: `Bearer ${accessToken}` } : {})
+        },
         body: JSON.stringify({
           message: messageText,
           history,
-          role: currentRole
+          role: currentRole,
+          userContext: currentUser
+            ? {
+                id: currentUser.id,
+                name: currentUser.name,
+                email: currentUser.email,
+                role: currentUser.role,
+                roleTitle: currentUser.roleTitle
+              }
+            : undefined
         })
       });
 
@@ -95,6 +156,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
           id: `bot-${Date.now()}`,
           sender: 'assistant',
           text: data.reply,
+          sources: Array.isArray(data.lookups) ? data.lookups : undefined,
           timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
         };
         setMessages(prev => [...prev, botMsg]);
@@ -167,6 +229,23 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
                 <div className="prose prose-xs max-w-none leading-relaxed whitespace-pre-line">
                   {msg.text}
                 </div>
+
+                {/* Nguồn dữ liệu đã tra cứu — để người dùng biết con số lấy từ đâu */}
+                {msg.sources && msg.sources.length > 0 && (
+                  <div className="flex flex-wrap items-center gap-1 pt-2 mt-1 border-t border-slate-100 dark:border-slate-700">
+                    <Database className="w-3 h-3 text-emerald-600 shrink-0" />
+                    <span className="text-[10px] font-bold text-slate-400 uppercase">Dữ liệu:</span>
+                    {msg.sources.map((source) => (
+                      <span
+                        key={source}
+                        className="text-[10px] font-semibold px-1.5 py-0.5 rounded-md bg-emerald-50 dark:bg-emerald-900/30 text-emerald-700 dark:text-emerald-300"
+                      >
+                        {SOURCE_LABELS[source] ?? source}
+                      </span>
+                    ))}
+                  </div>
+                )}
+
                 <span className={`text-[10px] block text-right font-medium ${msg.sender === 'user' ? 'text-blue-200' : 'text-slate-400'}`}>
                   {msg.timestamp}
                 </span>
@@ -187,7 +266,7 @@ export const AIAssistantModal: React.FC<AIAssistantModalProps> = ({
               </div>
               <div className="bg-white dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded-2xl p-3 text-xs text-slate-500 dark:text-slate-400 flex items-center gap-2">
                 <Loader2 className="w-4 h-4 animate-spin text-indigo-600" />
-                <span>AI Mentor đang tư duy...</span>
+                <span>AI Mentor đang tra cứu dữ liệu &amp; tư duy...</span>
               </div>
             </div>
           )}
