@@ -11,13 +11,14 @@ dotenv.config({ path: [".env.local", ".env"] });
 
 const app = express();
 // Cloud Run tiêm biến môi trường PORT (mặc định 8080). Local dev dùng 3000.
-const PORT = Number(process.env.PORT) || 3000;
+const PORT = Number(process.env.PORT)  || 3000;
 
 /**
  * Backend FastAPI. Dùng chung cho CẢ proxy `/api/v1` của trình duyệt lẫn phần chatbot
  * tự gọi API bằng `fetch` (xem `PORTAL_ENDPOINTS`) — để hai đường không lệch nhau khi
  * đổi chỗ deploy backend.
  */
+
 const BACKEND_ORIGIN = (process.env.BACKEND_ORIGIN || "http://localhost:8000").replace(/\/$/, "");
 const BACKEND_BASE_URL = `${BACKEND_ORIGIN}/api/v1`;
 
