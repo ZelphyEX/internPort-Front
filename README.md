@@ -6,7 +6,7 @@ Cổng thông tin Đào tạo & Quản lý Thực tập sinh của Gimasys. Inte
 
 - **Frontend**: React 19 + TypeScript, build bằng Vite 6, giao diện Tailwind CSS v4. Entry point: `index.html` → `src/main.tsx` → `src/App.tsx`.
 - **Server (repo này)**: Express (`server.ts`) — dev mode gắn Vite làm middleware (một process, một port); production phục vụ `dist/` tĩnh, cộng thêm các route `/api/ai/*` gọi Claude API (`@anthropic-ai/sdk`).
-- **Backend dữ liệu thật**: Một service FastAPI riêng (có Swagger `/docs` riêng) là nguồn dữ liệu chính — auth và users, groups, documents, roadmaps, dashboard, comments. `src/services/api.ts` là client TypeScript gọi service này.
+- **Backend dữ liệu thật**: Một service FastAPI riêng (có Swagger `/docs` riêng) nguồn dữ liệu chính — auth và users, groups, documents, roadmaps, dashboard, comments. `src/services/api.ts` là client TypeScript gọi service này.
 
 ## Chạy local
 
